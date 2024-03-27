@@ -1,0 +1,1 @@
+# Yale REDCap Authenticator
