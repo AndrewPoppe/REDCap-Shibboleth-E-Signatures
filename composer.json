@@ -1,0 +1,11 @@
+{
+    "require": {
+        "apereo/phpcas": "1.6.1",
+        "onelogin/php-saml": "^4.1"
+    },
+    "config": {
+        "platform": {
+            "php": "7.4.00"
+        }
+    }
+}
