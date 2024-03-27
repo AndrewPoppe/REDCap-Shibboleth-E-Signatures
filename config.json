@@ -1,12 +1,12 @@
 {
-    "name": "CAS Authenticator",
-    "namespace": "YaleREDCap\\CASAuthenticator",
-    "description": "This External Module enables the integration of CAS authentication in any survey, public report, or public dashboard.",
+    "name": "Yale REDCap Authenticator",
+    "namespace": "YaleREDCap\\YaleREDCapAuthenticator",
+    "description": "This External Module enables SSO using Yale CAS and YNHH ADFS.",
     "authors": [
         {
             "name": "Andrew Poppe",
             "email": "andrew.poppe@yale.edu",
-            "institution": "Yale Center for Clinical Investigation"
+            "institution": "Yale University"
         }
     ],
     "system-settings": [

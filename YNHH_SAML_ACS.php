@@ -1,8 +1,8 @@
 <?php
 
-namespace YaleREDCap\CASAuthenticator;
+namespace YaleREDCap\YaleREDCapAuthenticator;
 
-/** @var CASAuthenticator $module */
+/** @var YaleREDCapAuthenticator $module */
 
 session_start();  // IMPORTANT: This is required in order to be able
                   // to store the user data in the session.

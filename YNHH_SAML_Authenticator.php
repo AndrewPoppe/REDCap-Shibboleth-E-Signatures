@@ -1,6 +1,6 @@
 <?php
 
-namespace YaleREDCap\CASAuthenticator;
+namespace YaleREDCap\YaleREDCapAuthenticator;
 
 
 require_once 'vendor/autoload.php';

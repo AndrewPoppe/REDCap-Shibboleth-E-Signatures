@@ -1,6 +1,6 @@
 <?php
 
-namespace YaleREDCap\CASAuthenticator;
+namespace YaleREDCap\YaleREDCapAuthenticator;
 
 /**
  * @property \ExternalModules\Framework $framework
@@ -9,7 +9,7 @@ namespace YaleREDCap\CASAuthenticator;
 
 require_once 'YNHH_SAML_Authenticator.php';
 
-class CASAuthenticator extends \ExternalModules\AbstractExternalModule
+class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
@@ -38,8 +38,7 @@ class CASAuthenticator extends \ExternalModules\AbstractExternalModule
     }
 
     public function redcap_every_page_before_render($project_id = null)
-    {
-
+    {   
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         $page = defined('PAGE') ? PAGE : null;
         if ( empty ($page) ) {
@@ -70,7 +69,7 @@ class CASAuthenticator extends \ExternalModules\AbstractExternalModule
 
         // Only authenticate if we're asked to (but include the login page HTML if we're not logged in)
         parse_str($_SERVER['QUERY_STRING'], $query);
-        if ( !isset ($query['CAS_auth']) ) {
+        if ( !isset ($_GET['CAS_auth']) ) {
             return;
         }
 
@@ -180,205 +179,6 @@ class CASAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $page === 'manager/project.php' ) {
             echo "<style>label:has(.cas-descriptive){width:100%;}</style>";
             return;
-        }
-
-        if ( $page !== 'surveys/index.php' ) {
-            return;
-        }
-
-        // Note: This handles the survey condition as well, since it shares the same $page
-        $initialized = $this->initializeCas();
-        if ( $initialized === false ) {
-            $this->casLog('CAS Authenticator: Error initializing CAS');
-            $this->framework->exitAfterHook();
-            return;
-        }
-
-        $dashboard_hash = filter_input(INPUT_GET, '__dashboard', FILTER_SANITIZE_STRING);
-        $report_hash    = filter_input(INPUT_GET, '__report', FILTER_SANITIZE_STRING);
-        $file_hash      = filter_input(INPUT_GET, '__file', FILTER_SANITIZE_STRING);
-
-        if ( isset ($dashboard_hash) ) {
-            $this->handleDashboard($dashboard_hash);
-        } elseif ( isset ($report_hash) ) {
-            $this->handleReport($report_hash);
-        } elseif ( isset ($file_hash) ) {
-            $this->handleFile($file_hash);
-        }
-    }
-
-    public function redcap_survey_page_top(
-        $project_id,
-        $record,
-        $instrument,
-        $event_id,
-        $group_id,
-        $survey_hash,
-        $response_id,
-        $repeat_instance
-    ) {
-        $projectSettings = $this->framework->getProjectSettings();
-
-        foreach ( $projectSettings["survey"] as $index => $surveyName ) {
-
-            if ( $projectSettings["event"][$index] !== null && $projectSettings["event"][$index] !== $event_id ) {
-                continue;
-            }
-
-            if ( $projectSettings["survey"][$index] !== $instrument ) {
-                continue;
-            }
-
-            $this->framework->log('CAS Authenticator: Handling Survey', [
-                "instrument" => $instrument,
-                "event_id"   => $event_id,
-            ]);
-
-            $surveyPage = filter_input(INPUT_GET, '__page__', FILTER_SANITIZE_NUMBER_INT);
-
-            try {
-                $id = $this->authenticate();
-            } catch ( \CAS_GracefullTerminationException $e ) {
-                if ( $e->getCode() !== 0 ) {
-                    $this->framework->log('CAS Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
-                }
-            } catch ( \Throwable $e ) {
-                $this->framework->log('CAS Authenticator: Error', [ 'error' => $e->getMessage() ]);
-                $this->framework->exitAfterHook();
-                return;
-            } finally {
-                if ( $id === false ) {
-                    $this->framework->exitAfterHook();
-                    return;
-                }
-
-                // Successful authentication
-                if ( $surveyPage === 1 || empty ($surveyPage) ) {
-                    $this->casLog('CAS Authenticator: Survey Auth Succeeded', [
-                        "CASAuthenticator_NetId" => $id,
-                        "instrument"             => $instrument,
-                        "event_id"               => $event_id,
-                        "response_id"            => $response_id
-                    ]);
-                } else {
-                    $this->framework->log('CAS Authenticator: Survey Auth Succeeded', [
-                        "CASAuthenticator_NetId" => $id,
-                        "instrument"             => $instrument,
-                        "event_id"               => $event_id,
-                        "response_id"            => $response_id,
-                        "survey_page"            => $surveyPage
-                    ]);
-                }
-
-                $field = $projectSettings["id-field"][$index];
-
-                if ( $field !== null ) {
-                    ?>
-                    <script type='text/javascript' defer>
-                        setTimeout(function () {
-                            $(document).ready(function () {
-                                field = $(`input[name="<?= $field ?>"]`);
-                                id = "<?= $id ?>";
-                                if (field.length) {
-                                    field.val(id);
-                                    field.closest('tr').addClass('@READONLY');
-                                }
-                            });
-                        }, 0);
-                    </script>
-                    <?php
-                }
-                return;
-            }
-        }
-    }
-
-    public function redcap_data_entry_form()
-    {
-        $user = $this->framework->getUser();
-        if ( !$this->isCasUser($user->getUsername()) ) {
-            return;
-        }
-        $this->framework->initializeJavascriptModuleObject();
-        ?>
-        <script>
-            $(document).ready(function () {
-                const cas_authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
-                var numLogins = 0;
-                var esign_action_global;
-                const saveLockingOrig = saveLocking;
-                window.addEventListener('message', (event) => {
-                    if (event.origin !== window.location.origin) {
-                        return;
-                    }
-                    const action = 'lock';
-                    $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, { auto: getParameterByName('auto'), instance: getParameterByName('instance'), esign_action: esign_action_global, event_id: event_id, action: action, username: event.data.username, record: getParameterByName('id'), form_name: getParameterByName('page'), cas_code: event.data.code }, function (data) {
-                        if (data != "") {
-                            numLogins = 0;
-                            if (auto_inc_set && getParameterByName('auto') == '1' && isinteger(data.replace('-', ''))) {
-                                $('#form :input[name="' + table_pk + '"], #form :input[name="__old_id__"]').val(data);
-                            }
-                            formSubmitDataEntry();
-                        } else {
-                            numLogins++;
-                            esignFail(numLogins);
-                        }
-                    });
-                });
-                saveLocking = function (lock_action, esign_action) {
-                    if (esign_action !== 'save' || lock_action !== 1) {
-                        saveLockingOrig(lock_action, esign_action);
-                        return;
-                    }
-                    esign_action_global = esign_action;
-                    cas_authenticator.ajax('eraseCasSession', {}).then(() => {
-                        const url = '<?= $this->getUrl('cas_login.php') ?>';
-                        window.open(url, null, 'popup=true,innerWidth=500,innerHeight=700');
-                    });
-                }
-            });
-        </script>
-        <?php
-    }
-
-    public function redcap_module_configuration_settings($project_id, $settings)
-    {
-        if ( empty ($project_id) ) {
-            return $settings;
-        }
-
-        try {
-            $surveys    = $this->getSurveys($project_id);
-            $reports    = $this->getReports($project_id);
-            $dashboards = $this->getDashboards($project_id);
-            $files      = $this->getFiles($project_id);
-            $folders    = $this->getFolders($project_id);
-
-            foreach ( $settings as &$settingRow ) {
-                $this->getChoices($settingRow, [
-                    "surveys"    => $surveys,
-                    "reports"    => $reports,
-                    "dashboards" => $dashboards,
-                    "files"      => $files,
-                    "folders"    => $folders
-                ]);
-
-                if ( $settingRow['type'] == 'sub_settings' ) {
-                    foreach ( $settingRow['sub_settings'] as &$subSettingRow ) {
-                        $this->getChoices($subSettingRow, [
-                            "surveys"    => $surveys,
-                            "reports"    => $reports,
-                            "dashboards" => $dashboards,
-                            "files"      => $files,
-                            "folders"    => $folders
-                        ]);
-                    }
-                }
-            }
-        } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Authenticator: Error getting choices', [ 'error' => $e->getMessage() ]);
-        } finally {
-            return $settings;
         }
     }
 
@@ -572,21 +372,6 @@ class CASAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function getChoices(&$row, $data)
-    {
-        if ( $row['key'] == 'survey' ) {
-            $row['choices'] = $data['surveys'];
-        } elseif ( $row['key'] == 'dashboard' ) {
-            $row['choices'] = $data['dashboards'];
-        } elseif ( $row['key'] == 'report' ) {
-            $row['choices'] = $data['reports'];
-        } elseif ( $row['key'] == 'file' ) {
-            $row['choices'] = $data['files'];
-        } elseif ( $row['key'] == 'folder' ) {
-            $row['choices'] = $data['folders'];
-        }
-    }
-
     /**
      * @param string $userid
      * @return bool
@@ -603,318 +388,6 @@ class CASAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( isset ($_GET['logout']) && $_GET['logout'] ) {
             \phpCAS::logoutWithUrl(APP_PATH_WEBROOT_FULL);
         }
-    }
-
-    private function handleDashboard($dashboard_hash)
-    {
-        $projectSettings = $this->framework->getProjectSettings();
-        $dashboard       = $this->getDashboardFromHash($dashboard_hash);
-        if ( $dashboard === null ) {
-            $this->framework->log('CAS Authenticator: Dashboard not found', [ 'dashboard_hash' => $dashboard_hash ]);
-            return;
-        }
-        foreach ( $projectSettings["dashboard"] as $thisDashId ) {
-
-            if ( $dashboard['dash_id'] != $thisDashId ) {
-                continue;
-            }
-            $this->framework->log('CAS Authenticator: Handling Dashboard', [
-                "dashboard_hash" => $dashboard_hash,
-                "dashboard_id"   => $dashboard['dash_id'],
-                "dashboard"      => $dashboard['title']
-            ]);
-
-            try {
-                $id = $this->authenticate();
-            } catch ( \CAS_GracefullTerminationException $e ) {
-                if ( $e->getCode() !== 0 ) {
-                    $this->framework->log('CAS Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
-                }
-            } catch ( \Throwable $e ) {
-                $this->framework->log('CAS Authenticator: Error', [ 'error' => $e->getMessage() ]);
-                $this->framework->exitAfterHook();
-            } finally {
-                if ( $id === false ) {
-                    $this->framework->exitAfterHook();
-                    return;
-                }
-
-                // Successful authentication
-                $this->casLog('CAS Authenticator: Dashboard Auth Succeeded', [
-                    "CASAuthenticator_NetId" => $id,
-                    "dashboard_hash"         => $dashboard_hash,
-                    "dashboard_id"           => $dashboard['dash_id'],
-                    "dashboard"              => $dashboard['title']
-                ]);
-            }
-        }
-    }
-
-    private function handleReport($report_hash)
-    {
-        $projectSettings = $this->framework->getProjectSettings();
-
-        $report = $this->getReportFromHash($report_hash);
-        if ( $report === null ) {
-            $this->framework->log('CAS Authenticator: Report not found', [ 'report_hash' => $report_hash ]);
-            return;
-        }
-
-        foreach ( $projectSettings["report"] as $thisReportId ) {
-
-            if ( $report['report_id'] != $thisReportId ) {
-                continue;
-            }
-
-            $this->framework->log('CAS Authenticator: Handling Report', [
-                "report_hash" => $report_hash,
-                "report_id"   => $report['report_id'],
-                "report"      => $report['title']
-            ]);
-
-            try {
-                $id = $this->authenticate();
-            } catch ( \CAS_GracefullTerminationException $e ) {
-                if ( $e->getCode() !== 0 ) {
-                    $this->framework->log('CAS Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
-                }
-            } catch ( \Throwable $e ) {
-                $this->framework->log('CAS Authenticator: Error', [ 'error' => $e->getMessage() ]);
-                $this->framework->exitAfterHook();
-            } finally {
-                if ( $id === false ) {
-                    $this->framework->exitAfterHook();
-                    return;
-                }
-
-                // Successful authentication
-                $this->casLog('CAS Authenticator: Report Auth Succeeded', [
-                    "CASAuthenticator_NetId" => $id,
-                    "report_hash"            => $report_hash,
-                    "report_id"              => $report['report_id'],
-                    "report"                 => $report['title']
-                ]);
-            }
-        }
-    }
-
-    private function handleFile($file_hash)
-    {
-        $projectSettings = $this->framework->getProjectSettings();
-
-        $file = $this->getFileFromHash($file_hash);
-
-        if ( $file === null ) {
-            $this->framework->log('CAS Authenticator: File not found', [ 'file_hash' => $file_hash ]);
-            return;
-        }
-
-        // First check if this file individually should be CAS'd
-        $matched = false;
-        foreach ( $projectSettings["file"] as $thisDocsId ) {
-            if ( $file['docs_id'] == $thisDocsId ) {
-                $matched = true;
-                break;
-            }
-        }
-
-        // Check if the file is in a folder that should be CAS'd
-        if ( $matched === false && $file['folder_id'] !== null ) {
-            foreach ( $projectSettings['folder'] as $thisFolderId ) {
-                $allFolderIds = $this->getAllFolderIds($file['folder_id']);
-                if ( in_array($thisFolderId, $allFolderIds) ) {
-                    $matched = true;
-                    break;
-                }
-            }
-        }
-
-        if ( $matched === false ) {
-            return;
-        }
-
-        try {
-            $id = $this->authenticate();
-        } catch ( \CAS_GracefullTerminationException $e ) {
-            if ( $e->getCode() !== 0 ) {
-                $this->framework->log('CAS Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
-            }
-        } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Authenticator: Error', [ 'error' => $e->getMessage() ]);
-            $this->framework->exitAfterHook();
-        } finally {
-            if ( $id === false ) {
-                $this->framework->exitAfterHook();
-                return;
-            }
-
-            // Successful authentication
-            $this->casLog('CAS Authenticator: File Auth Succeeded', [
-                "CASAuthenticator_NetId" => $id,
-                "file_hash"              => $file_hash,
-                "docs_id"                => $file['docs_id'],
-                "filename"               => $file['docs_name']
-            ]);
-        }
-    }
-
-    private function getFileFromHash($hash)
-    {
-        $sql    = "SELECT rds.docs_id, rdff.folder_id, rd.docs_name
-                FROM redcap_docs_share rds
-                LEFT JOIN redcap_docs_folders_files rdff 
-                ON rds.docs_id = rdff.docs_id
-                LEFT JOIN redcap_docs rd
-                ON rds.docs_id = rd.docs_id
-                WHERE rds.hash = ?";
-        $result = $this->framework->query($sql, [ $hash ]);
-        return $this->framework->escape($result->fetch_assoc());
-    }
-
-
-    /**
-     * Get all parent folder IDs for a given folder ID (including self)
-     * @param mixed $folder_id
-     * @return array folder IDs
-     */
-    private function getAllFolderIds($folder_id)
-    {
-        if ( empty ($folder_id) ) {
-            return [];
-        }
-        $folders      = [ $folder_id ];
-        $nextFolderId = $this->getParentFolderId($folder_id);
-        while ( $nextFolderId !== null ) {
-            $folders[]    = $nextFolderId;
-            $nextFolderId = $this->getParentFolderId($nextFolderId);
-        }
-        return $folders;
-    }
-
-    private function getParentFolderId($folder_id)
-    {
-        if ( empty ($folder_id) ) {
-            return null;
-        }
-        $sql    = "SELECT parent_folder_id
-                FROM redcap_docs_folders
-                WHERE folder_id = ?";
-        $result = $this->framework->query($sql, [ $folder_id ]);
-        $row    = $result->fetch_assoc();
-        if ( empty ($row) ) {
-            return null;
-        }
-        return $row['parent_folder_id'];
-    }
-
-    private function getDashboardFromHash($dashboard_hash)
-    {
-        $project_id = $this->framework->getProjectId();
-        $sql        = 'SELECT dash_id, title, hash FROM redcap_project_dashboards WHERE hash = ? AND project_id = ?';
-        $result     = $this->framework->query($sql, [ $dashboard_hash, $project_id ]);
-        return $this->framework->escape($result->fetch_assoc());
-    }
-
-    private function getReportFromHash($report_hash)
-    {
-        $project_id = $this->framework->getProjectId();
-        $sql        = 'SELECT report_id, title, hash FROM redcap_reports WHERE hash = ? AND project_id = ?';
-        $result     = $this->query($sql, [ $report_hash, $project_id ]);
-        return $this->framework->escape($result->fetch_assoc());
-    }
-
-    private function getSurveys($pid)
-    {
-        $forms   = [];
-        $surveys = [];
-
-        $formsSql    = "SELECT DISTINCT form_name
-                    FROM redcap_metadata
-                    WHERE project_id = ?
-                    ORDER BY form_name";
-        $formsResult = $this->framework->query($formsSql, [ $pid ]);
-        while ( $formsRow = $formsResult->fetch_assoc() ) {
-            $forms[] = $formsRow['form_name'];
-        }
-
-        $surveysSql    = "SELECT form_name
-                    FROM redcap_surveys
-                    WHERE project_id = ?
-                    ORDER BY form_name";
-        $surveysResult = self::query($surveysSql, [ $pid ]);
-
-        while ( $surveysRow = $surveysResult->fetch_assoc() ) {
-            if ( !in_array($surveysRow['form_name'], $forms) ) {
-                continue;
-            }
-            $surveysRow = static::escape($surveysRow);
-            $surveys[]  = [ 'value' => $surveysRow['form_name'], 'name' => strip_tags(nl2br($surveysRow['form_name'])) ];
-        }
-        return $surveys;
-    }
-
-    private function getDashboards($pid)
-    {
-        $dashboards = [];
-
-        $sql = "SELECT dash_id, title
-                FROM redcap_project_dashboards
-                WHERE project_id = ?
-                AND is_public = 1
-                ORDER BY dash_id";
-
-        $result = self::query($sql, [ $pid ]);
-
-        while ( $row = $result->fetch_assoc() ) {
-            $row          = static::escape($row);
-            $dashboards[] = [ 'value' => $row['dash_id'], 'name' => strip_tags(nl2br($row['title'])) ];
-        }
-        return $dashboards;
-    }
-
-    private function getReports($pid)
-    {
-        $reports = [];
-        $sql     = "SELECT report_id,title
-                FROM redcap_reports
-                WHERE project_id = ?
-                AND is_public = 1
-                ORDER BY report_id";
-        $result  = self::query($sql, [ $pid ]);
-
-        while ( $row = $result->fetch_assoc() ) {
-            $row       = static::escape($row);
-            $reports[] = [ 'value' => $row['report_id'], 'name' => strip_tags(nl2br($row['title'])) ];
-        }
-        return $reports;
-    }
-
-    private function getFiles($pid)
-    {
-        $files  = [];
-        $sql    = "SELECT docs_id, docs_name
-                FROM redcap_docs
-                WHERE project_id = ?";
-        $result = $this->framework->query($sql, [ $pid ]);
-        while ( $row = $result->fetch_assoc() ) {
-            $row     = $this->framework->escape($row);
-            $files[] = [ 'value' => $row['docs_id'], 'name' => strip_tags(nl2br($row['docs_name'])) ];
-        }
-        return $files;
-    }
-
-    private function getFolders($pid)
-    {
-        $folders = [];
-        $sql     = "SELECT folder_id, name
-                FROM redcap_docs_folders
-                WHERE project_id = ?";
-        $result  = $this->framework->query($sql, [ $pid ]);
-        while ( $row = $result->fetch_assoc() ) {
-            $row       = $this->framework->escape($row);
-            $folders[] = [ 'value' => $row['folder_id'], 'name' => strip_tags(nl2br($row['name'])) ];
-        }
-        return $folders;
     }
 
     public function initializeCas()
@@ -1034,65 +507,6 @@ class CASAuthenticator extends \ExternalModules\AbstractExternalModule
         return $filePath;
     }
 
-    /**
-     * Make sure settings meet certain conditions.
-     * 
-     * This is called when a user clicks "Save" in either system or project
-     * configuration.
-     * 
-     * @param mixed $settings Array of settings user is trying to set
-     * 
-     * @return string|null if not null, the error message to show to user
-     */
-    public function validateSettings($settings)
-    {
-
-        if ( empty ($this->framework->getProjectId()) ) {
-            return;
-        }
-
-        // project-level settings
-        if ( count($settings["survey"]) > 0 ) {
-            foreach ( $settings["survey"] as $i => $form ) {
-                if ( empty ($form) ) {
-                    continue;
-                }
-                $id_field   = $settings["id-field"][$i];
-                $project_id = $this->getProjectId();
-
-                // form must be a survey
-                $surveyResult = $this->query(
-                    'SELECT survey_id FROM redcap_surveys
-                    WHERE project_id = ?
-                    AND form_name = ?',
-                    [ $project_id, $form ]
-                );
-                if ( $surveyResult->num_rows < 1 ) {
-                    return "The selected form ($form) is not enabled as a survey.";
-                }
-
-                if ( !$id_field ) {
-                    continue;
-                }
-
-                // id_field must be a text input on that survey
-                $fieldResult = $this->query(
-                    'SELECT element_type FROM redcap_metadata
-                    WHERE project_id = ?
-                    AND form_name = ?
-                    AND field_name = ?',
-                    [ $project_id, $form, $id_field ]
-                );
-                if ( $fieldResult->num_rows < 1 ) {
-                    return "The selected id field ($id_field) is not on the selected survey ($form).";
-                }
-                $row = $fieldResult->fetch_assoc();
-                if ( $row["element_type"] !== "text" ) {
-                    return "The selected id field ($id_field) is not a text input field.";
-                }
-            }
-        }
-    }
 
     private function casLog($message, $params = [], $record = null, $event = null)
     {
@@ -1257,35 +671,35 @@ class CASAuthenticator extends \ExternalModules\AbstractExternalModule
     private function addCasInfoToBrowseUsersTable()
     {
 
-        echo '<pre><br><br><br><br>';
-        var_dump($_SESSION);
-        echo '</pre>';
-        if (isset($_GET['authed'])) {
-            return;
-        }
+        // echo '<pre><br><br><br><br>';
+        // var_dump($_SESSION);
+        // echo '</pre>';
+        // if (isset($_GET['authed'])) {
+        //     return;
+        // }
 
-        $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";  
-        $curPageURL = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-        $newUrl = $this->addQueryParameter($curPageURL, 'authed', 'true');
-        $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810',  $this->framework->getUrl('YNHH_SAML_ACS.php', true));
+        // $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";  
+        // $curPageURL = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        // $newUrl = $this->addQueryParameter($curPageURL, 'authed', 'true');
+        // $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810',  $this->framework->getUrl('YNHH_SAML_ACS.php', true));
 
-        // Perform login
+        // // Perform login
         
-        // $this->log('test', ['isAuthenticated' => $authenticator->]);
-        $authenticator->login($newUrl, [], false, true);
-        $this->lost('test2');
-        // Check authentication status
-        if ($authenticator->isAuthenticated()) {
-            // User is authenticated, proceed with further actions
-            $attributes = $authenticator->getAttributes();
-            $this->log('authed', [ 'attributes' => json_encode($attributes, JSON_PRETTY_PRINT) ]);
-            var_dump($attributes);
-            // Process user attributes as needed
-        } else {
-            // Authentication failed
-            $this->log('no authed');
-            echo "Authentication failed. Reason: " . $authenticator->getLastError();
-        }
+        // // $this->log('test', ['isAuthenticated' => $authenticator->]);
+        // $authenticator->login($newUrl, [], false, true);
+        // $this->lost('test2');
+        // // Check authentication status
+        // if ($authenticator->isAuthenticated()) {
+        //     // User is authenticated, proceed with further actions
+        //     $attributes = $authenticator->getAttributes();
+        //     $this->log('authed', [ 'attributes' => json_encode($attributes, JSON_PRETTY_PRINT) ]);
+        //     var_dump($attributes);
+        //     // Process user attributes as needed
+        // } else {
+        //     // Authentication failed
+        //     $this->log('no authed');
+        //     echo "Authentication failed. Reason: " . $authenticator->getLastError();
+        // }
 
         // // Perform logout if needed
         // $authenticator->logout();

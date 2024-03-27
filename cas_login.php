@@ -1,8 +1,8 @@
 <?php
 
-namespace YaleREDCap\CASAuthenticator;
+namespace YaleREDCap\YaleREDCapAuthenticator;
 
-/** @var CASAuthenticator $module */
+/** @var YaleREDCapAuthenticator $module */
 try {
     $module->initializeCas();
 
