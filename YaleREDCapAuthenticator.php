@@ -12,6 +12,9 @@ require_once 'YNHH_SAML_Authenticator.php';
 class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
+    static $CAS_AUTH = 'CAS_auth';
+    static $YNHH_AUTH = 'YNHH_auth';
+
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
         // Normal Users
@@ -39,7 +42,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_every_page_before_render($project_id = null)
     {   
-        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         $page = defined('PAGE') ? PAGE : null;
         if ( empty ($page) ) {
             return;
@@ -62,17 +64,97 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         }
 
+        // If we're on the login page, inject the CAS login button
+        if ($this->inLoginFunction() && \ExternalModules\ExternalModules::getUsername() === null && !\ExternalModules\ExternalModules::isNoAuth() && !isset ($_GET[self::$CAS_AUTH]) && !isset ($_GET[self::$YNHH_AUTH])) {
+            
+            if ((isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php') {
+                return;
+            }
+            if ((isset($_GET['logintype']) && $_GET['logintype'] == 'custom')) {
+                return;
+            }
+            if ((isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin')) {
+                $_GET['logintype'] = 'custom';
+                // unset($_GET['logintype']);
+                // var_dump($_GET['logintype']);
+                loginFunction();
+                // $this->exitAfterHook();
+                return;
+            }
+            $this->showCustomLoginPage($this->curPageURL());
+            $this->exitAfterHook();
+            return;
+            // Display the Login Form
+            $objHtmlPage = new \HtmlPage();
+            $objHtmlPage->addStylesheet("home.css", 'screen,print');
+            $objHtmlPage->PrintHeader();
+            $forgotPassword = \RCView::div(array("style"=>"float:right;margin-top:10px;margin-right:10px;"),
+                        \RCView::a(array("style"=>"font-size:12px;text-decoration:underline;","href"=>$this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin')), \RCView::tt("pwd_reset_41"))
+                        );
+            print $forgotPassword;
+            //$this->injectLoginPage($this->curPageURL());
+            $this->exitAfterHook();
+            return;
+            
+        }
+
         // Already logged in to REDCap
         if ( (defined('USERID') && defined('USERID') !== '') || $this->framework->isAuthenticated() ) {
             return;
         }
 
         // Only authenticate if we're asked to (but include the login page HTML if we're not logged in)
-        parse_str($_SERVER['QUERY_STRING'], $query);
-        if ( !isset ($_GET['CAS_auth']) ) {
+        if ( !isset ($_GET[self::$CAS_AUTH]) && !isset ($_GET[self::$YNHH_AUTH]) ) {
             return;
         }
 
+        if ( isset ($_GET[self::$CAS_AUTH]) ) {
+            $this->handleCasAuth($page);
+        } elseif ( isset ($_GET[self::$YNHH_AUTH]) ) {
+            $this->handleYnhhAuth($page);
+        }
+        
+    }
+
+    public function handleYnhhAuth($page) {
+
+        // echo '<pre><br><br><br><br>';
+        // var_dump($_SESSION);
+        // echo '</pre>';
+        if (isset($_GET['authed'])) {
+            return;
+        }
+
+        $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";  
+        $curPageURL = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        $newUrl = $this->addQueryParameter($curPageURL, 'authed', 'true');
+        $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810',  $this->framework->getUrl('YNHH_SAML_ACS.php', true));
+
+        // Perform login
+        
+        // // $this->log('test', ['isAuthenticated' => $authenticator->]);
+        $authenticator->login($newUrl, [], false, true);
+        // $this->lost('test2');
+        // Check authentication status
+        if ($authenticator->isAuthenticated()) {
+            // User is authenticated, proceed with further actions
+            $attributes = $authenticator->getAttributes();
+            $this->log('authed', [ 'attributes' => json_encode($attributes, JSON_PRETTY_PRINT) ]);
+        //     var_dump($attributes);
+            // Process user attributes as needed
+        } else {
+            // Authentication failed
+            $this->log('no authed');
+            echo "Authentication failed. Reason: " . $authenticator->getLastError();
+        }
+
+        // // Perform logout if needed
+        // $authenticator->logout();
+
+    }
+
+    public function handleCasAuth($page) {
+        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
             $userid = $this->authenticate();
             if ( $userid === false ) {
@@ -135,7 +217,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             // url to redirect to after login
             $redirect = $this->curPageURL();
             // strip the "CAS_auth" parameter from the URL
-            $redirectStripped = $this->stripQueryParameter($redirect, 'CAS_auth');
+            $redirectStripped = $this->stripQueryParameter($redirect, self::$CAS_AUTH);
             // Redirect to the page we were on
             $this->redirectAfterHook($redirectStripped);
             return;
@@ -165,9 +247,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
 
         // If we're on the login page, inject the CAS login button
-        if (\ExternalModules\ExternalModules::getUsername() === null && !\ExternalModules\ExternalModules::isNoAuth() ) {
-            $this->injectLoginPage($this->curPageURL());
-        }
+        // if ($this->shouldShowCustomLogin() ) {
+        //     $this->showCustomLoginPage($this->curPageURL());
+        // }
 
         // If we are on the Browse Users page, add CAS-User information if applicable 
         if ( $page === 'ControlCenter/view_users.php' ) {
@@ -196,10 +278,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         ];
     }
 
-    private function injectLoginPage(string $redirect)
+    private function showCustomLoginPage(string $redirect)
     {
         $loginButtonSettings = $this->getLoginButtonSettings();
-        
         ?>
         <style>
             .btn-cas {
@@ -261,39 +342,118 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 color: #fff;
                 border: 1px solid transparent;
             }
+            #rc-login-form { display: none; }
+            #login-card {
+                border-radius: 0;
+            }
+            .login-option {
+                cursor: pointer;
+            }
+            #login-card {
+                position: absolute;
+                width: 502px;
+                height: auto;
+                margin: 0 auto;
+                /* top: calc(50% - 183px); */
+                left: 50%;
+                margin-left: -250px;
+            }
+            body,#container,#pagecontainer {
+                background-color: #f9f9f9 !important;
+            }
+            .login-options {
+                left: 50%;
+                margin-left: -37.5%;
+                width: 75%;
+            }
+            .login-logo {
+                width: 100%;
+            }
+
         </style>
         <script>
-            $(document).ready(function () {
-                if ($('#rc-login-form').length === 0) {
-                    return;
-                }
-                $('#rc-login-form').hide();
+            // if (typeof($)!=='undefined') {
+            // $(document).ready(function () {   
+            //     if ($('#rc-login-form').length === 0) {
+            //         return;
+            //     }
+            //     $('#rc-login-form').hide();
 
-                //const loginButton = `<button class="btn btn-sm btn-cas fs15 my-2" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, 'CAS_auth', '1') ?>';"><i class="fas fa-sign-in-alt"></i> <span><?= $loginButtonSettings['casLoginButtonText'] ?></span></button>`;
-                const loginButton = `<button class="btn btn-sm btn-cas btn-login fs15 my-2" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, 'CAS_auth', '1') ?>';"></button>`;
-                const orText = '<span class="text-secondary mx-3 my-2 nowrap">-- <?= \RCView::tt('global_46') ?> --</span>';
-                const loginChoiceSpan = $('span[data-rc-lang="global_257"]');
-                if (loginChoiceSpan.length > 0) {
-                    const firstButton = loginChoiceSpan.closest('div').find('button').eq(0);
-                    firstButton.before(loginButton);
-                    firstButton.before(orText);
-                } else {
-                    const loginDiv = `<div class="my-4 fs14">
-                                <div class="mb-4"><?= \RCView::tt('global_253') ?></div>
-                                <div>
-                                    <span class="text-secondary my-2 me-3"><?= \RCView::tt('global_257') ?></span>
-                                    ${loginButton}
-                                    ${orText}
-                                    <button class="btn btn-sm btn-rcgreen fs15 my-2" onclick="$('#rc-login-form').toggle();"><i class="fas fa-sign-in-alt"></i> <?= \RCView::tt('global_258') ?></button>
-                                </div>
-                            </div>`;
-                    $('#rc-login-form').before(loginDiv);
-                }
-                // $('.btn-rcgreen span').text('<?= $loginButtonSettings['localLoginButtonText'] ?>');
-                $('.btn-rcgreen').html(null).addClass('btn-login btn-login-original');
-                $('.btn-login-original')[0].onclick = function () { $('#rc-login-form').toggle(); $(this).blur(); };
-            });
+            //     //const loginButton = `<button class="btn btn-sm btn-cas fs15 my-2" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';"><i class="fas fa-sign-in-alt"></i> <span><?= $loginButtonSettings['casLoginButtonText'] ?></span></button>`;
+            //     const loginButton = `<button class="btn btn-sm btn-cas btn-login fs15 my-2" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';"></button>`;
+            //     const orText = '<span class="text-secondary mx-3 my-2 nowrap">-- <?= \RCView::tt('global_46') ?> --</span>';
+            //     const loginChoiceSpan = $('span[data-rc-lang="global_257"]');
+            //     if (loginChoiceSpan.length > 0) {
+            //         const firstButton = loginChoiceSpan.closest('div').find('button').eq(0);
+            //         firstButton.before(loginButton);
+            //         firstButton.before(orText);
+            //     } else {
+            //         const loginDiv = `<div class="my-4 fs14">
+            //                     <div class="mb-4"><?= \RCView::tt('global_253') ?></div>
+            //                     <div>
+            //                         <span class="text-secondary my-2 me-3"><?= \RCView::tt('global_257') ?></span>
+            //                         ${loginButton}
+            //                         ${orText}
+            //                         <button class="btn btn-sm btn-rcgreen fs15 my-2" onclick="$('#rc-login-form').toggle();"><i class="fas fa-sign-in-alt"></i> <?= \RCView::tt('global_258') ?></button>
+            //                     </div>
+            //                 </div>`;
+            //         $('#rc-login-form').before(loginDiv);
+            //     }
+            //     // $('.btn-rcgreen span').text('<?= $loginButtonSettings['localLoginButtonText'] ?>');
+            //     $('.btn-rcgreen').html(null).addClass('btn-login btn-login-original');
+            //     $('.btn-login-original')[0].onclick = function () { $('#rc-login-form').toggle(); $(this).blur(); };
+            // });
+            // }
         </script>
+        <?php
+        $objHtmlPage = new \HtmlPage();
+        $objHtmlPage->addStylesheet("home.css", 'screen,print');
+        $objHtmlPage->PrintHeader();
+        //print '<style type="text/css">#container{ background: url("'.APP_PATH_IMAGES.'redcap-logo-large.png") no-repeat; }</style>';
+        // Institutional logo (optional)
+        global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email;
+        // if (trim($login_logo) != "")
+        // {
+        //     print  "<div style='margin-bottom:20px;text-align:center;'>
+        //                 <img src='$login_logo' title=\"".js_escape2(strip_tags(label_decode($institution)))."\" alt=\"".js_escape2(strip_tags(label_decode($institution)))."\" style='max-width:850px;'>
+        //             </div>";
+        // }
+
+        // Show custom login text (optional)
+        if (trim($login_custom_text) != "")
+        {
+            print "<div style='border:1px solid #ccc;background-color:#f5f5f5;margin:15px 10px 15px 0;padding:10px;'>".nl2br(decode_filter_tags($login_custom_text))."</div>";
+        }
+
+        // Show custom homepage announcement text (optional)
+        if (trim($homepage_announcement) != "" && $homepage_announcement_login == '1') {
+            print RCView::div(array('style'=>'margin-bottom:10px;'), nl2br(decode_filter_tags($homepage_announcement)));
+            $hide_homepage_announcement = true; // Set this so that it's not displayed elsewhere on the page
+        }
+        // $objHtmlPage->PrintHeaderExt();
+        ?>
+        <div class="container text-center">
+            <div class="row align-items-center">
+                <div class="col">
+                    <div class="card" id="login-card">
+                        <img src ="<?= APP_PATH_IMAGES.'redcap-logo-large.png'?>" class="w-50 m-4 align-self-center">
+                        <?php if (trim($login_logo)) {?>
+                        <img src="<?= $login_logo?>" class="w-50 align-self-center m-3" title="<?=js_escape2(strip_tags(label_decode($institution)))?>" alt="<?=js_escape2(strip_tags(label_decode($institution)))?>">
+                        <?php } ?>
+                        <h4><?=\RCView::tt("config_functions_45")?></h4>
+                        <div class="card-body">
+                            <div class="card align-self-center text-center mb-2 login-options">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item list-group-item-action login-option" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';"><img src="<?=$this->framework->getUrl('assets/images/YU.png', true, true)?>" class="login-logo"></li>
+                                    <li class="list-group-item list-group-item-action login-option" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$YNHH_AUTH, '1') ?>';"><img src="<?=$this->framework->getUrl('assets/images/YNHH.png', true, true)?>" class="login-logo"></li>                                    
+                                </ul>
+                            </div>
+                            <a href="<?= $this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin')?>">Local Login</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <?php
     }
 
@@ -671,40 +831,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     private function addCasInfoToBrowseUsersTable()
     {
 
-        // echo '<pre><br><br><br><br>';
-        // var_dump($_SESSION);
-        // echo '</pre>';
-        // if (isset($_GET['authed'])) {
-        //     return;
-        // }
-
-        // $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";  
-        // $curPageURL = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-        // $newUrl = $this->addQueryParameter($curPageURL, 'authed', 'true');
-        // $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810',  $this->framework->getUrl('YNHH_SAML_ACS.php', true));
-
-        // // Perform login
-        
-        // // $this->log('test', ['isAuthenticated' => $authenticator->]);
-        // $authenticator->login($newUrl, [], false, true);
-        // $this->lost('test2');
-        // // Check authentication status
-        // if ($authenticator->isAuthenticated()) {
-        //     // User is authenticated, proceed with further actions
-        //     $attributes = $authenticator->getAttributes();
-        //     $this->log('authed', [ 'attributes' => json_encode($attributes, JSON_PRETTY_PRINT) ]);
-        //     var_dump($attributes);
-        //     // Process user attributes as needed
-        // } else {
-        //     // Authentication failed
-        //     $this->log('no authed');
-        //     echo "Authentication failed. Reason: " . $authenticator->getLastError();
-        // }
-
-        // // Perform logout if needed
-        // $authenticator->logout();
-
-
         $this->framework->initializeJavascriptModuleObject();
         
         parse_str($_SERVER['QUERY_STRING'], $query);
@@ -715,7 +841,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
         ?>
         <script>
-            var cas_authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
+            var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
             function convertTableUserToCasUser() {
                 const username = $('#user_search').val();
                 Swal.fire({
@@ -725,7 +851,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                     confirmButtonText: "Convert to CAS User"
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        cas_authenticator.ajax('convertTableUserToCasUser', { username: username }).then(() => {
+                        authenticator.ajax('convertTableUserToCasUser', { username: username }).then(() => {
                             location.reload();
                         });
                     }
@@ -740,7 +866,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                     confirmButtonText: "Convert to Table User"
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        cas_authenticator.ajax('convertCasUsertoTableUser', { username: username }).then(() => {
+                        authenticator.ajax('convertCasUsertoTableUser', { username: username }).then(() => {
                             location.reload();
                         });
                     }
@@ -775,7 +901,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 $('#user_search').prop('disabled',true);
                 $.get(app_path_webroot+'ControlCenter/user_controls_ajax.php', { user_view: 'view_user', view: 'user_controls', username: username },
                     function(data) {
-                        cas_authenticator.ajax('getUserType', { username: username }).then((userType) => {
+                        authenticator.ajax('getUserType', { username: username }).then((userType) => {
                             $('#view_user_div').html(data);
                             addTableRow(userType);
                             enableUserSearch();
@@ -798,6 +924,19 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             });
         </script>
         <?php
+    }
+
+    public function inLoginFunction() {
+        return sizeof(array_filter(debug_backtrace(), function ($value) {
+            return $value['function'] == 'loginFunction';
+        })) > 0;
+    }
+
+    public function shouldShowCustomLogin()
+    {
+        return !(isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') &&
+            \ExternalModules\ExternalModules::getUsername() === null &&
+            !\ExternalModules\ExternalModules::isNoAuth();
     }
 
 
