@@ -70,31 +70,31 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             if ((isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php') {
                 return;
             }
-            if ((isset($_GET['logintype']) && $_GET['logintype'] == 'custom')) {
-                return;
-            }
+            // if ((isset($_GET['logintype']) && $_GET['logintype'] == 'custom')) {
+            //     return;
+            // }
             if ((isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin')) {
-                $_GET['logintype'] = 'custom';
+                //$_GET['logintype'] = 'custom';
                 // unset($_GET['logintype']);
                 // var_dump($_GET['logintype']);
-                loginFunction();
-                // $this->exitAfterHook();
+                //loginFunction();
+                //$this->exitAfterHook();
                 return;
             }
             $this->showCustomLoginPage($this->curPageURL());
             $this->exitAfterHook();
             return;
             // Display the Login Form
-            $objHtmlPage = new \HtmlPage();
-            $objHtmlPage->addStylesheet("home.css", 'screen,print');
-            $objHtmlPage->PrintHeader();
-            $forgotPassword = \RCView::div(array("style"=>"float:right;margin-top:10px;margin-right:10px;"),
-                        \RCView::a(array("style"=>"font-size:12px;text-decoration:underline;","href"=>$this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin')), \RCView::tt("pwd_reset_41"))
-                        );
-            print $forgotPassword;
-            //$this->injectLoginPage($this->curPageURL());
-            $this->exitAfterHook();
-            return;
+            // $objHtmlPage = new \HtmlPage();
+            // $objHtmlPage->addStylesheet("home.css", 'screen,print');
+            // $objHtmlPage->PrintHeader();
+            // $forgotPassword = \RCView::div(array("style"=>"float:right;margin-top:10px;margin-right:10px;"),
+            //             \RCView::a(array("style"=>"font-size:12px;text-decoration:underline;","href"=>$this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin')), \RCView::tt("pwd_reset_41"))
+            //             );
+            // print $forgotPassword;
+            // //$this->injectLoginPage($this->curPageURL());
+            // $this->exitAfterHook();
+            // return;
             
         }
 
@@ -262,6 +262,54 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             echo "<style>label:has(.cas-descriptive){width:100%;}</style>";
             return;
         }
+    }
+
+    public function redcap_data_entry_form()
+    {
+        $user = $this->framework->getUser();
+        if ( !$this->isCasUser($user->getUsername()) ) {
+            return;
+        }
+        $this->framework->initializeJavascriptModuleObject();
+        ?>
+        <script>
+            $(document).ready(function () {
+                const authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
+                var numLogins = 0;
+                var esign_action_global;
+                const saveLockingOrig = saveLocking;
+                window.addEventListener('message', (event) => {
+                    if (event.origin !== window.location.origin) {
+                        return;
+                    }
+                    const action = 'lock';
+                    $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, { auto: getParameterByName('auto'), instance: getParameterByName('instance'), esign_action: esign_action_global, event_id: event_id, action: action, username: event.data.username, record: getParameterByName('id'), form_name: getParameterByName('page'), cas_code: event.data.code }, function (data) {
+                        if (data != "") {
+                            numLogins = 0;
+                            if (auto_inc_set && getParameterByName('auto') == '1' && isinteger(data.replace('-', ''))) {
+                                $('#form :input[name="' + table_pk + '"], #form :input[name="__old_id__"]').val(data);
+                            }
+                            formSubmitDataEntry();
+                        } else {
+                            numLogins++;
+                            esignFail(numLogins);
+                        }
+                    });
+                });
+                saveLocking = function (lock_action, esign_action) {
+                    if (esign_action !== 'save' || lock_action !== 1) {
+                        saveLockingOrig(lock_action, esign_action);
+                        return;
+                    }
+                    esign_action_global = esign_action;
+                    authenticator.ajax('eraseCasSession', {}).then(() => {
+                        const url = '<?= $this->getUrl('cas_login.php') ?>';
+                        window.open(url, null, 'popup=true,innerWidth=500,innerHeight=700');
+                    });
+                }
+            });
+        </script>
+        <?php
     }
 
     private function getLoginButtonSettings()
