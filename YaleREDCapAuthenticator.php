@@ -411,6 +411,11 @@ $(document).ready(function() {
 
 .login-option {
     cursor: pointer;
+    border-radius: 0 !important;
+}
+
+.login-option:hover {
+    background-color: #dddddd !important;
 }
 
 #login-card {
@@ -429,7 +434,7 @@ $(document).ready(function() {
 }
 
 body {
-    background-image: url(<?= $this->framework->getUrl('assets/images/New_Haven_1.jpg', true, true) ?>) !important;
+    background-image: url(<?= $this->framework->getUrl('assets/images/New_Haven_1_med.jpg', true, true) ?>) !important;
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
     background-size: cover !important;
@@ -439,6 +444,7 @@ body {
     left: 50%;
     margin-left: -37.5%;
     width: 75%;
+    border-radius: 0 !important;
 }
 
 .login-logo {
@@ -481,7 +487,8 @@ body {
 </script>
 
 <head>
-    <link rel="preload" href="<?= $this->framework->getUrl('assets/images/New_Haven_1.jpg', true, true) ?>" as="image">
+    <link rel="preload" href="<?= $this->framework->getUrl('assets/images/New_Haven_1_med.jpg', true, true) ?>"
+        as="image">
 </head>
 <?php
         $objHtmlPage = new \HtmlPage();
@@ -522,8 +529,8 @@ body {
                 <h4>
                     <?= \RCView::tt("config_functions_45") ?>
                 </h4>
-                <div class="card-body">
-                    <div class="card align-self-center text-center mb-2 login-options">
+                <div class="card-body rounded-0">
+                    <div class="card align-self-center text-center mb-2 login-options rounded-0">
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item list-group-item-action login-option"
                                 onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';">
@@ -537,8 +544,10 @@ body {
                             </li>
                         </ul>
                     </div>
-                    <a href="<?= $this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin') ?>">Local
-                        Login</a>
+                    <a href="<?= $this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin') ?>"
+                        class="text-primary">
+                        Local login
+                    </a>
                 </div>
             </div>
         </div>
