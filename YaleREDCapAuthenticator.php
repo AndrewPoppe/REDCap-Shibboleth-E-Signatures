@@ -317,7 +317,7 @@ $(document).ready(function() {
         }
         esign_action_global = esign_action;
         authenticator.ajax('eraseCasSession', {}).then(() => {
-            const url = '<?= $this->getUrl('cas_login.php') ?>';
+            const url = '<?= $this->getUrl('cas_login.php') ?> ';
             window.open(url, null, 'popup=true,innerWidth=500,innerHeight=700');
         });
     }
@@ -343,7 +343,15 @@ $(document).ready(function() {
     private function showCustomLoginPage(string $redirect)
     {
         $loginButtonSettings = $this->getLoginButtonSettings();
+        $backgroundUrl       = $this->framework->getUrl('assets/images/New_Haven_1.jpg');
         ?>
+
+<head>
+    <link rel="preload" href="<?= $backgroundUrl ?>" as="image">
+    <link rel="stylesheet" href="<?= APP_PATH_WEBPACK . 'css/bootstrap.min.css' ?>">
+    <link rel="stylesheet" href="<?= APP_PATH_CSS . 'style.css' ?>">
+    <script type="text/javascript" src="<?= APP_PATH_WEBPACK . 'js/bootstrap.min.js' ?>"></script>
+</head>
 <style>
 .btn-cas {
     background-color:
@@ -423,7 +431,7 @@ $(document).ready(function() {
     width: 502px;
     height: auto;
     margin: 0 auto;
-    /* top: calc(50% - 183px); */
+    top: 125px;
     left: 50%;
     margin-left: -250px;
 }
@@ -434,7 +442,6 @@ $(document).ready(function() {
 }
 
 body {
-    background-image: url(<?= $this->framework->getUrl('assets/images/New_Haven_1_med.jpg', true, true) ?>) !important;
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
     background-size: cover !important;
@@ -486,74 +493,78 @@ body {
 // }
 </script>
 
-<head>
-    <link rel="preload" href="<?= $this->framework->getUrl('assets/images/New_Haven_1_med.jpg', true, true) ?>"
-        as="image">
-</head>
-<?php
-        $objHtmlPage = new \HtmlPage();
-        $objHtmlPage->addStylesheet("home.css", 'screen,print');
-        $objHtmlPage->PrintHeader();
-        //print '<style type="text/css">#container{ background: url("'.APP_PATH_IMAGES.'redcap-logo-large.png") no-repeat; }</style>';
-        // Institutional logo (optional)
-        global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email;
-        // if (trim($login_logo) != "")
-        // {
-        //     print  "<div style='margin-bottom:20px;text-align:center;'>
-        //                 <img src='$login_logo' title=\"".js_escape2(strip_tags(label_decode($institution)))."\" alt=\"".js_escape2(strip_tags(label_decode($institution)))."\" style='max-width:850px;'>
-        //             </div>";
-        // }
+<body background="<?= $backgroundUrl ?>">
+    <?php
+            // $objHtmlPage = new \HtmlPage();
+            // $objHtmlPage->addStylesheet("home.css", 'screen,print');
+            // $objHtmlPage->PrintHeader();
+            //print '<style type="text/css">#container{ background: url("'.APP_PATH_IMAGES.'redcap-logo-large.png") no-repeat; }</style>';
+            // Institutional logo (optional)
+            global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email;
+            // if (trim($login_logo) != "")
+            // {
+            //     print  "<div style='margin-bottom:20px;text-align:center;'>
+            //                 <img src='$login_logo' title=\"".js_escape2(strip_tags(label_decode($institution)))."\" alt=\"".js_escape2(strip_tags(label_decode($institution)))."\" style='max-width:850px;'>
+            //             </div>";
+            // }
+    
+            // Show custom login text (optional)
+            if ( trim($login_custom_text) != "" ) {
+                print "<div style='border:1px solid #ccc;background-color:#f5f5f5;margin:15px 10px 15px 0;padding:10px;'>" . nl2br(decode_filter_tags($login_custom_text)) . "</div>";
+            }
 
-        // Show custom login text (optional)
-        if ( trim($login_custom_text) != "" ) {
-            print "<div style='border:1px solid #ccc;background-color:#f5f5f5;margin:15px 10px 15px 0;padding:10px;'>" . nl2br(decode_filter_tags($login_custom_text)) . "</div>";
-        }
-
-        // Show custom homepage announcement text (optional)
-        if ( trim($homepage_announcement) != "" && $homepage_announcement_login == '1' ) {
-            print RCView::div(array( 'style' => 'margin-bottom:10px;' ), nl2br(decode_filter_tags($homepage_announcement)));
-            $hide_homepage_announcement = true; // Set this so that it's not displayed elsewhere on the page
-        }
-        // $objHtmlPage->PrintHeaderExt();
-        ?>
-<div class="container text-center">
-    <div class="row align-items-center">
-        <div class="col">
-            <div class="card" id="login-card">
-                <img src="<?= APP_PATH_IMAGES . 'redcap-logo-large.png' ?>" class="w-50 m-4 align-self-center">
-                <?php if ( trim($login_logo) ) { ?>
-                <img src="<?= $login_logo ?>" class="w-50 align-self-center m-3"
-                    title="<?= js_escape2(strip_tags(label_decode($institution))) ?>"
-                    alt="<?= js_escape2(strip_tags(label_decode($institution))) ?>">
-                <?php } ?>
-                <h4>
-                    <?= \RCView::tt("config_functions_45") ?>
-                </h4>
-                <div class="card-body rounded-0">
-                    <div class="card align-self-center text-center mb-2 login-options rounded-0">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item list-group-item-action login-option"
-                                onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';">
-                                <img src="<?= $this->framework->getUrl('assets/images/YU.png', true, true) ?>"
-                                    class="login-logo">
-                            </li>
-                            <li class="list-group-item list-group-item-action login-option"
-                                onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$YNHH_AUTH, '1') ?>';">
-                                <img src="<?= $this->framework->getUrl('assets/images/YNHH.png', true, true) ?>"
-                                    class="login-logo">
-                            </li>
-                        </ul>
+            // Show custom homepage announcement text (optional)
+            if ( trim($homepage_announcement) != "" && $homepage_announcement_login == '1' ) {
+                print RCView::div(array( 'style' => 'margin-bottom:10px;' ), nl2br(decode_filter_tags($homepage_announcement)));
+                $hide_homepage_announcement = true; // Set this so that it's not displayed elsewhere on the page
+            }
+            // $objHtmlPage->PrintHeaderExt();
+            ?>
+    <div class="container text-center">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="card" id="login-card">
+                    <img src="<?= APP_PATH_IMAGES . 'redcap-logo-large.png' ?>" class="w-50 m-4 align-self-center">
+                    <?php if ( trim($login_logo) ) { ?>
+                    <img src="<?= $login_logo ?>" class="w-50 align-self-center m-3"
+                        title="<?= js_escape2(strip_tags(label_decode($institution))) ?>"
+                        alt="<?= js_escape2(strip_tags(label_decode($institution))) ?>">
+                    <?php } ?>
+                    <h4>
+                        <?= \RCView::tt("config_functions_45") ?>
+                    </h4>
+                    <div class="card-body rounded-0">
+                        <div class="card align-self-center text-center mb-2 login-options rounded-0">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item list-group-item-action login-option"
+                                    onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';">
+                                    <img src="<?= $this->framework->getUrl('assets/images/YU.png') ?>"
+                                        class="login-logo">
+                                </li>
+                                <li class="list-group-item list-group-item-action login-option"
+                                    onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$YNHH_AUTH, '1') ?>';">
+                                    <img src="<?= $this->framework->getUrl('assets/images/YNHH.png') ?>"
+                                        class="login-logo">
+                                </li>
+                            </ul>
+                        </div>
+                        <a href="<?= $this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin') ?>"
+                            class="text-primary">
+                            Local login
+                        </a>
+                        <div id="my_page_footer" class="text-secondary mt-4">
+                            <?= \REDCap::getCopyright() ?>
+                            <br>
+                            <span>Background image - &copy;
+                                <?= date("Y") ?> Yale University
+                            </span>
+                        </div>
                     </div>
-                    <a href="<?= $this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin') ?>"
-                        class="text-primary">
-                        Local login
-                    </a>
                 </div>
             </div>
         </div>
     </div>
-</div>
-<?php
+    <?php
     }
 
     private function curPageURL()
@@ -939,109 +950,110 @@ body {
         }
 
         ?>
-<script>
-var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
+    <script>
+    var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
 
-function convertTableUserToCasUser() {
-    const username = $('#user_search').val();
-    Swal.fire({
-        title: "Are you sure you want to convert this table-based user to a CAS user?",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Convert to CAS User"
-    }).then((result) => {
-        if (result.isConfirmed) {
-            authenticator.ajax('convertTableUserToCasUser', {
-                username: username
-            }).then(() => {
-                location.reload();
-            });
-        }
-    });
-}
-
-function convertCasUsertoTableUser() {
-    const username = $('#user_search').val();
-    Swal.fire({
-        title: "Are you sure you want to convert this CAS user to a table-based user?",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Convert to Table User"
-    }).then((result) => {
-        if (result.isConfirmed) {
-            authenticator.ajax('convertCasUsertoTableUser', {
-                username: username
-            }).then(() => {
-                location.reload();
-            });
-        }
-    });
-}
-
-function addTableRow(userType) {
-    console.log(userType);
-    let casUserText = '';
-    switch (userType) {
-        case 'CAS':
-            casUserText =
-                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertCasUsertoTableUser()" value="Convert to Table User">`;
-            break;
-        case 'allowlist':
-            casUserText = `<strong>${userType}</strong>`;
-            break;
-        case 'table':
-            casUserText =
-                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertTableUserToCasUser()" value="Convert to CAS User">`;
-            break;
-        default:
-            casUserText = `<strong>${userType}</strong>`;
-            break;
+    function convertTableUserToCasUser() {
+        const username = $('#user_search').val();
+        Swal.fire({
+            title: "Are you sure you want to convert this table-based user to a CAS user?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Convert to CAS User"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                authenticator.ajax('convertTableUserToCasUser', {
+                    username: username
+                }).then(() => {
+                    location.reload();
+                });
+            }
+        });
     }
-    console.log($('#indv_user_info'));
-    $('#indv_user_info').append('<tr id="userTypeRow"><td class="data2">User type</td><td class="data2">' +
-        casUserText + '</td></tr>');
-}
 
-view_user = function(username) {
-    if (username.length < 1) return;
-    $('#view_user_progress').css({
-        'visibility': 'visible'
-    });
-    $('#user_search_btn').prop('disabled', true);
-    $('#user_search').prop('disabled', true);
-    $.get(app_path_webroot + 'ControlCenter/user_controls_ajax.php', {
-            user_view: 'view_user',
-            view: 'user_controls',
-            username: username
-        },
-        function(data) {
-            authenticator.ajax('getUserType', {
-                username: username
-            }).then((userType) => {
-                $('#view_user_div').html(data);
-                addTableRow(userType);
-                enableUserSearch();
-                highlightTable('indv_user_info', 1000);
-            });
+    function convertCasUsertoTableUser() {
+        const username = $('#user_search').val();
+        Swal.fire({
+            title: "Are you sure you want to convert this CAS user to a table-based user?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Convert to Table User"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                authenticator.ajax('convertCasUsertoTableUser', {
+                    username: username
+                }).then(() => {
+                    location.reload();
+                });
+            }
+        });
+    }
+
+    function addTableRow(userType) {
+        console.log(userType);
+        let casUserText = '';
+        switch (userType) {
+            case 'CAS':
+                casUserText =
+                    `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertCasUsertoTableUser()" value="Convert to Table User">`;
+                break;
+            case 'allowlist':
+                casUserText = `<strong>${userType}</strong>`;
+                break;
+            case 'table':
+                casUserText =
+                    `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertTableUserToCasUser()" value="Convert to CAS User">`;
+                break;
+            default:
+                casUserText = `<strong>${userType}</strong>`;
+                break;
         }
-    );
-}
+        console.log($('#indv_user_info'));
+        $('#indv_user_info').append('<tr id="userTypeRow"><td class="data2">User type</td><td class="data2">' +
+            casUserText + '</td></tr>');
+    }
 
-<?php if ( isset($userid) ) { ?>
-window.requestAnimationFrame(() => {
-    addTableRow('<?= $userType ?>')
-});
-<?php } ?>
+    view_user = function(username) {
+        if (username.length < 1) return;
+        $('#view_user_progress').css({
+            'visibility': 'visible'
+        });
+        $('#user_search_btn').prop('disabled', true);
+        $('#user_search').prop('disabled', true);
+        $.get(app_path_webroot + 'ControlCenter/user_controls_ajax.php', {
+                user_view: 'view_user',
+                view: 'user_controls',
+                username: username
+            },
+            function(data) {
+                authenticator.ajax('getUserType', {
+                    username: username
+                }).then((userType) => {
+                    $('#view_user_div').html(data);
+                    addTableRow(userType);
+                    enableUserSearch();
+                    highlightTable('indv_user_info', 1000);
+                });
+            }
+        );
+    }
 
-$(document).ready(function() {
     <?php if ( isset($userid) ) { ?>
-    if (!$('#userTypeRow').length) {
-        view_user('<?= $userid ?>');
-    }
+    window.requestAnimationFrame(() => {
+        addTableRow('<?= $userType ?>')
+    });
     <?php } ?>
-});
-</script>
-<?php
+
+    $(document).ready(function() {
+        <?php if ( isset($userid) ) { ?>
+        if (!$('#userTypeRow').length) {
+            view_user('<?= $userid ?>');
+        }
+
+        <?php } ?>
+    });
+    </script>
+    <?php
     }
 
     public function inLoginFunction()
