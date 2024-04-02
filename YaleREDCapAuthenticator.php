@@ -458,68 +458,23 @@ body {
     width: 100%;
 }
 </style>
-<script>
-// if (typeof($)!=='undefined') {
-// $(document).ready(function () {
-//     if ($('#rc-login-form').length === 0) {
-//         return;
-//     }
-//     $('#rc-login-form').hide();
-
-//     //const loginButton = `<button class="btn btn-sm btn-cas fs15 my-2" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';"><i class="fas fa-sign-in-alt"></i> <span><?= $loginButtonSettings['casLoginButtonText'] ?></span></button>`;
-//     const loginButton = `<button class="btn btn-sm btn-cas btn-login fs15 my-2" onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';"></button>`;
-//     const orText = '<span class="text-secondary mx-3 my-2 nowrap">-- <?= \RCView::tt('global_46') ?> --</span>';
-//     const loginChoiceSpan = $('span[data-rc-lang="global_257"]');
-//     if (loginChoiceSpan.length > 0) {
-//         const firstButton = loginChoiceSpan.closest('div').find('button').eq(0);
-//         firstButton.before(loginButton);
-//         firstButton.before(orText);
-//     } else {
-//         const loginDiv = `<div class="my-4 fs14">
-//                     <div class="mb-4"><?= \RCView::tt('global_253') ?></div>
-//                     <div>
-//                         <span class="text-secondary my-2 me-3"><?= \RCView::tt('global_257') ?></span>
-//                         ${loginButton}
-//                         ${orText}
-//                         <button class="btn btn-sm btn-rcgreen fs15 my-2" onclick="$('#rc-login-form').toggle();"><i class="fas fa-sign-in-alt"></i> <?= \RCView::tt('global_258') ?></button>
-//                     </div>
-//                 </div>`;
-//         $('#rc-login-form').before(loginDiv);
-//     }
-//     // $('.btn-rcgreen span').text('<?= $loginButtonSettings['localLoginButtonText'] ?>');
-//     $('.btn-rcgreen').html(null).addClass('btn-login btn-login-original');
-//     $('.btn-login-original')[0].onclick = function () { $('#rc-login-form').toggle(); $(this).blur(); };
-// });
-// }
-</script>
 
 <body background="<?= $backgroundUrl ?>">
     <?php
-            // $objHtmlPage = new \HtmlPage();
-            // $objHtmlPage->addStylesheet("home.css", 'screen,print');
-            // $objHtmlPage->PrintHeader();
-            //print '<style type="text/css">#container{ background: url("'.APP_PATH_IMAGES.'redcap-logo-large.png") no-repeat; }</style>';
-            // Institutional logo (optional)
-            global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email;
-            // if (trim($login_logo) != "")
-            // {
-            //     print  "<div style='margin-bottom:20px;text-align:center;'>
-            //                 <img src='$login_logo' title=\"".js_escape2(strip_tags(label_decode($institution)))."\" alt=\"".js_escape2(strip_tags(label_decode($institution)))."\" style='max-width:850px;'>
-            //             </div>";
-            // }
     
-            // Show custom login text (optional)
-            if ( trim($login_custom_text) != "" ) {
-                print "<div style='border:1px solid #ccc;background-color:#f5f5f5;margin:15px 10px 15px 0;padding:10px;'>" . nl2br(decode_filter_tags($login_custom_text)) . "</div>";
-            }
+        global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email;
+        
+        // Show custom login text (optional)
+        if ( trim($login_custom_text) != "" ) {
+            print "<div style='border:1px solid #ccc;background-color:#f5f5f5;margin:15px 10px 15px 0;padding:10px;'>" . nl2br(decode_filter_tags($login_custom_text)) . "</div>";
+        }
 
-            // Show custom homepage announcement text (optional)
-            if ( trim($homepage_announcement) != "" && $homepage_announcement_login == '1' ) {
-                print RCView::div(array( 'style' => 'margin-bottom:10px;' ), nl2br(decode_filter_tags($homepage_announcement)));
-                $hide_homepage_announcement = true; // Set this so that it's not displayed elsewhere on the page
-            }
-            // $objHtmlPage->PrintHeaderExt();
-            ?>
+        // Show custom homepage announcement text (optional)
+        if ( trim($homepage_announcement) != "" && $homepage_announcement_login == '1' ) {
+            print \RCView::div(array( 'style' => 'margin-bottom:10px;' ), nl2br(decode_filter_tags($homepage_announcement)));
+            $hide_homepage_announcement = true; // Set this so that it's not displayed elsewhere on the page
+        }
+    ?>
     <div class="container text-center">
         <div class="row align-items-center">
             <div class="col">
@@ -555,7 +510,7 @@ body {
                         <div id="my_page_footer" class="text-secondary mt-4">
                             <?= \REDCap::getCopyright() ?>
                             <br>
-                            <span>Background image - &copy;
+                            <span><a href="https://campusphotos.yale.edu/">Image</a> - &copy;
                                 <?= date("Y") ?> Yale University
                             </span>
                         </div>
@@ -565,6 +520,8 @@ body {
         </div>
     </div>
     <?php
+    $objHtmlPage = new \HtmlPage();
+    $objHtmlPage->PrintHeader(false);
     }
 
     private function curPageURL()
