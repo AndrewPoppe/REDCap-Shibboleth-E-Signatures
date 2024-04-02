@@ -345,13 +345,13 @@ $(document).ready(function() {
         $loginButtonSettings = $this->getLoginButtonSettings();
         $backgroundUrl       = $this->framework->getUrl('assets/images/New_Haven_1.jpg');
         ?>
-
 <head>
     <link rel="preload" href="<?= $backgroundUrl ?>" as="image">
-    <link rel="stylesheet" href="<?= APP_PATH_WEBPACK . 'css/bootstrap.min.css' ?>">
-    <link rel="stylesheet" href="<?= APP_PATH_CSS . 'style.css' ?>">
-    <script type="text/javascript" src="<?= APP_PATH_WEBPACK . 'js/bootstrap.min.js' ?>"></script>
 </head>
+<?php        
+    $objHtmlPage = new \HtmlPage();
+    $objHtmlPage->PrintHeader(false);
+?>
 <style>
 .btn-cas {
     background-color:
@@ -524,8 +524,6 @@ div#working {
         </div>
     </div>
     <?php
-    $objHtmlPage = new \HtmlPage();
-    $objHtmlPage->PrintHeader(false);
     }
 
     private function curPageURL()
