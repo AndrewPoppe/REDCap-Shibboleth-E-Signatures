@@ -345,6 +345,8 @@ $(document).ready(function() {
         $loginButtonSettings = $this->getLoginButtonSettings();
         $backgroundUrl       = $this->framework->getUrl('assets/images/New_Haven_1.jpg');
         ?>
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <link rel="preload" href="<?= $backgroundUrl ?>" as="image">
 </head>
