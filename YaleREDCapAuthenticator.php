@@ -457,6 +457,10 @@ body {
 .login-logo {
     width: 100%;
 }
+
+div#working {
+    top: 50% !important;
+}
 </style>
 
 <body background="<?= $backgroundUrl ?>">
