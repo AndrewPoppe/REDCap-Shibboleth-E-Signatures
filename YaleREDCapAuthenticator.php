@@ -463,6 +463,12 @@ body {
 div#working {
     top: 50% !important;
 }
+
+#my_page_footer a {
+    text-decoration: none;
+    color: inherit;
+}
+
 </style>
 
 <body background="<?= $backgroundUrl ?>">
@@ -516,7 +522,7 @@ div#working {
                         <div id="my_page_footer" class="text-secondary mt-4">
                             <?= \REDCap::getCopyright() ?>
                             <br>
-                            <span><a href="https://campusphotos.yale.edu/">Image</a> - &copy;
+                            <span><a href="https://campusphotos.yale.edu/" tabindex="-1" target="_blank" rel="noopener noreferrer">Image</a> - &copy;
                                 <?= date("Y") ?> Yale University
                             </span>
                         </div>
