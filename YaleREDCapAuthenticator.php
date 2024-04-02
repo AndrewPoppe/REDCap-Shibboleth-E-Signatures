@@ -461,6 +461,9 @@ body {
 div#working {
     top: 50% !important;
 }
+div.ui-widget {
+    top: 50% !important;
+}
 </style>
 
 <body background="<?= $backgroundUrl ?>">
