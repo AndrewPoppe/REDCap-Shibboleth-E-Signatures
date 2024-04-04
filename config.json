@@ -52,6 +52,31 @@
             "key": "cas-user-details-token",
             "name": "<strong>CAS User Details Token</strong>:<br>Token to use to authenticate with the CAS User Details URL",
             "type": "password"
+        },
+        {
+            "key": "cas-check-affiliation",
+            "name": "<strong>Check Affiliation</strong>:<br>Check this if you want to check the affiliation of the Yale University user against a list of allowed affiliations. Common affiliations are STUDENT, FACULTY, STAFF, EMPLOYEE, MEMBER, AFFILIATE, ALUM",
+            "type": "checkbox"
+        },
+        {
+            "key": "cas-allowed-affiliations",
+            "name": "<strong>Allowed Affiliations</strong>:<br>Which Yale University affiliations should be allowed to log in? If left blank, all affiliations are allowed. <span class='text-dangerrc'>This setting supercedes the forbidden affiliations setting</span>",
+            "type": "text",
+            "repeatable": true,
+            "branchingLogic": {
+                "field": "cas-check-affiliation",
+                "value": "1"
+            }
+        },
+        {
+            "key": "cas-forbidden-affiliations",
+            "name": "<strong>Forbidden Affiliations</strong>:<br>Which Yale University affiliations should be forbidden from logging in? If left blank, no affiliations are forbidden. <span class='text-dangerrc'>If the allowed affiliations setting is set, this setting will be ignored</span>",
+            "type": "text",
+            "repeatable": true,
+            "branchingLogic": {
+                "field": "cas-check-affiliation",
+                "value": "1"
+            }
         }
     ],
     "project-settings": [

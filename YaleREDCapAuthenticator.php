@@ -67,35 +67,16 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         // If we're on the login page, inject the CAS login button
         if ( $this->inLoginFunction() && \ExternalModules\ExternalModules::getUsername() === null && !\ExternalModules\ExternalModules::isNoAuth() && !isset($_GET[self::$CAS_AUTH]) && !isset($_GET[self::$YNHH_AUTH]) ) {
 
+
             if ( (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php' ) {
                 return;
             }
-            // if ((isset($_GET['logintype']) && $_GET['logintype'] == 'custom')) {
-            //     return;
-            // }
             if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
-                //$_GET['logintype'] = 'custom';
-                // unset($_GET['logintype']);
-                // var_dump($_GET['logintype']);
-                //loginFunction();
-                //$this->exitAfterHook();
                 return;
             }
             $this->showCustomLoginPage($this->curPageURL());
             $this->exitAfterHook();
             return;
-            // Display the Login Form
-            // $objHtmlPage = new \HtmlPage();
-            // $objHtmlPage->addStylesheet("home.css", 'screen,print');
-            // $objHtmlPage->PrintHeader();
-            // $forgotPassword = \RCView::div(array("style"=>"float:right;margin-top:10px;margin-right:10px;"),
-            //             \RCView::a(array("style"=>"font-size:12px;text-decoration:underline;","href"=>$this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin')), \RCView::tt("pwd_reset_41"))
-            //             );
-            // print $forgotPassword;
-            // //$this->injectLoginPage($this->curPageURL());
-            // $this->exitAfterHook();
-            // return;
-
         }
 
         // Already logged in to REDCap
@@ -104,10 +85,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
 
         // Only authenticate if we're asked to (but include the login page HTML if we're not logged in)
-        if ( !isset($_GET[self::$CAS_AUTH]) && !isset($_GET[self::$YNHH_AUTH]) ) {
-            return;
-        }
-
         if ( isset($_GET[self::$CAS_AUTH]) ) {
             $this->handleCasAuth($page);
         } elseif ( isset($_GET[self::$YNHH_AUTH]) ) {
@@ -118,10 +95,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function handleYnhhAuth($page)
     {
-
-        // echo '<pre><br><br><br><br>';
-        // var_dump($_SESSION);
-        // echo '</pre>';
         if ( isset($_GET['authed']) ) {
             return;
         }
@@ -132,16 +105,12 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
 
         // Perform login
-
-        // // $this->log('test', ['isAuthenticated' => $authenticator->]);
         $authenticator->login($newUrl, [], false, true);
-        // $this->lost('test2');
         // Check authentication status
         if ( $authenticator->isAuthenticated() ) {
             // User is authenticated, proceed with further actions
             $attributes = $authenticator->getAttributes();
             $this->log('authed', [ 'attributes' => json_encode($attributes, JSON_PRETTY_PRINT) ]);
-            //     var_dump($attributes);
             // Process user attributes as needed
         } else {
             // Authentication failed
@@ -164,8 +133,15 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
+            if ( $this->checkCASAffiliation($userid) === false ) {
+                $this->framework->log('Yale REDCap Authenticator: User\'s affiliation not allowed', [ 'userid' => $userid ]);
+                echo "You are not authorized to access this page. Please contact the administrator.";
+                $this->exitAfterHook();
+                return;
+            }
+
             // Successful authentication
-            $this->framework->log('CAS Authenticator: Auth Succeeded', [
+            $this->framework->log('Yale REDCap Authenticator: Auth Succeeded', [
                 "CASAuthenticator_NetId" => $userid,
                 "page"                   => $page
             ]);
@@ -225,14 +201,14 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         } catch ( \CAS_GracefullTerminationException $e ) {
             if ( $e->getCode() !== 0 ) {
-                $this->framework->log('CAS Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
+                $this->framework->log('Yale REDCap Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
                 session_unset();
                 session_destroy();
                 $this->exitAfterHook();
                 return;
             }
         } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
             session_unset();
             session_destroy();
             $this->exitAfterHook();
@@ -242,27 +218,14 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_every_page_top($project_id)
     {
-
         $page = defined('PAGE') ? PAGE : null;
         if ( empty($page) ) {
             return;
         }
 
-        // If we're on the login page, inject the CAS login button
-        // if ($this->shouldShowCustomLogin() ) {
-        //     $this->showCustomLoginPage($this->curPageURL());
-        // }
-
         // If we are on the Browse Users page, add CAS-User information if applicable 
         if ( $page === 'ControlCenter/view_users.php' ) {
             $this->addCasInfoToBrowseUsersTable();
-        }
-
-        // If we're on the EM Manager page, add a little CSS to make the
-        // setting descriptives wider in the project settings
-        if ( $page === 'manager/project.php' ) {
-            echo "<style>label:has(.cas-descriptive){width:100%;}</style>";
-            return;
         }
     }
 
@@ -587,7 +550,7 @@ div#working {
             $this->setCasUser($userid);
             return;
         } catch ( \Exception $e ) {
-            $this->framework->log('CAS Authenticator: Error converting table user to CAS user', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error converting table user to CAS user', [ 'error' => $e->getMessage() ]);
             return;
         }
     }
@@ -604,7 +567,7 @@ div#working {
             $this->setCasUser($userid, false);
             return;
         } catch ( \Exception $e ) {
-            $this->framework->log('CAS Authenticator: Error converting CAS user to table user', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error converting CAS user to table user', [ 'error' => $e->getMessage() ]);
             return;
         }
     }
@@ -662,7 +625,7 @@ div#working {
             \CAS_GracefullTerminationException::throwInsteadOfExiting();
             return true;
         } catch ( \Throwable $e ) {
-            $this->log('CAS Authenticator: Error initializing CAS', [ 'error' => $e->getMessage() ]);
+            $this->log('Yale REDCap Authenticator: Error initializing CAS', [ 'error' => $e->getMessage() ]);
             return false;
         }
     }
@@ -679,7 +642,7 @@ div#working {
 
             $initialized = $this->initializeCas();
             if ( $initialized === false ) {
-                $this->framework->log('CAS Authenticator: Error initializing CAS');
+                $this->framework->log('Yale REDCap Authenticator: Error initializing CAS');
                 throw new \Exception('Error initializing CAS');
             }
 
@@ -690,7 +653,7 @@ div#working {
             return \phpCAS::getUser();
         } catch ( \CAS_GracefullTerminationException $e ) {
             if ( $e->getCode() !== 0 ) {
-                $this->framework->log('CAS Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
+                $this->framework->log('Yale REDCap Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
             }
             return false;
         } catch ( \Throwable $e ) {
@@ -808,6 +771,7 @@ div#working {
             $userDetails['user_firstname'] = $response['Person']['Names']['ReportingNm']['First'];
             $userDetails['user_lastname']  = $response['Person']['Names']['ReportingNm']['Last'];
             $userDetails['user_email']     = $response['Person']['Contacts']['Email'];
+            $userDetails['affiliation']    = $response['Person']['Affiliations']['PEDUAffiliation'];
         } catch ( \Throwable $e ) {
             $this->framework->log('CAS Authenticator: Error parsing user details response', [ 'error' => $e->getMessage() ]);
         } finally {
@@ -1035,6 +999,83 @@ div#working {
         return !(isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') &&
             \ExternalModules\ExternalModules::getUsername() === null &&
             !\ExternalModules\ExternalModules::isNoAuth();
+    }
+
+    public function checkCASAuth() {
+        $isAuthed = false;
+        try {
+            $this->initializeCas();
+            if (\phpCAS::checkAuthentication() ) {
+                $isAuthed = true;
+            }
+        } catch ( \CAS_GracefullTerminationException $e ) {
+            if ( $e->getCode() !== 0 ) {
+                $this->framework->log('Yale REDCap Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
+            }
+            return false;
+        } catch ( \Throwable $e ) {
+            $this->framework->log('Yale REDCap Authenticator: Error checking CAS auth', [ 'error' => $e->getMessage() ]);
+        } finally {
+            return $isAuthed;
+        }
+    }
+    public function checkYNHHAuth() {
+        $isAuthed = false;
+        try {
+            if ( isset($_GET['authed']) ) {
+                return;
+            }
+    
+            $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+            $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+            $newUrl        = $this->addQueryParameter($curPageURL, 'authed', 'true');
+            $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
+    
+            // Perform login
+    
+            // // $this->log('test', ['isAuthenticated' => $authenticator->]);
+            $authenticator->login(
+                $newUrl, 
+                [], 
+                false, 
+                true
+            );
+            $isAuthed = $authenticator->isAuthenticated();
+
+        } catch ( \Throwable $e ) {
+            $this->framework->log('Yale REDCap Authenticator: Error checking YNHH auth', [ 'error' => $e->getMessage() ]);
+        } finally {
+            return $isAuthed;
+        }
+    }
+
+    public function checkCASAffiliation($userid) {
+        if (!$this->framework->getSystemSetting('cas-check-affiliation')) {
+            return true;
+        }
+        $allowedAffiliations = $this->cleanArray($this->framework->getSystemSetting('cas-allowed-affiliations'));
+        $forbiddenAffiliations = $this->cleanArray($this->framework->getSystemSetting('cas-forbidden-affiliations'));
+
+        if (!empty($allowedAffiliations) || !empty($forbiddenAffiliations)) {
+            $userDetails = $this->fetchUserDetails($userid);
+            if (empty($userDetails)) {
+                return false;
+            }
+            $affiliation = $userDetails['affiliation'];
+            if (!empty($allowedAffiliations)) {
+                return in_array($affiliation, $allowedAffiliations);
+            }
+            if (!empty($forbiddenAffiliations)) {
+                return !in_array($affiliation, $forbiddenAffiliations);
+            }
+        }
+        return true;
+    }
+
+    private function cleanArray($array) {
+        return array_map('upper', array_map('trim', array_filter($array, function($value) {
+            return !empty($value) && $value !== 'null';
+        })));
     }
 
 
