@@ -786,7 +786,6 @@ div#working {
         } else {
             $this->insertUserDetails($userid, $details);
         }
-        $SQL = 'INSERT INTO redcap_user_information (username, user_firstname, user_lastname, email) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, email = ?';
     }
 
     private function userExists($userid)
@@ -813,8 +812,8 @@ div#working {
     private function insertUserDetails($userid, $details)
     {
         try {
-            $SQL    = 'INSERT INTO redcap_user_information (username, user_firstname, user_lastname, user_email) VALUES (?, ?, ?, ?)';
-            $PARAMS = [ $userid, $details['user_firstname'], $details['user_lastname'], $details['user_email'] ];
+            $SQL    = 'INSERT INTO redcap_user_information (username, user_firstname, user_lastname, user_email, user_creation) VALUES (?, ?, ?, ?, ?)';
+            $PARAMS = [ $userid, $details['user_firstname'], $details['user_lastname'], $details['user_email'], NOW ];
             $query  = $this->createQuery();
             $query->add($SQL, $PARAMS);
             $query->execute();
@@ -1078,6 +1077,14 @@ div#working {
         })));
     }
 
+    private function setUserCreationTimestamp($userid) {
+        try {
+            $SQL = "UPDATE redcap_user_information SET user_creation = ? WHERE username = ?";
+            $this->framework->query($SQL, [ NOW, $userid ]);
+        } catch ( \Exception $e ) {
+            $this->framework->log('Yale REDCap Authenticator: Error setting user creation timestamp', [ 'error' => $e->getMessage() ]);
+        }
+    }
 
     /**
      * Just until my minimum RC version is >= 13.10.1
