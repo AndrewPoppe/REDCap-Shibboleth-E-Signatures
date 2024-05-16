@@ -592,7 +592,8 @@ div#working {
 
     public function initializeCas()
     {
-        require_once __DIR__ . '/vendor/apereo/phpcas/CAS.php';
+        //require_once __DIR__ . '/vendor/apereo/phpcas/CAS.php';
+        require_once __DIR__ . '/vendor/autoload.php';
         if ( \phpCAS::isInitialized() ) {
             return true;
         }
@@ -657,7 +658,7 @@ div#working {
             }
             return false;
         } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Authenticator: Error authenticating', [ 'error' => json_encode($e, JSON_PRETTY_PRINT) ]);
+            $this->framework->log('CAS Authenticator: Error authenticating', [ 'errorMessage' => $e->getMessage(),'error' => json_encode($e, JSON_PRETTY_PRINT) ]);
             return false;
         }
     }
