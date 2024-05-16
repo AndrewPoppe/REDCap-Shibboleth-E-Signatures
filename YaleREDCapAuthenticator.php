@@ -8,6 +8,7 @@ namespace YaleREDCap\YaleREDCapAuthenticator;
  */
 
 require_once 'YNHH_SAML_Authenticator.php';
+require_once 'Yale_EntraID_Authenticator.php';
 
 class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 {

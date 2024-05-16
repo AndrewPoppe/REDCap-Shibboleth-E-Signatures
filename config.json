@@ -39,6 +39,31 @@
             "type": "checkbox"
         },
         {
+            "key": "entraid-yale-section",
+            "name": "<div class='cas-descriptive p-2' style='background-color:#84cbe4; border: 1px solid #537f8f; border-radius: 0.375rem; text-align: center;'><strong>Yale Entra ID Details</strong><br></div>",
+            "type": "descriptive"
+        },
+        {
+            "key": "entraid-yale-ad-tenant-id",
+            "name": "<strong>Yale Entra ID AD Tenant ID</strong>",
+            "type": "text"
+        },
+        {
+            "key": "entraid-yale-client-id",
+            "name": "<strong>Yale Entra ID Client ID</strong>",
+            "type": "text"
+        },
+        {
+            "key": "entraid-yale-client-secret",
+            "name": "<strong>Yale Entra ID Client Secret</strong>",
+            "type": "password"
+        },
+        {
+            "key": "entraid-yale-redirect-url",
+            "name": "<strong>Yale Entra ID Redirect URL</strong>",
+            "type": "text"
+        },
+        {
             "key": "cas-user-details-section",
             "name": "<div class='cas-descriptive p-2' style='background-color:lightcoral; border: 1px solid red; border-radius: 0.375rem; text-align: center;'><strong>CAS User Details</strong><br>These settings are used to map the CAS user details to the REDCap user details. They won't be useful outside of Yale University.</div>",
             "type": "descriptive"
@@ -176,7 +201,8 @@
         "convertCasUsertoTableUser"
     ],
     "no-auth-pages": [
-        "YNHH_SAML_ACS"
+        "YNHH_SAML_ACS",
+        "yale_sso_login"
     ],
     "no-csrf-pages": [
         "YNHH_SAML_ACS"
