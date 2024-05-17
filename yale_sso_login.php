@@ -4,19 +4,6 @@ namespace YaleREDCap\YaleREDCapAuthenticator;
 
 /** @var YaleREDCapAuthenticator $module */
 
-session_start();
-
-// error_reporting(-1);  //Remove from production version
-// ini_set("display_errors", "on");  //Remove from production version
-
-//Configuration, needs to match with Azure app registration
-$client_id     = $module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID
-$ad_tenant     = $module->framework->getSystemSetting('entraid-yale-ad-tenant-id');  //Entra ID Tenant ID, with Multitenant apps you can use "common" as Tenant ID, but using specific endpoint is recommended when possible
-$client_secret = $module->framework->getSystemSetting('entraid-yale-client-secret');  //Client Secret, remember that this expires someday unless you haven't set it not to do so
-$redirect_uri  = $module->framework->getSystemSetting('entraid-yale-redirect-url');  //This needs to match 100% what is set in Entra ID
-
-$error_email   = "andrew.poppe@yale.edu";  //If your php.ini doesn't contain sendmail_from, use: ini_set("sendmail_from", "user@example.com");
-
 function errorhandler($input, $email)
 {
     $output = "PHP Session ID:    " . session_id() . PHP_EOL;
