@@ -36,6 +36,7 @@ $authData = $authenticator->getAuthData($_GET["state"], $_GET["code"]);
 $userData = $authenticator->getUserData($authData);
 
 echo '<pre>';
+var_dump($_SESSION);
 var_dump($userData);
 echo '</pre>';
 

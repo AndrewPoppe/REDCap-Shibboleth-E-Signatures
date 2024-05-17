@@ -9,9 +9,10 @@ class Yale_EntraID_Authenticator
     private $client_secret;
     private $redirect_uri;
     private $module;
-    public function __construct(YaleREDCapAuthenticator $module)
+    public function __construct(YaleREDCapAuthenticator $module, string $originUrl = null)
     {
         session_start();
+        \Session::write('entraid-yale-origin-url', $originUrl);
         $this->module        = $module;
         $this->client_id     = $this->module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID
         $this->ad_tenant     = $this->module->framework->getSystemSetting('entraid-yale-ad-tenant-id');  //Entra ID Tenant ID, with Multitenant apps you can use "common" as Tenant ID, but using specific endpoint is recommended when possible
