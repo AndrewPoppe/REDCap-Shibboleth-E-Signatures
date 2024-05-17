@@ -3,7 +3,7 @@
 namespace YaleREDCap\YaleREDCapAuthenticator;
 
 /** @var YaleREDCapAuthenticator $module */
-
+session_start();
 function errorhandler($input, $email)
 {
     $output = "PHP Session ID:    " . session_id() . PHP_EOL;
@@ -18,7 +18,7 @@ function errorhandler($input, $email)
     exit;
 }
 
-$authenticator = new Yale_EntraID_Authenticator($module);
+$authenticator = new Yale_EntraID_Authenticator($module, "https://testing.com");
 
 if ( !isset($_GET["code"]) and !isset($_GET["error"]) ) {  //Real authentication part begins
     $authenticator->authenticate();
