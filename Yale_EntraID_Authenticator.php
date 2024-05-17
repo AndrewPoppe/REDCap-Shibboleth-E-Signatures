@@ -11,8 +11,6 @@ class Yale_EntraID_Authenticator
     private $module;
     public function __construct(YaleREDCapAuthenticator $module, string $originUrl = null)
     {
-        session_start();
-        $_SESSION['entraid-yale-origin-url'] = $originUrl;
         $this->module        = $module;
         $this->client_id     = $this->module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID
         $this->ad_tenant     = $this->module->framework->getSystemSetting('entraid-yale-ad-tenant-id');  //Entra ID Tenant ID, with Multitenant apps you can use "common" as Tenant ID, but using specific endpoint is recommended when possible
@@ -22,6 +20,10 @@ class Yale_EntraID_Authenticator
 
     public function authenticate(bool $refresh = false)
     {
+        session_id($_COOKIE['PHPSESSID2']);
+        $this->module->log("Yale_EntraID_Authenticator", [ 'sessionid' => session_id() ]);
+        session_start();
+        // $_SESSION['entraid-yale-origin-url'] = $originUrl;
         $url = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
         $url .= "state=" . session_id();
         $url .= "&scope=User.Read";
