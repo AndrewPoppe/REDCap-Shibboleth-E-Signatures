@@ -10,7 +10,7 @@ class Yale_EntraID_Authenticator
     private $redirect_uri;
     private $module;
     private $session_id;
-    public function __construct(YaleREDCapAuthenticator $module, string $originUrl = null, string $session_id = null)
+    public function __construct(YaleREDCapAuthenticator $module, string $session_id = null)
     {
         $this->module        = $module;
         $this->client_id     = $this->module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID

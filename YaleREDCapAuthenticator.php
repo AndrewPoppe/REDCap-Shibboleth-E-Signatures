@@ -99,7 +99,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         } elseif ( isset($_GET[self::$YNHH_AUTH]) ) {
             $this->handleYnhhAuth($page);
         } elseif ( isset($_GET[self::$ENTRAID_AUTH]) ) {
-            $this->handleEntraIDAuth();
+            $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+            $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+            $this->handleEntraIDAuth($curPageURL);
         }
 
     }
@@ -134,49 +136,38 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     }
 
-    public function handleEntraIDAuth()
+    public function handleEntraIDAuth($url)
     {
         \Session::savecookie('PHPSESSID2', session_id(), 0, true);
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
-            if ( isset($_GET['authed'] )) {
-                $userdata = $_SESSION['entraid-yale-user-data'];
-                $this->loginEntraIDUser($userdata);
-                return;
-            }
-            $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-            $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+            \Session::savecookie('entraid-yale-origin-url', $url, 0, true);
             
-            \Session::savecookie('entraid-yale-origin-url', $curPageURL, 0, true);
-            
-            $authenticator = new Yale_EntraID_Authenticator($this, $curPageURL, session_id());
-            if ( !isset($_GET["code"]) and !isset($_GET["error"]) ) {  //Real authentication part begins
+            $authenticator = new Yale_EntraID_Authenticator($this, session_id());
+            if ( !isset($_GET["code"]) and !isset($_GET["error"]) ) {
                 $authenticator->authenticate();
-                return;
+                return true;
             }
         } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error 1', [ 'error' => $e->getMessage() ]);
             session_unset();
             session_destroy();
-            $this->exitAfterHook();
-            return;
+            return false;
         }
     }
 
-    private function loginEntraIDUser(array $userdata) {
+    public function loginEntraIDUser(array $userdata) {
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
             $userid = $userdata['netid'];
             if ( $userid === false ) {
-                $this->exitAfterHook();
-                return;
+                return false;
             }
 
             if ( $this->checkCASAffiliation($userid) === false ) {
                 $this->framework->log('Yale REDCap Authenticator: User\'s affiliation not allowed', [ 'userid' => $userid ]);
                 echo "You are not authorized to access this page. Please contact the administrator.";
-                $this->exitAfterHook();
-                return;
+                return false;
             }
 
             // Successful authentication
@@ -230,24 +221,14 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                         </div>
                         <button onclick=\"window.location.href='" . APP_PATH_WEBROOT_FULL . "index.php?logout=1';\">Go back</button>";
                 print '<div id="my_page_footer">' . \REDCap::getCopyright() . '</div>';
-                $this->framework->exitAfterHook();
-                return;
+                return false;
             }
-
-            // url to redirect to after login
-            $redirect = $this->curPageURL();
-            // strip the EntraID_auth and authed parameters from the URL
-            $redirectStripped = $this->stripQueryParameter($redirect, self::$ENTRAID_AUTH);
-            $redirectStripped = $this->stripQueryParameter($redirectStripped, 'authed');
-            
-            // Redirect to the page we were on
-            $this->redirectAfterHook($redirectStripped);
+            return true;
         } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error 2', [ 'error' => $e->getMessage() ]);
             session_unset();
             session_destroy();
-            $this->exitAfterHook();
-            return;
+            return false;
         }
     }
 
@@ -336,7 +317,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
         } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error 3', [ 'error' => $e->getMessage() ]);
             session_unset();
             session_destroy();
             $this->exitAfterHook();
@@ -642,7 +623,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         return $pageURL;
     }
 
-    private function stripQueryParameter($url, $param)
+    public function stripQueryParameter($url, $param)
     {
         $parsed  = parse_url($url);
         $baseUrl = strtok($url, '?');
