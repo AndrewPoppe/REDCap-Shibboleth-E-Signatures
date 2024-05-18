@@ -16,8 +16,8 @@ $userData = $authenticator->getUserData($authData);
 $result = $module->loginEntraIDUser($userData);
 if ( $result ) {
 
-    // \Session::deletecookie('entraid-yale-origin-url');
-    // \Session::deletecookie('PHPSESSID2');
+    \Session::deletecookie('entraid-yale-origin-url');
+    \Session::deletecookie('PHPSESSID2');
     unset($_SESSION['entraid-yale-user-data']);
 
     // strip the EntraID_auth and authed parameters from the URL
