@@ -9,23 +9,22 @@ class Yale_EntraID_Authenticator
     private $client_secret;
     private $redirect_uri;
     private $module;
-    public function __construct(YaleREDCapAuthenticator $module, string $originUrl = null)
+    private $session_id;
+    public function __construct(YaleREDCapAuthenticator $module, string $originUrl = null, string $session_id = null)
     {
         $this->module        = $module;
         $this->client_id     = $this->module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID
         $this->ad_tenant     = $this->module->framework->getSystemSetting('entraid-yale-ad-tenant-id');  //Entra ID Tenant ID, with Multitenant apps you can use "common" as Tenant ID, but using specific endpoint is recommended when possible
         $this->client_secret = $this->module->framework->getSystemSetting('entraid-yale-client-secret');  //Client Secret, remember that this expires someday unless you haven't set it not to do so
         $this->redirect_uri  = $this->module->framework->getSystemSetting('entraid-yale-redirect-url');  //This needs to match 100% what is set in Entra ID
+        $this->session_id    = $session_id;
     }
 
     public function authenticate(bool $refresh = false)
     {
-        session_id($_COOKIE['PHPSESSID2']);
-        $this->module->log("Yale_EntraID_Authenticator", [ 'sessionid' => session_id() ]);
-        session_start();
-        // $_SESSION['entraid-yale-origin-url'] = $originUrl;
-        $url = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
-        $url .= "state=" . session_id();
+        $sess_id = $this->session_id ?? session_id();
+        $url     = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
+        $url .= "state=" . $sess_id;
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
         $url .= "&approval_prompt=auto";
@@ -72,7 +71,8 @@ class Yale_EntraID_Authenticator
         return $authdata;
     }
 
-    public function getUserData($authdata) {
+    public function getUserData($authdata)
+    {
 
         //Fetching the basic user information that is likely needed by your application
         $options = array(
@@ -88,7 +88,7 @@ class Yale_EntraID_Authenticator
             // errorhandler(array( "Description" => "Error received during user data fetch.", "PHP_Error" => error_get_last(), "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
             return;
         }
-    
+
         $userdata = json_decode($json, true);  //This should now contain your logged on user information
         if ( isset($userdata["error"]) ) {
             // errorhandler(array( "Description" => "User data fetch contained an error.", "\$userdata[]" => $userdata, "\$authdata[]" => $authdata, "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
@@ -96,9 +96,9 @@ class Yale_EntraID_Authenticator
         }
 
         $userdata_parsed = [
-            'email'          => $userdata['mail'],
-            'first_name'     => $userdata['givenName'],
-            'last_name'      => $userdata['surname'],
+            'user_email'     => $userdata['mail'],
+            'user_firstname' => $userdata['givenName'],
+            'user_lastname'  => $userdata['surname'],
             'netid'          => $userdata['onPremisesSamAccountName'],
             'company'        => $userdata['companyName'],
             'department'     => $userdata['department'],

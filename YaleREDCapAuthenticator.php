@@ -49,22 +49,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         }
 
-        if (
-            $page === 'api/index.php' && 
-            isset($_GET['prefix']) &&
-            $_GET['prefix'] === $this->PREFIX &&
-            isset($_GET['page']) &&
-            $_GET['page'] === 'yale_sso_login'
-        ) {
-            session_id($_COOKIE['PHPSESSID2']);
-            session_start();
-            $this->log("Yale_EntraID_Authenticator 33", [ 'sessionid' => session_id(), 'session data' => json_encode($_SESSION, JSON_PRETTY_PRINT) ]);
-            // $this->log('okokok', ['sessionid' => session_id()]);
-            // $this->handleEntraIDAuth($page);
-            // $this->exitAfterHook();
-            // return;
-        }
-
         // Handle E-Signature form action
         if ( $page === 'Locking/single_form_action.php' ) {
             if ( !isset($_POST['esign_action']) || $_POST['esign_action'] !== 'save' || !isset($_POST['username']) || !isset($_POST['cas_code']) ) {
@@ -115,8 +99,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         } elseif ( isset($_GET[self::$YNHH_AUTH]) ) {
             $this->handleYnhhAuth($page);
         } elseif ( isset($_GET[self::$ENTRAID_AUTH]) ) {
-            $this->log('okok', ['sessionid' => session_id()]);
-            $this->handleEntraIDAuth($page);
+            $this->handleEntraIDAuth();
         }
 
     }
@@ -151,31 +134,114 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     }
 
-    public function handleEntraIDAuth($curPageURL)
+    public function handleEntraIDAuth()
     {
         \Session::savecookie('PHPSESSID2', session_id(), 0, true);
-        $_SESSION['testing'] = date('Y-m-d H:i:s');
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
-            if ( $_GET['authed'] ) {
+            if ( isset($_GET['authed'] )) {
                 $userdata = $_SESSION['entraid-yale-user-data'];
-                echo '<pre>';
-                var_dump($userdata);
-                $this->exitAfterHook();
+                $this->loginEntraIDUser($userdata);
                 return;
             }
             $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
             $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+            
             \Session::savecookie('entraid-yale-origin-url', $curPageURL, 0, true);
-            //$_SESSION['entraid-yale-origin-url2'] = $curPageURL;
-            // $this->log($curPageURL, ['sessionid' => session_id()]);
-            $authenticator = new Yale_EntraID_Authenticator($this, $curPageURL);
-            header("Location: " . $authenticator->getRedirectUri());
+            
+            $authenticator = new Yale_EntraID_Authenticator($this, $curPageURL, session_id());
+            if ( !isset($_GET["code"]) and !isset($_GET["error"]) ) {  //Real authentication part begins
+                $authenticator->authenticate();
+                return;
+            }
+        } catch ( \Throwable $e ) {
+            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            session_unset();
+            session_destroy();
+            $this->exitAfterHook();
             return;
-            // if ( !isset($_GET["code"]) and !isset($_GET["error"]) ) {  //Real authentication part begins
-            //     $authenticator->authenticate();
-            //     return;
-            // }
+        }
+    }
+
+    private function loginEntraIDUser(array $userdata) {
+        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
+        try {
+            $userid = $userdata['netid'];
+            if ( $userid === false ) {
+                $this->exitAfterHook();
+                return;
+            }
+
+            if ( $this->checkCASAffiliation($userid) === false ) {
+                $this->framework->log('Yale REDCap Authenticator: User\'s affiliation not allowed', [ 'userid' => $userid ]);
+                echo "You are not authorized to access this page. Please contact the administrator.";
+                $this->exitAfterHook();
+                return;
+            }
+
+            // Successful authentication
+            $this->framework->log('Yale REDCap Authenticator: Auth Succeeded', [
+                "EntraID NetID" => $userid
+            ]);
+
+            // Trigger login
+            \Authentication::autoLogin($userid);
+
+            // Update last login timestamp
+            \Authentication::setUserLastLoginTimestamp($userid);
+
+            // Log the login
+            \Logging::logPageView("LOGIN_SUCCESS", $userid);
+
+            // Handle account-related things.
+            // If the user does not exist, try to fetch user details and create them.
+            if ( !$this->userExists($userid) ) {
+                // $userDetails = $this->fetchUserDetails($userid);
+                if ( 
+                    isset($userdata['user_firstname']) &&
+                    isset($userdata['user_lastname']) &&
+                    isset($userdata['user_email'])
+                ){
+                    $this->setUserDetails($userid, $userdata);
+                }
+                $this->setCasUser($userid);
+            }
+            // If user is a table-based user, convert to CAS user
+            elseif ( \Authentication::isTableUser($userid) ) {
+                $this->convertTableUserToCasUser($userid);
+            }
+            // otherwise just make sure they are logged as a CAS user
+            else {
+                $this->setCasUser($userid);
+            }
+
+            // 2. If user allowlist is not enabled, all CAS users are allowed.
+            // Otherwise, if not in allowlist, then give them error page.
+            if ( $enable_user_allowlist && !$this->inUserAllowlist($userid) ) {
+                session_unset();
+                session_destroy();
+                $objHtmlPage = new \HtmlPage();
+                $objHtmlPage->addExternalJS(APP_PATH_JS . "base.js");
+                $objHtmlPage->addStylesheet("home.css", 'screen,print');
+                $objHtmlPage->PrintHeader();
+                print "<div class='red' style='margin:40px 0 20px;padding:20px;'>
+                            {$lang['config_functions_78']} \"<b>$userid</b>\"{$lang['period']}
+                            {$lang['config_functions_79']} <a href='mailto:$homepage_contact_email'>$homepage_contact</a>{$lang['period']}
+                        </div>
+                        <button onclick=\"window.location.href='" . APP_PATH_WEBROOT_FULL . "index.php?logout=1';\">Go back</button>";
+                print '<div id="my_page_footer">' . \REDCap::getCopyright() . '</div>';
+                $this->framework->exitAfterHook();
+                return;
+            }
+
+            // url to redirect to after login
+            $redirect = $this->curPageURL();
+            // strip the EntraID_auth and authed parameters from the URL
+            $redirectStripped = $this->stripQueryParameter($redirect, self::$ENTRAID_AUTH);
+            $redirectStripped = $this->stripQueryParameter($redirectStripped, 'authed');
+            
+            // Redirect to the page we were on
+            $this->redirectAfterHook($redirectStripped);
         } catch ( \Throwable $e ) {
             $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
             session_unset();
@@ -529,7 +595,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                     <ul class="list-group list-group-flush">
                                         <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$CAS_AUTH, '1') ?>';">
+                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$ENTRAID_AUTH, '1') ?>';">
                                             <img src="<?= $this->framework->getUrl('assets/images/YU.png') ?>"
                                                 class="login-logo">
                                         </li>
