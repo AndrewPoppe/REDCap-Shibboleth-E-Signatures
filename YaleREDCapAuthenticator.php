@@ -89,7 +89,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
 
         // Already logged in to REDCap
-        if (defined('COMMUNITY_USER')) $this->log(COMMUNITY_USERID);
         if ( (defined('USERID') && defined('USERID') !== '') || $this->framework->isAuthenticated() ) {
             if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
                 $cleanUrl = $this->stripQueryParameter($this->curPageURL(), 'logintype');
@@ -332,8 +331,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_every_page_top($project_id)
     {
-        
-        if (defined('COMMUNITY_USER')) $this->log(COMMUNITY_USERID);
         $page = defined('PAGE') ? PAGE : null;
         if ( empty($page) ) {
             return;
