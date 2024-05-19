@@ -90,6 +90,10 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
         // Already logged in to REDCap
         if ( (defined('USERID') && defined('USERID') !== '') || $this->framework->isAuthenticated() ) {
+            if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
+                $cleanUrl = $this->stripQueryParameter($this->curPageURL(), 'logintype');
+                $this->redirectAfterHook($cleanUrl);
+            }
             return;
         }
 
