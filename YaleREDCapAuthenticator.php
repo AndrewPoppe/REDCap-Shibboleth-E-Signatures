@@ -89,6 +89,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
 
         // Already logged in to REDCap
+        // $this->log(USERNAME);
         if ( (defined('USERID') && defined('USERID') !== '') || $this->framework->isAuthenticated() ) {
             if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
                 $cleanUrl = $this->stripQueryParameter($this->curPageURL(), 'logintype');
@@ -634,9 +635,11 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( isset($parsed['query']) ) {
             parse_str($parsed['query'], $params);
             unset($params[$param]);
-            $parsed = http_build_query($params);
+            $parsed = empty($params) ? '' : http_build_query($params);
+            return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
+        } else {
+            return $url;
         }
-        return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
     }
 
     public function addQueryParameter(string $url, string $param, string $value = '')
