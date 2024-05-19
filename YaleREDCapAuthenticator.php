@@ -332,6 +332,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_every_page_top($project_id)
     {
+        
+        if (defined('COMMUNITY_USER')) $this->log(COMMUNITY_USER);
         $page = defined('PAGE') ? PAGE : null;
         if ( empty($page) ) {
             return;
