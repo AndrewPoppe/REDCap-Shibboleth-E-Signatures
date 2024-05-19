@@ -13,7 +13,6 @@ require_once 'Yale_EntraID_Authenticator.php';
 class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
-    static $CAS_AUTH = 'CAS_auth';
     static $YNHH_AUTH = 'YNHH_auth';
     static $ENTRAID_AUTH = 'EntraID_auth';
     static $ENTRAID_URL_COOKIE = 'entraid-yale-origin-url';
@@ -21,11 +20,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
-        // Normal Users
-        if ( $action === 'eraseCasSession' ) {
-            return $this->eraseCasSession();
-        }
-
         // Admins only
         if ( !$this->framework->getUser()->isSuperUser() ) {
             throw new \Exception('Unauthorized');
@@ -89,9 +83,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
         
         // Only authenticate if we're asked to
-        if ( isset($_GET[self::$CAS_AUTH]) ) {
-            $this->handleCasAuth($page);
-        } elseif ( isset($_GET[self::$YNHH_AUTH]) ) {
+        if ( isset($_GET[self::$YNHH_AUTH]) ) {
             $this->handleYnhhAuth($page);
         } elseif ( isset($_GET[self::$ENTRAID_AUTH]) ) {
             $this->handleEntraIDAuth($this->curPageURL());
@@ -237,99 +229,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             session_unset();
             session_destroy();
             return false;
-        }
-    }
-
-    public function handleCasAuth($page)
-    {
-        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
-        try {
-            $userid = $this->authenticate();
-            if ( $userid === false ) {
-                $this->exitAfterHook();
-                return;
-            }
-
-            if ( $this->checkCASAffiliation($userid) === false ) {
-                $this->framework->log('Yale REDCap Authenticator: User\'s affiliation not allowed', [ 'userid' => $userid ]);
-                echo "You are not authorized to access this page. Please contact the administrator.";
-                $this->exitAfterHook();
-                return;
-            }
-
-            // Successful authentication
-            $this->framework->log('Yale REDCap Authenticator: Auth Succeeded', [
-                "CASAuthenticator_NetId" => $userid,
-                "page"                   => $page
-            ]);
-
-            // Trigger login
-            \Authentication::autoLogin($userid);
-
-            // Update last login timestamp
-            \Authentication::setUserLastLoginTimestamp($userid);
-
-            // Log the login
-            \Logging::logPageView("LOGIN_SUCCESS", $userid);
-
-            // Handle account-related things.
-            // If the user does not exist, try to fetch user details and create them.
-            if ( !$this->userExists($userid) ) {
-                $userDetails = $this->fetchUserDetails($userid);
-                if ( $userDetails ) {
-                    $this->setUserDetails($userid, $userDetails);
-                }
-                $this->setCasUser($userid);
-            }
-            // If user is a table-based user, convert to CAS user
-            elseif ( \Authentication::isTableUser($userid) ) {
-                $this->convertTableUserToCasUser($userid);
-            }
-            // otherwise just make sure they are logged as a CAS user
-            else {
-                $this->setCasUser($userid);
-            }
-
-            // 2. If user allowlist is not enabled, all CAS users are allowed.
-            // Otherwise, if not in allowlist, then give them error page.
-            if ( $enable_user_allowlist && !$this->inUserAllowlist($userid) ) {
-                session_unset();
-                session_destroy();
-                $objHtmlPage = new \HtmlPage();
-                $objHtmlPage->addExternalJS(APP_PATH_JS . "base.js");
-                $objHtmlPage->addStylesheet("home.css", 'screen,print');
-                $objHtmlPage->PrintHeader();
-                print "<div class='red' style='margin:40px 0 20px;padding:20px;'>
-                            {$lang['config_functions_78']} \"<b>$userid</b>\"{$lang['period']}
-                            {$lang['config_functions_79']} <a href='mailto:$homepage_contact_email'>$homepage_contact</a>{$lang['period']}
-                        </div>
-                        <button onclick=\"window.location.href='" . APP_PATH_WEBROOT_FULL . "index.php?logout=1';\">Go back</button>";
-                print '<div id="my_page_footer">' . \REDCap::getCopyright() . '</div>';
-                $this->framework->exitAfterHook();
-                return;
-            }
-
-            // url to redirect to after login
-            $redirect = $this->curPageURL();
-            // strip the "CAS_auth" parameter from the URL
-            $redirectStripped = $this->stripQueryParameter($redirect, self::$CAS_AUTH);
-            // Redirect to the page we were on
-            $this->redirectAfterHook($redirectStripped);
-            return;
-        } catch ( \CAS_GracefullTerminationException $e ) {
-            if ( $e->getCode() !== 0 ) {
-                $this->framework->log('Yale REDCap Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
-                session_unset();
-                session_destroy();
-                $this->exitAfterHook();
-                return;
-            }
-        } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error 3', [ 'error' => $e->getMessage() ]);
-            session_unset();
-            session_destroy();
-            $this->exitAfterHook();
-            return;
         }
     }
 
@@ -718,146 +617,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     private function handleLogout()
     {
         if ( isset($_GET['logout']) && $_GET['logout'] ) {
-            \phpCAS::logoutWithUrl(APP_PATH_WEBROOT_FULL);
+            //\phpCAS::logoutWithUrl(APP_PATH_WEBROOT_FULL);
         }
-    }
-
-    public function initializeCas()
-    {
-        //require_once __DIR__ . '/vendor/apereo/phpcas/CAS.php';
-        require_once __DIR__ . '/vendor/autoload.php';
-        if ( \phpCAS::isInitialized() ) {
-            return true;
-        }
-        try {
-
-            $cas_host                = $this->getSystemSetting("cas-host");
-            $cas_context             = $this->getSystemSetting("cas-context");
-            $cas_port                = (int) $this->getSystemSetting("cas-port");
-            $cas_server_ca_cert_id   = $this->getSystemSetting("cas-server-ca-cert-pem");
-            $cas_server_ca_cert_path = empty($cas_server_ca_cert_id) ? $this->getSafePath('cacert.pem') : $this->getFile($cas_server_ca_cert_id);
-            $server_force_https      = $this->getSystemSetting("server-force-https");
-            $service_base_url        = (SSL ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'];//APP_PATH_WEBROOT_FULL;
-
-            // Enable https fix
-            if ( $server_force_https == 1 ) {
-                $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
-                $_SERVER['HTTP_X_FORWARDED_PORT']  = 443;
-                $_SERVER['HTTPS']                  = 'on';
-                $_SERVER['SERVER_PORT']            = 443;
-            }
-
-            // Initialize phpCAS
-            \phpCAS::client(CAS_VERSION_2_0, $cas_host, $cas_port, $cas_context, $service_base_url, false);
-
-            // Set the CA certificate that is the issuer of the cert
-            // on the CAS server
-            \phpCAS::setCasServerCACert($cas_server_ca_cert_path);
-
-            // Don't exit, let me handle instead
-            \CAS_GracefullTerminationException::throwInsteadOfExiting();
-            return true;
-        } catch ( \Throwable $e ) {
-            $this->log('Yale REDCap Authenticator: Error initializing CAS', [ 'error' => $e->getMessage() ]);
-            return false;
-        }
-    }
-
-    /**
-     * Initiate CAS authentication
-     * 
-     * 
-     * @return string|boolean username of authenticated user (false if not authenticated)
-     */
-    public function authenticate()
-    {
-        try {
-
-            $initialized = $this->initializeCas();
-            if ( $initialized === false ) {
-                $this->framework->log('Yale REDCap Authenticator: Error initializing CAS');
-                throw new \Exception('Error initializing CAS');
-            }
-
-            // force CAS authentication
-            \phpCAS::forceAuthentication();
-
-            // Return authenticated username
-            return \phpCAS::getUser();
-        } catch ( \CAS_GracefullTerminationException $e ) {
-            if ( $e->getCode() !== 0 ) {
-                $this->framework->log('Yale REDCap Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
-            }
-            return false;
-        } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Authenticator: Error authenticating', [ 'errorMessage' => $e->getMessage(), 'error' => json_encode($e, JSON_PRETTY_PRINT) ]);
-            return false;
-        }
-    }
-
-    public function renewAuthentication()
-    {
-        try {
-            $initialized = $this->initializeCas();
-            if ( !$initialized ) {
-                $this->framework->log('CAS Login E-Signature: Error initializing CAS');
-                throw new \Exception('Error initializing CAS');
-            }
-
-            $cas_url = \phpCAS::getServerLoginURL() . '%26cas_authed%3Dtrue&renew=true';
-            \phpCAS::setServerLoginURL($cas_url);
-            \phpCAS::forceAuthentication();
-        } catch ( \CAS_GracefullTerminationException $e ) {
-            if ( $e->getCode() !== 0 ) {
-                $this->framework->log('CAS Login E-Signature: Error getting code', [ 'error' => $e->getMessage() ]);
-            }
-            return false;
-        } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Login E-Signature: Error authenticating', [ 'error' => json_encode($e, JSON_PRETTY_PRINT) ]);
-            return false;
-        }
-    }
-
-
-    /**
-     * Get url to file with provided edoc ID.
-     * 
-     * @param string $edocId ID of the file to find
-     * 
-     * @return string path to file in edoc folder
-     */
-    private function getFile(string $edocId)
-    {
-        $filePath = "";
-        if ( $edocId === null ) {
-            return $filePath;
-        }
-        $result   = $this->query('SELECT stored_name FROM redcap_edocs_metadata WHERE doc_id = ?', $edocId);
-        $filename = $result->fetch_assoc()["stored_name"];
-        if ( defined('EDOC_PATH') ) {
-            $filePath = $this->framework->getSafePath(EDOC_PATH . $filename, EDOC_PATH);
-        }
-        return $filePath;
-    }
-
-
-    private function casLog($message, $params = [], $record = null, $event = null)
-    {
-        $doProjectLogging = $this->getProjectSetting('logging');
-        if ( $doProjectLogging ) {
-            $changes = "";
-            foreach ( $params as $label => $value ) {
-                $changes .= $label . ": " . $value . "\n";
-            }
-            \REDCap::logEvent(
-                $message,
-                $changes,
-                null,
-                $record,
-                $event
-            );
-        }
-        $this->framework->log($message, $params);
     }
 
     private function jwt_request(string $url, string $token)
@@ -956,20 +717,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function createCode()
-    {
-        return uniqid('cas_', true);
-    }
-
-    public function setCode($username, $code)
-    {
-        $this->framework->setSystemSetting('cas-code-' . $username, $code);
-    }
-    public function getCode($username)
-    {
-        return $this->framework->getSystemSetting('cas-code-' . $username);
-    }
-
     public function isCasUser($username)
     {
         return !\Authentication::isTableUser($username) && $this->framework->getSystemSetting('cas-user-' . $username) === true;
@@ -992,13 +739,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     public function setCasUser($userid, bool $value = true)
     {
         $this->framework->setSystemSetting('cas-user-' . $userid, $value);
-    }
-
-    public function eraseCasSession()
-    {
-        $this->initializeCas();
-        unset($_SESSION[\phpCAS::getCasClient()::PHPCAS_SESSION_PREFIX]);
-        return;
     }
 
     private function addCasInfoToBrowseUsersTable()
@@ -1133,25 +873,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             !\ExternalModules\ExternalModules::isNoAuth();
     }
 
-    public function checkCASAuth()
-    {
-        $isAuthed = false;
-        try {
-            $this->initializeCas();
-            if ( \phpCAS::checkAuthentication() ) {
-                $isAuthed = true;
-            }
-        } catch ( \CAS_GracefullTerminationException $e ) {
-            if ( $e->getCode() !== 0 ) {
-                $this->framework->log('Yale REDCap Authenticator: Error getting code', [ 'error' => $e->getMessage() ]);
-            }
-            return false;
-        } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error checking CAS auth', [ 'error' => $e->getMessage() ]);
-        } finally {
-            return $isAuthed;
-        }
-    }
     public function checkYNHHAuth()
     {
         $isAuthed = false;

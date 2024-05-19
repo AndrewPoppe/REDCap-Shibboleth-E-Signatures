@@ -11,34 +11,6 @@
     ],
     "system-settings": [
         {
-            "key": "cas-host",
-            "name": "<strong>Full Hostname of your CAS Server</strong>:<br>e.g., secure.its.yale.edu",
-            "required": true,
-            "type": "text"
-        },
-        {
-            "key": "cas-context",
-            "name": "<strong>Context of the CAS Server</strong>:<br>e.g., /cas",
-            "required": true,
-            "type": "text"
-        },
-        {
-            "key": "cas-port",
-            "name": "<strong>Port of your CAS server</strong>:<br>Normally for a https server it's 443",
-            "required": true,
-            "type": "text"
-        },
-        {
-            "key": "cas-server-ca-cert-pem",
-            "name": "<strong>CA cert pem file</strong>:<br>e.g., cacert.pem",
-            "type": "file"
-        },
-        {
-            "key": "server-force-https",
-            "name": "<strong>HTTPS Override</strong>:<br>Check this if you experience the CAS server redirecting to http despite your REDCap server using https protocol",
-            "type": "checkbox"
-        },
-        {
             "key": "entraid-yale-section",
             "name": "<div class='cas-descriptive p-2' style='background-color:#84cbe4; border: 1px solid #537f8f; border-radius: 0.375rem; text-align: center;'><strong>Yale Entra ID Details</strong><br></div>",
             "type": "descriptive"
@@ -109,97 +81,7 @@
             }
         }
     ],
-    "project-settings": [
-        {
-            "key": "general-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:LightGoldenRodYellow; border: 1px solid Khaki; border-radius: 0.375rem; text-align: center;'><strong>General Settings</strong></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "logging",
-            "name": "<strong>Enable logging</strong>:<br>Check this if you want to log CAS authentication events",
-            "type": "checkbox"
-        },
-        {
-            "key": "survey-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightgreen; border: 1px solid limegreen; border-radius: 0.375rem; text-align: center;'><strong>Surveys</strong><br>Select surveys to add CAS to<br><em>Note: this setting has no effect if surveys are disabled</em></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "survey-subsettings",
-            "name": "<strong>Select survey</strong>",
-            "type": "sub_settings",
-            "repeatable": true,
-            "sub_settings": [
-                {
-                    "key": "event",
-                    "name": "<strong>Event</strong>:<br>Leave blank if not applicable or if CAS should apply to the chosen survey across all events",
-                    "required": false,
-                    "type": "event-list",
-                    "autocomplete": true
-                },
-                {
-                    "key": "survey",
-                    "name": "<strong>Survey</strong>",
-                    "required": false,
-                    "type": "dropdown",
-                    "autocomplete": true
-                },
-                {
-                    "key": "id-field",
-                    "name": "<strong>ID Field</strong>:<br>If you want to store the id of the person who logged in with CAS, select the field to store it here (it should be a text input field on the same survey)",
-                    "required": false,
-                    "type": "field-list",
-                    "autocomplete": true
-                }
-            ]
-        },
-        {
-            "key": "report-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightsalmon; border: 1px solid salmon; border-radius: 0.375rem; text-align: center;'><strong>Reports</strong><br>Select public reports to add CAS to<br><em>Note: this setting has no effect if sharing reports publicly is disabled</em></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "report",
-            "name": "<strong>Report</strong>",
-            "type": "dropdown",
-            "repeatable": true,
-            "autocomplete": true
-        },
-        {
-            "key": "dashboard-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightskyblue; border: 1px solid deepskyblue; border-radius: 0.375rem; text-align: center;'><strong>Dashboards</strong><br>Select public dashboards to add CAS to<br><em>Note: this setting has no effect if sharing dashboards publicly is disabled</em></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "dashboard",
-            "name": "<strong>Dashboard</strong>",
-            "type": "dropdown",
-            "repeatable": true,
-            "autocomplete": true
-        },
-        {
-            "key": "file-repository-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:plum; border: 1px solid purple; border-radius: 0.375rem; text-align: center;'><strong>File Repository</strong><br>Select files and/or entire folders from the file repository to add CAS to.<br><em>Note: this setting has no effect if sharing files publicly is disabled</em></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "file",
-            "name": "<strong>File</strong><br>Choose any file from the file repository",
-            "type": "dropdown",
-            "repeatable": true,
-            "autocomplete": true
-        },
-        {
-            "key": "folder",
-            "name": "<strong>Folder</strong><br>Choose any folder from the file repository. All files in the folder will be protected by CAS when shared publicly",
-            "type": "dropdown",
-            "repeatable": true,
-            "autocomplete": true
-        }
-    ],
     "auth-ajax-actions": [
-        "eraseCasSession",
         "isCasUser",
         "getUserType",
         "convertTableUserToCasUser",
