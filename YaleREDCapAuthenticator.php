@@ -16,6 +16,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     static $CAS_AUTH = 'CAS_auth';
     static $YNHH_AUTH = 'YNHH_auth';
     static $ENTRAID_AUTH = 'EntraID_auth';
+    static $ENTRAID_URL_COOKIE = 'entraid-yale-origin-url';
+    static $ENTRAID_SESSION_ID_COOKIE = 'entraid-yale-session-id';
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
@@ -51,40 +53,29 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
         // Handle E-Signature form action
         if ( $page === 'Locking/single_form_action.php' ) {
-            if ( !isset($_POST['esign_action']) || $_POST['esign_action'] !== 'save' || !isset($_POST['username']) || !isset($_POST['cas_code']) ) {
+            if ( !isset($_POST['esign_action']) || $_POST['esign_action'] !== 'save' || !isset($_POST['token']) ) {
                 return;
             }
-            if ( $_POST['cas_code'] !== $this->getCode($_POST['username']) ) {
-                $this->log('CAS Login E-Signature: Error authenticating user');
+
+            // Get username from token
+            $authenticator = new Yale_EntraID_Authenticator($this);
+            $userData      = $authenticator->getUserData($_POST['token']);
+            $username      = $userData['netid'];
+
+
+            // Check if username matches
+            $realUsername = $this->framework->getUser()->getUsername();
+            if ( $username !== $realUsername ) {
+                $this->log('EntraId Login E-Signature: Usernames do not match', [
+                    'username'     => $username,
+                    'realUsername' => $realUsername
+                ]);
                 $this->exitAfterHook();
                 return;
             }
-            $this->setCode($_POST['username'], '');
 
             global $auth_meth_global;
             $auth_meth_global = 'none';
-            return;
-        }
-
-        // If we're on the login page, inject the CAS login button
-        if (
-            $this->inLoginFunction() &&
-            \ExternalModules\ExternalModules::getUsername() === null && 
-            !\ExternalModules\ExternalModules::isNoAuth() && 
-            !isset($_GET[self::$CAS_AUTH]) && 
-            !isset($_GET[self::$YNHH_AUTH]) && 
-            !isset($_GET[self::$ENTRAID_AUTH])
-        ) {
-
-
-            if ( (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php' ) {
-                return;
-            }
-            if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
-                return;
-            }
-            $this->showCustomLoginPage($this->curPageURL());
-            $this->exitAfterHook();
             return;
         }
 
@@ -96,16 +87,31 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             }
             return;
         }
-
-        // Only authenticate if we're asked to (but include the login page HTML if we're not logged in)
+        
+        // Only authenticate if we're asked to
         if ( isset($_GET[self::$CAS_AUTH]) ) {
             $this->handleCasAuth($page);
         } elseif ( isset($_GET[self::$YNHH_AUTH]) ) {
             $this->handleYnhhAuth($page);
         } elseif ( isset($_GET[self::$ENTRAID_AUTH]) ) {
-            $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-            $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-            $this->handleEntraIDAuth($curPageURL);
+            $this->handleEntraIDAuth($this->curPageURL());
+        }
+        
+        // If we're on the login page, inject the custom login page 
+        if (
+            $this->inLoginFunction() &&
+            \ExternalModules\ExternalModules::getUsername() === null && 
+            !\ExternalModules\ExternalModules::isNoAuth()
+        ) {
+            if ( (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php' ) {
+                return;
+            }
+            if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
+                return;
+            }
+            $this->showCustomLoginPage($this->curPageURL());
+            $this->exitAfterHook();
+            return;
         }
 
     }
@@ -116,8 +122,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         }
 
-        $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-        $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        // $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+        // $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        $curPageURL    = $this->curPageURL();
         $newUrl        = $this->addQueryParameter($curPageURL, 'authed', 'true');
         $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
 
@@ -142,16 +149,13 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function handleEntraIDAuth($url)
     {
-        \Session::savecookie('PHPSESSID2', session_id(), 0, true);
-        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
-            \Session::savecookie('entraid-yale-origin-url', $url, 0, true);
-            
-            $authenticator = new Yale_EntraID_Authenticator($this, session_id());
-            if ( !isset($_GET["code"]) and !isset($_GET["error"]) ) {
-                $authenticator->authenticate();
-                return true;
-            }
+            $session_id = session_id();
+            \Session::savecookie(self::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
+            \Session::savecookie(self::$ENTRAID_URL_COOKIE, $url, 0, true);
+            $authenticator = new Yale_EntraID_Authenticator($this, $session_id);
+            $authenticator->authenticate();
+            return true;
         } catch ( \Throwable $e ) {
             $this->framework->log('Yale REDCap Authenticator: Error 1', [ 'error' => $e->getMessage() ]);
             session_unset();
@@ -348,54 +352,66 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( !$this->isCasUser($user->getUsername()) ) {
             return;
         }
-        $this->framework->initializeJavascriptModuleObject();
+        $authenticator = new Yale_EntraID_Authenticator($this);
         ?>
+        <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
         <script>
             $(document).ready(function () {
-                const authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
                 var numLogins = 0;
                 var esign_action_global;
                 const saveLockingOrig = saveLocking;
-                window.addEventListener('message', (event) => {
-                    if (event.origin !== window.location.origin) {
-                        return;
-                    }
-                    const action = 'lock';
-                    $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
-                        auto: getParameterByName('auto'),
-                        instance: getParameterByName('instance'),
-                        esign_action: esign_action_global,
-                        event_id: event_id,
-                        action: action,
-                        username: event.data.username,
-                        record: getParameterByName('id'),
-                        form_name: getParameterByName('page'),
-                        cas_code: event.data.code
-                    }, function (data) {
-                        if (data != "") {
-                            numLogins = 0;
-                            if (auto_inc_set && getParameterByName('auto') == '1' && isinteger(data.replace(
-                                '-', ''))) {
-                                $('#form :input[name="' + table_pk + '"], #form :input[name="__old_id__"]')
-                                    .val(data);
-                            }
-                            formSubmitDataEntry();
-                        } else {
-                            numLogins++;
-                            esignFail(numLogins);
-                        }
-                    });
-                });
                 saveLocking = function (lock_action, esign_action) {
                     if (esign_action !== 'save' || lock_action !== 1) {
                         saveLockingOrig(lock_action, esign_action);
                         return;
                     }
                     esign_action_global = esign_action;
-                    authenticator.ajax('eraseCasSession', {}).then(() => {
-                        const url = '<?= $this->getUrl('cas_login.php') ?> ';
-                        window.open(url, null, 'popup=true,innerWidth=500,innerHeight=700');
-                    });
+                    const config = {
+                        auth: {
+                            clientId: "<?=$authenticator->getClientId()?>",
+                            authority: "https://login.microsoftonline.com/<?=$authenticator->getAdTenant()?>",
+                            redirectUri: "<?=$authenticator->getRedirectUriSpa()?>"
+                        }
+                    };
+
+                    const loginRequest = {
+                        scopes: ["User.Read"],
+                        prompt: "login",
+                    };
+
+                    const myMsal = new msal.PublicClientApplication(config);
+
+                    myMsal
+                        .loginPopup(loginRequest)
+                        .then(function (loginResponse) {
+                            const action = 'lock';
+                            $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
+                                auto: getParameterByName('auto'),
+                                instance: getParameterByName('instance'),
+                                esign_action: esign_action_global,
+                                event_id: event_id,
+                                action: action,
+                                record: getParameterByName('id'),
+                                form_name: getParameterByName('page'),
+                                token: loginResponse.accessToken
+                            }, function (data) {
+                                if (data != "") {
+                                    numLogins = 0;
+                                    if (auto_inc_set && getParameterByName('auto') == '1' && isinteger(data.replace(
+                                        '-', ''))) {
+                                        $('#form :input[name="' + table_pk + '"], #form :input[name="__old_id__"]')
+                                            .val(data);
+                                    }
+                                    formSubmitDataEntry();
+                                } else {
+                                    numLogins++;
+                                    esignFail(numLogins);
+                                }
+                            });
+                        })
+                        .catch(function (error) {
+                            console.log(error);
+                        });
                 }
             });
         </script>
@@ -1144,8 +1160,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
-            $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-            $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+            // $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+            // $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+            $curPageURL    = $this->curPageURL();
             $newUrl        = $this->addQueryParameter($curPageURL, 'authed', 'true');
             $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
 

@@ -8,23 +8,24 @@ class Yale_EntraID_Authenticator
     private $ad_tenant;
     private $client_secret;
     private $redirect_uri;
+    private $redirect_uri_spa;
     private $module;
     private $session_id;
     public function __construct(YaleREDCapAuthenticator $module, string $session_id = null)
     {
-        $this->module        = $module;
-        $this->client_id     = $this->module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID
-        $this->ad_tenant     = $this->module->framework->getSystemSetting('entraid-yale-ad-tenant-id');  //Entra ID Tenant ID, with Multitenant apps you can use "common" as Tenant ID, but using specific endpoint is recommended when possible
-        $this->client_secret = $this->module->framework->getSystemSetting('entraid-yale-client-secret');  //Client Secret, remember that this expires someday unless you haven't set it not to do so
-        $this->redirect_uri  = $this->module->framework->getSystemSetting('entraid-yale-redirect-url');  //This needs to match 100% what is set in Entra ID
-        $this->session_id    = $session_id;
+        $this->module           = $module;
+        $this->client_id        = $this->module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID
+        $this->ad_tenant        = $this->module->framework->getSystemSetting('entraid-yale-ad-tenant-id');  //Entra ID Tenant ID, with Multitenant apps you can use "common" as Tenant ID, but using specific endpoint is recommended when possible
+        $this->client_secret    = $this->module->framework->getSystemSetting('entraid-yale-client-secret');  //Client Secret, remember that this expires someday unless you haven't set it not to do so
+        $this->redirect_uri     = $this->module->framework->getSystemSetting('entraid-yale-redirect-url');  //This needs to match 100% what is set in Entra ID
+        $this->redirect_uri_spa = $this->module->framework->getSystemSetting('entraid-yale-redirect-url-spa');  //This needs to match 100% what is set in Entra ID
+        $this->session_id       = $session_id ?? session_id();
     }
 
     public function authenticate(bool $refresh = false)
     {
-        $sess_id = $this->session_id ?? session_id();
-        $url     = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
-        $url .= "state=" . $sess_id;
+        $url = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
+        $url .= "state=" . $this->session_id;
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
         $url .= "&approval_prompt=auto";
@@ -71,7 +72,7 @@ class Yale_EntraID_Authenticator
         return $authdata;
     }
 
-    public function getUserData($authdata)
+    public function getUserData($access_token)
     {
 
         //Fetching the basic user information that is likely needed by your application
@@ -79,7 +80,7 @@ class Yale_EntraID_Authenticator
             "http" => array(  //Use "http" even if you send the request with https
                 "method" => "GET",
                 "header" => "Accept: application/json\r\n" .
-                    "Authorization: Bearer " . $authdata["access_token"] . "\r\n"
+                    "Authorization: Bearer " . $access_token . "\r\n"
             )
         );
         $context = stream_context_create($options);
@@ -113,6 +114,21 @@ class Yale_EntraID_Authenticator
     public function getRedirectUri()
     {
         return $this->redirect_uri;
+    }
+
+    public function getRedirectUriSpa()
+    {
+        return $this->redirect_uri_spa;
+    }
+
+    public function getClientId()
+    {
+        return $this->client_id;
+    }
+
+    public function getAdTenant()
+    {
+        return $this->ad_tenant;
     }
 
 }
