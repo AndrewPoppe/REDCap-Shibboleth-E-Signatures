@@ -84,7 +84,7 @@ class Yale_EntraID_Authenticator
             )
         );
         $context = stream_context_create($options);
-        $json    = file_get_contents("https://graph.microsoft.com/beta/me?\$select=mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
+        $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
         if ( $json === false ) {
             // errorhandler(array( "Description" => "Error received during user data fetch.", "PHP_Error" => error_get_last(), "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
             return;
