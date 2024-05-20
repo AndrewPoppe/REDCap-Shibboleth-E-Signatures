@@ -11,6 +11,7 @@ class Yale_EntraID_Authenticator
     private $redirect_uri_spa;
     private $module;
     private $session_id;
+    private $logout_uri;
     public function __construct(YaleREDCapAuthenticator $module, string $session_id = null)
     {
         $this->module           = $module;
@@ -20,6 +21,7 @@ class Yale_EntraID_Authenticator
         $this->redirect_uri     = $this->module->framework->getSystemSetting('entraid-yale-redirect-url');  //This needs to match 100% what is set in Entra ID
         $this->redirect_uri_spa = $this->module->framework->getSystemSetting('entraid-yale-redirect-url-spa');  //This needs to match 100% what is set in Entra ID
         $this->session_id       = $session_id ?? session_id();
+        $this->logout_uri       = $this->module->framework->getSystemSetting('entraid-yale-logout-url');
     }
 
     public function authenticate(bool $refresh = false)
@@ -84,7 +86,7 @@ class Yale_EntraID_Authenticator
             )
         );
         $context = stream_context_create($options);
-        $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
+        $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
         if ( $json === false ) {
             // errorhandler(array( "Description" => "Error received during user data fetch.", "PHP_Error" => error_get_last(), "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
             return;
@@ -106,9 +108,15 @@ class Yale_EntraID_Authenticator
             'job_title'      => $userdata['jobTitle'],
             'type'           => $userdata['userType'],
             'accountEnabled' => $userdata['accountEnabled'],
+            'id'             => $userdata['id'],
         ];
 
         return $userdata_parsed;
+    }
+
+    public function logout($entraid) {
+        header("Location: " . $this->module->addQueryParameter($this->getLogoutUri(), 'logout_hint', $entraid));
+        return;
     }
 
     public function getRedirectUri()
@@ -129,6 +137,11 @@ class Yale_EntraID_Authenticator
     public function getAdTenant()
     {
         return $this->ad_tenant;
+    }
+
+    public function getLogoutUri()
+    {
+        return $this->logout_uri;
     }
 
 }

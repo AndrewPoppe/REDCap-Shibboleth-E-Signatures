@@ -13,6 +13,10 @@ $authenticator = new Yale_EntraID_Authenticator($module);
 $authData = $authenticator->getAuthData($_GET["state"], $_GET["code"]);
 $userData = $authenticator->getUserData($authData['access_token']);
 
+if (!$userData['accountEnabled']) {
+    exit('Your Yale account is not enabled. Please contact your administrator.');
+}
+
 $result = $module->loginEntraIDUser($userData);
 if ( $result ) {
 

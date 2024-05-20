@@ -7,8 +7,9 @@ namespace YaleREDCap\YaleREDCapAuthenticator;
  * @see Framework
  */
 
-require_once 'YNHH_SAML_Authenticator.php';
-require_once 'Yale_EntraID_Authenticator.php';
+require_once 'classes/YNHH_SAML_Authenticator.php';
+require_once 'classes/Yale_EntraID_Authenticator.php';
+require_once 'classes/ESignatureHandler.php';
 
 class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 {
@@ -24,9 +25,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( !$this->framework->getUser()->isSuperUser() ) {
             throw new \Exception('Unauthorized');
         }
-        if ( $action === 'isCasUser' ) {
-            return $this->isCasUser($payload['username']);
-        }
         if ( $action === 'getUserType' ) {
             return $this->getUserType($payload['username']);
         }
@@ -40,70 +38,54 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_every_page_before_render($project_id = null)
     {
-        $page = defined('PAGE') ? PAGE : null;
-        if ( empty($page) ) {
-            return;
-        }
-
-        // Handle E-Signature form action
-        if ( $page === 'Locking/single_form_action.php' ) {
-            if ( !isset($_POST['esign_action']) || $_POST['esign_action'] !== 'save' || !isset($_POST['token']) ) {
+        try {
+            $page = defined('PAGE') ? PAGE : null;
+            if ( empty($page) ) {
                 return;
             }
 
-            // Get username from token
-            $authenticator = new Yale_EntraID_Authenticator($this);
-            $userData      = $authenticator->getUserData($_POST['token']);
-            $username      = $userData['netid'];
+            if ( isset($_GET['logout']) && $_GET['logout']) {
+                \Authentication::checkLogout();
+                return;
+            }
 
+            if (isset($_GET['debug'])) {
+                echo "<pre>";
+                var_dump($_SESSION);
+                exit;
+            }
 
-            // Check if username matches
-            $realUsername = $this->framework->getUser()->getUsername();
-            if ( $username !== $realUsername ) {
-                $this->log('EntraId Login E-Signature: Usernames do not match', [
-                    'username'     => $username,
-                    'realUsername' => $realUsername
-                ]);
+            // Handle E-Signature form action
+            if ( $page === 'Locking/single_form_action.php' ) {
+                $esignatureHandler = new ESignatureHandler($this);
+                $esignatureHandler->handleRequest($_POST);
+                return;
+            }
+
+            // Already logged in to REDCap
+            if ( $this->isLoggedIntoREDCap() ) {
+                if ( $this->doingLocalLogin() ) {
+                    $cleanUrl = $this->stripQueryParameter($this->curPageURL(), 'logintype');
+                    $this->redirectAfterHook($cleanUrl);
+                }
+                return;
+            }
+            
+            // Only authenticate if we're asked to
+            if ( isset($_GET[self::$YNHH_AUTH]) ) {
+                $this->handleYnhhAuth($page);
+            } elseif ( isset($_GET[self::$ENTRAID_AUTH]) ) {
+                $this->handleEntraIDAuth($this->curPageURL());
+            }
+            
+            // Inject the custom login page 
+            if ( $this->needsCustomLogin($page) ) {
+                $this->showCustomLoginPage($this->curPageURL());
                 $this->exitAfterHook();
                 return;
             }
-
-            global $auth_meth_global;
-            $auth_meth_global = 'none';
-            return;
-        }
-
-        // Already logged in to REDCap
-        if ( (defined('USERID') && defined('USERID') !== '') || $this->framework->isAuthenticated() ) {
-            if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
-                $cleanUrl = $this->stripQueryParameter($this->curPageURL(), 'logintype');
-                $this->redirectAfterHook($cleanUrl);
-            }
-            return;
-        }
-        
-        // Only authenticate if we're asked to
-        if ( isset($_GET[self::$YNHH_AUTH]) ) {
-            $this->handleYnhhAuth($page);
-        } elseif ( isset($_GET[self::$ENTRAID_AUTH]) ) {
-            $this->handleEntraIDAuth($this->curPageURL());
-        }
-        
-        // If we're on the login page, inject the custom login page 
-        if (
-            $this->inLoginFunction() &&
-            \ExternalModules\ExternalModules::getUsername() === null && 
-            !\ExternalModules\ExternalModules::isNoAuth()
-        ) {
-            if ( (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php' ) {
-                return;
-            }
-            if ( (isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') ) {
-                return;
-            }
-            $this->showCustomLoginPage($this->curPageURL());
-            $this->exitAfterHook();
-            return;
+        } catch ( \Throwable $e ) {
+            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
         }
 
     }
@@ -114,8 +96,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         }
 
-        // $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-        // $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
         $curPageURL    = $this->curPageURL();
         $newUrl        = $this->addQueryParameter($curPageURL, 'authed', 'true');
         $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
@@ -133,10 +113,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             $this->log('no authed');
             echo "Authentication failed. Reason: " . $authenticator->getLastError();
         }
-
-        // // Perform logout if needed
-        // $authenticator->logout();
-
     }
 
     public function handleEntraIDAuth($url)
@@ -177,6 +153,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Trigger login
             \Authentication::autoLogin($userid);
+            $_SESSION['yale_entraid_id'] = $userdata['id'];
 
             // Update last login timestamp
             \Authentication::setUserLastLoginTimestamp($userid);
@@ -239,6 +216,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         }
 
+        // To enable SLO
+        $this->addReplaceLogoutLinkScript();
+
         // If we are on the Browse Users page, add CAS-User information if applicable 
         if ( $page === 'ControlCenter/view_users.php' ) {
             $this->addCasInfoToBrowseUsersTable();
@@ -251,70 +231,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( !$this->isCasUser($user->getUsername()) ) {
             return;
         }
-        $authenticator = new Yale_EntraID_Authenticator($this);
-        ?>
-        <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
-        <script>
-            $(document).ready(function () {
-                var numLogins = 0;
-                var esign_action_global;
-                const saveLockingOrig = saveLocking;
-                saveLocking = function (lock_action, esign_action) {
-                    if (esign_action !== 'save' || lock_action !== 1) {
-                        saveLockingOrig(lock_action, esign_action);
-                        return;
-                    }
-                    esign_action_global = esign_action;
-                    const config = {
-                        auth: {
-                            clientId: "<?=$authenticator->getClientId()?>",
-                            authority: "https://login.microsoftonline.com/<?=$authenticator->getAdTenant()?>",
-                            redirectUri: "<?=$authenticator->getRedirectUriSpa()?>"
-                        }
-                    };
-
-                    const loginRequest = {
-                        scopes: ["User.Read"],
-                        prompt: "login",
-                    };
-
-                    const myMsal = new msal.PublicClientApplication(config);
-
-                    myMsal
-                        .loginPopup(loginRequest)
-                        .then(function (loginResponse) {
-                            const action = 'lock';
-                            $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
-                                auto: getParameterByName('auto'),
-                                instance: getParameterByName('instance'),
-                                esign_action: esign_action_global,
-                                event_id: event_id,
-                                action: action,
-                                record: getParameterByName('id'),
-                                form_name: getParameterByName('page'),
-                                token: loginResponse.accessToken
-                            }, function (data) {
-                                if (data != "") {
-                                    numLogins = 0;
-                                    if (auto_inc_set && getParameterByName('auto') == '1' && isinteger(data.replace(
-                                        '-', ''))) {
-                                        $('#form :input[name="' + table_pk + '"], #form :input[name="__old_id__"]')
-                                            .val(data);
-                                    }
-                                    formSubmitDataEntry();
-                                } else {
-                                    numLogins++;
-                                    esignFail(numLogins);
-                                }
-                            });
-                        })
-                        .catch(function (error) {
-                            console.log(error);
-                        });
-                }
-            });
-        </script>
-        <?php
+        $esignatureHandler = new ESignatureHandler($this);
+        $esignatureHandler->addEsignatureScript();
     }
 
     private function getLoginButtonSettings()
@@ -614,11 +532,30 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         return $q->fetch_assoc() !== null;
     }
 
-    private function handleLogout()
+    public function handleLogout()
     {
-        if ( isset($_GET['logout']) && $_GET['logout'] ) {
-            //\phpCAS::logoutWithUrl(APP_PATH_WEBROOT_FULL);
+        $yale_entra_id = isset($_SESSION['yale_entraid_id']) ? $_SESSION['yale_entraid_id'] : null;
+        $ynhh_entra_id = isset($_SESSION['ynhh_entraid_id']) ? $_SESSION['ynhh_entraid_id'] : null;
+        session_unset();
+        session_destroy();
+        if (!is_null($yale_entra_id)) {
+            $this->handleYaleLogout($yale_entra_id);
         }
+        if (!is_null($ynhh_entra_id)) {
+            $this->handleYnhhLogout($ynhh_entra_id);
+        }
+    }
+
+    private function handleYaleLogout($entraid)
+    {
+        $authenticator = new Yale_EntraID_Authenticator($this);
+        $authenticator->logout($entraid);
+    }
+
+    private function handleYnhhLogout($entraid)
+    {
+        $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
+        $authenticator->logout($entraid);
     }
 
     private function jwt_request(string $url, string $token)
@@ -866,13 +803,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         })) > 0;
     }
 
-    public function shouldShowCustomLogin()
-    {
-        return !(isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin') &&
-            \ExternalModules\ExternalModules::getUsername() === null &&
-            !\ExternalModules\ExternalModules::isNoAuth();
-    }
-
     public function checkYNHHAuth()
     {
         $isAuthed = false;
@@ -965,5 +895,46 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
 
         \ExternalModules\ExternalModules::exitAfterHook();
+    }
+
+    private function isLoggedIntoREDCap()
+    {
+        return (defined('USERID') && USERID !== '') || $this->framework->isAuthenticated();
+    }
+
+    private function needsCustomLogin(string $page) {
+        return  !$this->resettingPassword($page) &&
+                !$this->doingLocalLogin() &&
+                $this->inLoginFunction() &&
+                \ExternalModules\ExternalModules::getUsername() === null &&
+                !\ExternalModules\ExternalModules::isNoAuth();
+    }
+
+    private function doingLocalLogin() {
+        return isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin';
+    }
+
+    private function resettingPassword(string $page) {
+        return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php';
+    }
+
+    private function addReplaceLogoutLinkScript() {
+        $username = $this->framework->getUser()->getUsername();
+        if (!$this->isCasUser($username)) {
+            return;
+        }
+        $logout_url = $this->framework->getUrl('logout.php');
+        ?>
+        <script>
+            $(document).ready(function () {
+                const link = document.querySelector('#nav-tab-logout a');
+                if (link) {
+                    link.href = '<?=$logout_url?>';
+                } else {
+                    console.log('nope');
+                }
+            });
+        </script>
+        <?php
     }
 }
