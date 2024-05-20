@@ -121,6 +121,9 @@ class Yale_EntraID_Authenticator
     public function checkGroupMembership($userData) {
         $userGroups = $userData['groups'];
         $groups = $this->module->framework->getSystemSetting('entraid-yale-allowed-groups');
+        if (empty($groups)) {
+            return true;
+        }
         foreach ($userGroups as $group) {
             if (in_array($group['id'], $groups)) {
                 return true;
