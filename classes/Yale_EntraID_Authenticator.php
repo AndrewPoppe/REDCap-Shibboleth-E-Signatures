@@ -87,6 +87,7 @@ class Yale_EntraID_Authenticator
         );
         $context = stream_context_create($options);
         $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
+        $json2    = file_get_contents("https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group?\$select=displayName,id", false, $context);
         if ( $json === false ) {
             // errorhandler(array( "Description" => "Error received during user data fetch.", "PHP_Error" => error_get_last(), "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
             return;
@@ -97,6 +98,8 @@ class Yale_EntraID_Authenticator
             // errorhandler(array( "Description" => "User data fetch contained an error.", "\$userdata[]" => $userdata, "\$authdata[]" => $authdata, "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
             return;
         }
+
+        $groupdata = json_decode($json2, true);
 
         $userdata_parsed = [
             'user_email'     => $userdata['mail'],
@@ -109,9 +112,21 @@ class Yale_EntraID_Authenticator
             'type'           => $userdata['userType'],
             'accountEnabled' => $userdata['accountEnabled'],
             'id'             => $userdata['id'],
+            'groups'         => $groupdata['value']
         ];
 
         return $userdata_parsed;
+    }
+
+    public function checkGroupMembership($userData) {
+        $userGroups = $userData['groups'];
+        $groups = $this->module->framework->getSystemSetting('entraid-yale-allowed-groups');
+        foreach ($userGroups as $group) {
+            if (in_array($group['id'], $groups)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public function logout($entraid) {

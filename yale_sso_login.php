@@ -17,6 +17,10 @@ if (!$userData['accountEnabled']) {
     exit('Your Yale account is not enabled. Please contact your administrator.');
 }
 
+if (!$authenticator->checkGroupMembership($userData)) {
+    exit('You are not a member of an allowed group. Please contact your administrator.');
+}
+
 $result = $module->loginEntraIDUser($userData);
 if ( $result ) {
 
