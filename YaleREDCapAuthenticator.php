@@ -28,11 +28,11 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $action === 'getUserType' ) {
             return $this->getUserType($payload['username']);
         }
-        if ( $action === 'convertTableUserToCasUser' ) {
-            return $this->convertTableUserToCasUser($payload['username']);
+        if ( $action === 'convertTableUserToYaleUser' ) {
+            return $this->convertTableUserToYaleUser($payload['username']);
         }
-        if ( $action == 'convertCasUsertoTableUser' ) {
-            return $this->convertCasUsertoTableUser($payload['username']);
+        if ( $action == 'convertYaleUsertoTableUser' ) {
+            return $this->convertYaleUsertoTableUser($payload['username']);
         }
     }
 
@@ -140,7 +140,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 return false;
             }
 
-            if ( $this->checkCASAffiliation($userid) === false ) {
+            if ( $this->checkYaleAffiliation($userid) === false ) {
                 $this->framework->log('Yale REDCap Authenticator: User\'s affiliation not allowed', [ 'userid' => $userid ]);
                 echo "You are not authorized to access this page. Please contact the administrator.";
                 return false;
@@ -172,18 +172,18 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 ){
                     $this->setUserDetails($userid, $userdata);
                 }
-                $this->setCasUser($userid);
+                $this->setYaleUser($userid);
             }
-            // If user is a table-based user, convert to CAS user
+            // If user is a table-based user, convert to Yale user
             elseif ( \Authentication::isTableUser($userid) ) {
-                $this->convertTableUserToCasUser($userid);
+                $this->convertTableUserToYaleUser($userid);
             }
-            // otherwise just make sure they are logged as a CAS user
+            // otherwise just make sure they are logged as a Yale user
             else {
-                $this->setCasUser($userid);
+                $this->setYaleUser($userid);
             }
 
-            // 2. If user allowlist is not enabled, all CAS users are allowed.
+            // 2. If user allowlist is not enabled, all Yale users are allowed.
             // Otherwise, if not in allowlist, then give them error page.
             if ( $enable_user_allowlist && !$this->inUserAllowlist($userid) ) {
                 session_unset();
@@ -219,16 +219,16 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         // To enable SLO
         $this->addReplaceLogoutLinkScript();
 
-        // If we are on the Browse Users page, add CAS-User information if applicable 
+        // If we are on the Browse Users page, add Yale-User information if applicable 
         if ( $page === 'ControlCenter/view_users.php' ) {
-            $this->addCasInfoToBrowseUsersTable();
+            $this->addYaleInfoToBrowseUsersTable();
         }
     }
 
     public function redcap_data_entry_form()
     {
         $user = $this->framework->getUser();
-        if ( !$this->isCasUser($user->getUsername()) ) {
+        if ( !$this->isYaleUser($user->getUsername()) ) {
             return;
         }
         $esignatureHandler = new ESignatureHandler($this);
@@ -238,10 +238,10 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     private function getLoginButtonSettings()
     {
         return [
-            'casLoginButtonBackgroundColor'        => $this->framework->getSystemSetting('cas-login-button-background-color') ?? 'transparent',//'#00356b',
-            'casLoginButtonBackgroundColorHover'   => $this->framework->getSystemSetting('cas-login-button-background-color-hover') ?? 'transparent',//'#286dc0',
-            'casLoginButtonText'                   => $this->framework->getSystemSetting('cas-login-button-text') ?? 'Yale University',
-            'casLoginButtonLogo'                   => $this->framework->getSystemSetting('cas-login-button-logo') ?? $this->framework->getUrl('assets/images/YU.png', true, true),//'<i class="fas fa-sign-in-alt"></i>',
+            'yaleLoginButtonBackgroundColor'        => $this->framework->getSystemSetting('yale-login-button-background-color') ?? 'transparent',//'#00356b',
+            'yaleLoginButtonBackgroundColorHover'   => $this->framework->getSystemSetting('yale-login-button-background-color-hover') ?? 'transparent',//'#286dc0',
+            'yaleLoginButtonText'                   => $this->framework->getSystemSetting('yale-login-button-text') ?? 'Yale University',
+            'yaleLoginButtonLogo'                   => $this->framework->getSystemSetting('yale-login-button-logo') ?? $this->framework->getUrl('assets/images/YU.png', true, true),//'<i class="fas fa-sign-in-alt"></i>',
             'localLoginButtonBackgroundColor'      => $this->framework->getSystemSetting('local-login-button-background-color') ?? 'transparent',//'#00a9e0',
             'localLoginButtonBackgroundColorHover' => $this->framework->getSystemSetting('local-login-button-background-color-hover') ?? 'transparent',//'#32bae6',
             'localLoginButtonText'                 => $this->framework->getSystemSetting('local-login-button-text') ?? 'Yale New Haven Health',
@@ -265,22 +265,22 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         $objHtmlPage->PrintHeader(false);
         ?>
         <style>
-            .btn-cas {
+            .btn-yale {
                 background-color:
-                    <?= $loginButtonSettings['casLoginButtonBackgroundColor'] ?>;
-                background-image: url('<?= $loginButtonSettings['casLoginButtonLogo'] ?>');
+                    <?= $loginButtonSettings['yaleLoginButtonBackgroundColor'] ?>;
+                background-image: url('<?= $loginButtonSettings['yaleLoginButtonLogo'] ?>');
                 width: auto;
             }
 
-            .btn-cas:hover,
-            .btn-cas:focus,
-            .btn-cas:active,
-            .btn-cas.btn-active,
-            .btn-cas:active:focus,
-            .btn-cas:active:hover {
+            .btn-yale:hover,
+            .btn-yale:focus,
+            .btn-yale:active,
+            .btn-yale.btn-active,
+            .btn-yale:active:focus,
+            .btn-yale:active:hover {
                 color: #fff !important;
                 background-color:
-                    <?= $loginButtonSettings['casLoginButtonBackgroundColorHover'] ?> !important;
+                    <?= $loginButtonSettings['yaleLoginButtonBackgroundColorHover'] ?> !important;
                 border: 1px solid transparent;
             }
 
@@ -488,7 +488,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
     }
 
-    private function convertTableUserToCasUser(string $userid)
+    private function convertTableUserToYaleUser(string $userid)
     {
         if ( empty($userid) ) {
             return;
@@ -496,15 +496,15 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         try {
             $SQL   = 'DELETE FROM redcap_auth WHERE username = ?';
             $query = $this->framework->query($SQL, [ $userid ]);
-            $this->setCasUser($userid);
+            $this->setYaleUser($userid);
             return;
         } catch ( \Exception $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error converting table user to CAS user', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
             return;
         }
     }
 
-    private function convertCasUsertoTableUser(string $userid)
+    private function convertYaleUsertoTableUser(string $userid)
     {
         if ( empty($userid) ) {
             return;
@@ -513,10 +513,10 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             $SQL   = "INSERT INTO redcap_auth (username) VALUES (?)";
             $query = $this->framework->query($SQL, [ $userid ]);
             \Authentication::resetPasswordSendEmail($userid);
-            $this->setCasUser($userid, false);
+            $this->setYaleUser($userid, false);
             return;
         } catch ( \Exception $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error converting CAS user to table user', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
             return;
         }
     }
@@ -574,7 +574,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             $xml      = new \SimpleXMLElement($response);
             $result   = json_decode(json_encode((array) $xml), TRUE);
         } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
         } finally {
             return $result;
         }
@@ -582,8 +582,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function fetchUserDetails(string $userid)
     {
-        $url   = $this->getSystemSetting('cas-user-details-url');
-        $token = $this->getSystemSetting('cas-user-details-token');
+        $url   = $this->getSystemSetting('yale-user-details-url');
+        $token = $this->getSystemSetting('yale-user-details-token');
         if ( empty($url) || empty($token) ) {
             return null;
         }
@@ -604,7 +604,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             $userDetails['user_email']     = $response['Person']['Contacts']['Email'];
             $userDetails['affiliation']    = $response['Person']['Affiliations']['PEDUAffiliation'];
         } catch ( \Throwable $e ) {
-            $this->framework->log('CAS Authenticator: Error parsing user details response', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale Authenticator: Error parsing user details response', [ 'error' => $e->getMessage() ]);
         } finally {
             return $userDetails;
         }
@@ -636,7 +636,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             $query->execute();
             return $query->affected_rows;
         } catch ( \Exception $e ) {
-            $this->framework->log('CAS Authenticator: Error updating user details', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale Authenticator: Error updating user details', [ 'error' => $e->getMessage() ]);
         }
     }
 
@@ -650,19 +650,19 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             $query->execute();
             return $query->affected_rows;
         } catch ( \Exception $e ) {
-            $this->framework->log('CAS Authenticator: Error inserting user details', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Yale Authenticator: Error inserting user details', [ 'error' => $e->getMessage() ]);
         }
     }
 
-    public function isCasUser($username)
+    public function isYaleUser($username)
     {
-        return !\Authentication::isTableUser($username) && $this->framework->getSystemSetting('cas-user-' . $username) === true;
+        return !\Authentication::isTableUser($username) && $this->framework->getSystemSetting('yale-user-' . $username) === true;
     }
 
     public function getUserType($username)
     {
-        if ( $this->isCasUser($username) ) {
-            return 'CAS';
+        if ( $this->isYaleUser($username) ) {
+            return 'YALE';
         }
         if ( $this->inUserAllowlist($username) ) {
             return 'allowlist';
@@ -673,12 +673,12 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         return 'unknown';
     }
 
-    public function setCasUser($userid, bool $value = true)
+    public function setYaleUser($userid, bool $value = true)
     {
-        $this->framework->setSystemSetting('cas-user-' . $userid, $value);
+        $this->framework->setSystemSetting('yale-user-' . $userid, $value);
     }
 
-    private function addCasInfoToBrowseUsersTable()
+    private function addYaleInfoToBrowseUsersTable()
     {
 
         $this->framework->initializeJavascriptModuleObject();
@@ -693,16 +693,16 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             <script>
                 var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
 
-                function convertTableUserToCasUser() {
+                function convertTableUserToYaleUser() {
                     const username = $('#user_search').val();
                     Swal.fire({
-                        title: "Are you sure you want to convert this table-based user to a CAS user?",
+                        title: "Are you sure you want to convert this table-based user to a YALE user?",
                         icon: "warning",
                         showCancelButton: true,
-                        confirmButtonText: "Convert to CAS User"
+                        confirmButtonText: "Convert to YALE User"
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            authenticator.ajax('convertTableUserToCasUser', {
+                            authenticator.ajax('convertTableUserToYaleUser', {
                                 username: username
                             }).then(() => {
                                 location.reload();
@@ -711,16 +711,16 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                     });
                 }
 
-                function convertCasUsertoTableUser() {
+                function convertYaleUsertoTableUser() {
                     const username = $('#user_search').val();
                     Swal.fire({
-                        title: "Are you sure you want to convert this CAS user to a table-based user?",
+                        title: "Are you sure you want to convert this YALE user to a table-based user?",
                         icon: "warning",
                         showCancelButton: true,
                         confirmButtonText: "Convert to Table User"
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            authenticator.ajax('convertCasUsertoTableUser', {
+                            authenticator.ajax('convertYaleUsertoTableUser', {
                                 username: username
                             }).then(() => {
                                 location.reload();
@@ -730,27 +730,26 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 }
 
                 function addTableRow(userType) {
-                    console.log(userType);
-                    let casUserText = '';
+                    let yaleUserText = '';
                     switch (userType) {
-                        case 'CAS':
-                            casUserText =
-                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertCasUsertoTableUser()" value="Convert to Table User">`;
+                        case 'YALE':
+                            yaleUserText =
+                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertYaleUsertoTableUser()" value="Convert to Table User">`;
                             break;
                         case 'allowlist':
-                            casUserText = `<strong>${userType}</strong>`;
+                            yaleUserText = `<strong>${userType}</strong>`;
                             break;
                         case 'table':
-                            casUserText =
-                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertTableUserToCasUser()" value="Convert to CAS User">`;
+                            yaleUserText =
+                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertTableUserToYaleUser()" value="Convert to YALE User">`;
                             break;
                         default:
-                            casUserText = `<strong>${userType}</strong>`;
+                            yaleUserText = `<strong>${userType}</strong>`;
                             break;
                     }
                     console.log($('#indv_user_info'));
                     $('#indv_user_info').append('<tr id="userTypeRow"><td class="data2">User type</td><td class="data2">' +
-                        casUserText + '</td></tr>');
+                        yaleUserText + '</td></tr>');
                 }
 
                 view_user = function (username) {
@@ -835,13 +834,13 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function checkCASAffiliation($userid)
+    public function checkYaleAffiliation($userid)
     {
-        if ( !$this->framework->getSystemSetting('cas-check-affiliation') ) {
+        if ( !$this->framework->getSystemSetting('yale-check-affiliation') ) {
             return true;
         }
-        $allowedAffiliations   = $this->cleanArray($this->framework->getSystemSetting('cas-allowed-affiliations'));
-        $forbiddenAffiliations = $this->cleanArray($this->framework->getSystemSetting('cas-forbidden-affiliations'));
+        $allowedAffiliations   = $this->cleanArray($this->framework->getSystemSetting('yale-allowed-affiliations'));
+        $forbiddenAffiliations = $this->cleanArray($this->framework->getSystemSetting('yale-forbidden-affiliations'));
 
         if ( !empty($allowedAffiliations) || !empty($forbiddenAffiliations) ) {
             $userDetails = $this->fetchUserDetails($userid);
@@ -920,7 +919,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function addReplaceLogoutLinkScript() {
         $username = $this->framework->getUser()->getUsername();
-        if (!$this->isCasUser($username)) {
+        if (!$this->isYaleUser($username)) {
             return;
         }
         $logout_url = $this->framework->getUrl('logout.php');

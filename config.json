@@ -1,7 +1,7 @@
 {
     "name": "Yale REDCap Authenticator",
     "namespace": "YaleREDCap\\YaleREDCapAuthenticator",
-    "description": "This External Module enables SSO using Yale CAS and YNHH ADFS.",
+    "description": "This External Module enables SSO with Yale and YNHH.",
     "authors": [
         {
             "name": "Andrew Poppe",
@@ -12,7 +12,7 @@
     "system-settings": [
         {
             "key": "entraid-yale-section",
-            "name": "<div class='cas-descriptive p-2' style='background-color:#84cbe4; border: 1px solid #537f8f; border-radius: 0.375rem; text-align: center;'><strong>Yale Entra ID Details</strong><br></div>",
+            "name": "<div class='yale-redcap-authenticator-descriptive p-2' style='background-color:#00356b; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><strong>Yale Entra ID Details</strong><br>This section is used to configure the Entra ID connection for Yale University.<script>document.querySelector('.entraid-descriptive').parentElement.style.width = '100%';</script></div>",
             "type": "descriptive"
         },
         {
@@ -52,50 +52,50 @@
             "repeatable": true
         },
         {
-            "key": "cas-user-details-section",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightcoral; border: 1px solid red; border-radius: 0.375rem; text-align: center;'><strong>CAS User Details</strong><br>These settings are used to map the CAS user details to the REDCap user details. They won't be useful outside of Yale University.</div>",
+            "key": "yale-user-details-section",
+            "name": "<div class='yale-redcap-authenticator-descriptive p-2' style='background-color:lightcoral; border: 1px solid red; border-radius: 0.375rem; text-align: center;'><strong>Yale User Details</strong><br>These settings are used to map the Yale user details to the REDCap user details. They won't be useful outside of Yale University.</div>",
             "type": "descriptive"
         },
         {
-            "key": "cas-user-details-url",
-            "name": "<strong>CAS User Details URL</strong>:<br>User {userid} as a placeholder for the username of the person to grab details about",
+            "key": "yale-user-details-url",
+            "name": "<strong>Yale User Details URL</strong>:<br>User {userid} as a placeholder for the username of the person to grab details about",
             "type": "text"
         },
         {
-            "key": "cas-user-details-token",
-            "name": "<strong>CAS User Details Token</strong>:<br>Token to use to authenticate with the CAS User Details URL",
+            "key": "yale-user-details-token",
+            "name": "<strong>Yale User Details Token</strong>:<br>Token to use to authenticate with the Yale User Details URL",
             "type": "password"
         },
         {
-            "key": "cas-check-affiliation",
+            "key": "yale-check-affiliation",
             "name": "<strong>Check Affiliation</strong>:<br>Check this if you want to check the affiliation of the Yale University user against a list of allowed affiliations. Common affiliations are STUDENT, FACULTY, STAFF, EMPLOYEE, MEMBER, AFFILIATE, ALUM",
             "type": "checkbox"
         },
         {
-            "key": "cas-allowed-affiliations",
+            "key": "yale-allowed-affiliations",
             "name": "<strong>Allowed Affiliations</strong>:<br>Which Yale University affiliations should be allowed to log in? If left blank, all affiliations are allowed. <span class='text-dangerrc'>This setting supercedes the forbidden affiliations setting</span>",
             "type": "text",
             "repeatable": true,
             "branchingLogic": {
-                "field": "cas-check-affiliation",
+                "field": "yale-check-affiliation",
                 "value": "1"
             }
         },
         {
-            "key": "cas-forbidden-affiliations",
+            "key": "yale-forbidden-affiliations",
             "name": "<strong>Forbidden Affiliations</strong>:<br>Which Yale University affiliations should be forbidden from logging in? If left blank, no affiliations are forbidden. <span class='text-dangerrc'>If the allowed affiliations setting is set, this setting will be ignored</span>",
             "type": "text",
             "repeatable": true,
             "branchingLogic": {
-                "field": "cas-check-affiliation",
+                "field": "yale-check-affiliation",
                 "value": "1"
             }
         }
     ],
     "auth-ajax-actions": [
         "getUserType",
-        "convertTableUserToCasUser",
-        "convertCasUsertoTableUser"
+        "convertTableUserToYaleUser",
+        "convertYaleUsertoTableUser"
     ],
     "no-auth-pages": [
         "YNHH_SAML_ACS",
