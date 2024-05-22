@@ -36,6 +36,11 @@
             "type": "descriptive"
         },
         {
+            "key": "entraid-yale-login-button-logo",
+            "name": "<strong>Yale Login Button Logo</strong>:<br>Upload a logo to display on the Yale login button",
+            "type": "file"
+        },
+        {
             "key": "entraid-yale-ad-tenant-id",
             "name": "<strong>Yale Entra ID AD Tenant ID</strong>",
             "type": "text"

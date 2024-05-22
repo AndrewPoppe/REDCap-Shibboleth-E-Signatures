@@ -232,12 +232,22 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             'yaleLoginButtonBackgroundColor'        => $this->framework->getSystemSetting('yale-login-button-background-color') ?? 'transparent',//'#00356b',
             'yaleLoginButtonBackgroundColorHover'   => $this->framework->getSystemSetting('yale-login-button-background-color-hover') ?? 'transparent',//'#286dc0',
             'yaleLoginButtonText'                   => $this->framework->getSystemSetting('yale-login-button-text') ?? 'Yale University',
-            'yaleLoginButtonLogo'                   => $this->framework->getSystemSetting('yale-login-button-logo') ?? $this->framework->getUrl('assets/images/YU.png', true, true),//'<i class="fas fa-sign-in-alt"></i>',
+            'yaleLoginButtonLogo'                   => $this->getEdocFileContents($this->framework->getSystemSetting('entraid-yale-login-button-logo')) ?? $this->framework->getUrl('assets/images/YU.png', true, true),//'<i class="fas fa-sign-in-alt"></i>',
             'localLoginButtonBackgroundColor'      => $this->framework->getSystemSetting('local-login-button-background-color') ?? 'transparent',//'#00a9e0',
             'localLoginButtonBackgroundColorHover' => $this->framework->getSystemSetting('local-login-button-background-color-hover') ?? 'transparent',//'#32bae6',
             'localLoginButtonText'                 => $this->framework->getSystemSetting('local-login-button-text') ?? 'Yale New Haven Health',
             'localLoginButtonLogo'                 => $this->framework->getSystemSetting('local-login-button-logo') ?? $this->framework->getUrl('assets/images/YNHH.png', true, true),//'<i class="fas fa-sign-in-alt"></i>',
         ];
+    }
+
+    private function getEdocFileContents($edocId) {
+        if (empty($edocId)) {
+            return;
+        }
+        $file = \REDCap::getFile($edocId);
+        $contents = $file[2];
+
+        echo 'data:'.$file[0].';base64,'.base64_encode($contents);
     }
 
     private function showCustomLoginPage(string $redirect)
@@ -405,8 +415,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                                     <ul class="list-group list-group-flush">
                                         <li class="list-group-item list-group-item-action login-option"
                                             onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$ENTRAID_AUTH, '1') ?>';">
-                                            <img src="<?= $this->framework->getUrl('assets/images/YU.png') ?>"
-                                                class="login-logo">
+                                            <img src="<?= $loginButtonSettings['yaleLoginButtonLogo'] //?? $this->framework->getUrl('assets/images/YU.png') ?>"
+                                                class="login-logo" alt="Yale University">
                                         </li>
                                         <li class="list-group-item list-group-item-action login-option"
                                             onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$YNHH_AUTH, '1') ?>';">
