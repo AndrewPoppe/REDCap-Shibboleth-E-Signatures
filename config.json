@@ -11,8 +11,23 @@
     ],
     "system-settings": [
         {
+            "key": "general-section",
+            "name": "<div class='yale-redcap-authenticator-descriptive p-2' style='background-color:#bd5319; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><strong>General Settings</strong></div>",
+            "type": "descriptive"
+        },
+        {
+            "key": "custom-login-page-enabled",
+            "name": "<strong>Custom Login Page Enabled</strong>:<br>Check this box to enable the custom login page. If unchecked, the default REDCap login page will be used. You can still use the Yale SSO with the default REDCap login page",
+            "type": "checkbox"
+        },
+        {
+            "key": "create-new-users-on-login",
+            "name": "<strong>Create New Users on Login</strong>:<br>Check this box to create new users in the REDCap user table when they log in with SSO for the first time. If unchecked, only users that already exist in the REDCap user table will be able to log in with SSO",
+            "type": "checkbox"
+        },
+        {
             "key": "entraid-yale-section",
-            "name": "<div class='yale-redcap-authenticator-descriptive p-2' style='background-color:#00356b; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><strong>Yale Entra ID Details</strong><br>This section is used to configure the Entra ID connection for Yale University.<script>document.querySelector('.entraid-descriptive').parentElement.style.width = '100%';</script></div>",
+            "name": "<div class='yale-redcap-authenticator-descriptive p-2' style='background-color:#00356b; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><strong>Yale Entra ID Details</strong><br>This section is used to configure the Entra ID connection for Yale University.<script>document.querySelectorAll('.yale-redcap-authenticator-descriptive').forEach(el => el.parentElement.style.width = '100%');</script></div>",
             "type": "descriptive"
         },
         {
@@ -47,49 +62,9 @@
         },
         {
             "key": "entraid-yale-allowed-groups",
-            "name": "<strong>Yale Entra ID Allowed Groups</strong>:<br>Which Yale University groups should be allowed to log in? If left blank, all groups are allowed.",
+            "name": "<strong>Yale Entra ID Allowed Groups</strong>:<br>Which Yale University groups should be allowed to log in? If left blank, all groups are allowed",
             "type": "text",
             "repeatable": true
-        },
-        {
-            "key": "yale-user-details-section",
-            "name": "<div class='yale-redcap-authenticator-descriptive p-2' style='background-color:lightcoral; border: 1px solid red; border-radius: 0.375rem; text-align: center;'><strong>Yale User Details</strong><br>These settings are used to map the Yale user details to the REDCap user details. They won't be useful outside of Yale University.</div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "yale-user-details-url",
-            "name": "<strong>Yale User Details URL</strong>:<br>User {userid} as a placeholder for the username of the person to grab details about",
-            "type": "text"
-        },
-        {
-            "key": "yale-user-details-token",
-            "name": "<strong>Yale User Details Token</strong>:<br>Token to use to authenticate with the Yale User Details URL",
-            "type": "password"
-        },
-        {
-            "key": "yale-check-affiliation",
-            "name": "<strong>Check Affiliation</strong>:<br>Check this if you want to check the affiliation of the Yale University user against a list of allowed affiliations. Common affiliations are STUDENT, FACULTY, STAFF, EMPLOYEE, MEMBER, AFFILIATE, ALUM",
-            "type": "checkbox"
-        },
-        {
-            "key": "yale-allowed-affiliations",
-            "name": "<strong>Allowed Affiliations</strong>:<br>Which Yale University affiliations should be allowed to log in? If left blank, all affiliations are allowed. <span class='text-dangerrc'>This setting supercedes the forbidden affiliations setting</span>",
-            "type": "text",
-            "repeatable": true,
-            "branchingLogic": {
-                "field": "yale-check-affiliation",
-                "value": "1"
-            }
-        },
-        {
-            "key": "yale-forbidden-affiliations",
-            "name": "<strong>Forbidden Affiliations</strong>:<br>Which Yale University affiliations should be forbidden from logging in? If left blank, no affiliations are forbidden. <span class='text-dangerrc'>If the allowed affiliations setting is set, this setting will be ignored</span>",
-            "type": "text",
-            "repeatable": true,
-            "branchingLogic": {
-                "field": "yale-check-affiliation",
-                "value": "1"
-            }
         }
     ],
     "auth-ajax-actions": [

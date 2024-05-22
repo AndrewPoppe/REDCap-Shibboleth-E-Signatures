@@ -49,12 +49,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
-            if (isset($_GET['debug'])) {
-                echo "<pre>";
-                var_dump($_SESSION);
-                exit;
-            }
-
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' ) {
                 $esignatureHandler = new ESignatureHandler($this);
@@ -140,10 +134,10 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 return false;
             }
 
-            if ( $this->checkYaleAffiliation($userid) === false ) {
-                $this->framework->log('Yale REDCap Authenticator: User\'s affiliation not allowed', [ 'userid' => $userid ]);
-                echo "You are not authorized to access this page. Please contact the administrator.";
-                return false;
+            // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
+            if (!$this->userExists($userid) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1)
+            {
+                exit('User does not exist in REDCap. Please contact your administrator.');
             }
 
             // Successful authentication
@@ -162,9 +156,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             \Logging::logPageView("LOGIN_SUCCESS", $userid);
 
             // Handle account-related things.
-            // If the user does not exist, try to fetch user details and create them.
+            // If the user does not exist, create them.
             if ( !$this->userExists($userid) ) {
-                // $userDetails = $this->fetchUserDetails($userid);
                 if ( 
                     isset($userdata['user_firstname']) &&
                     isset($userdata['user_lastname']) &&
@@ -184,7 +177,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // 2. If user allowlist is not enabled, all Yale users are allowed.
-            // Otherwise, if not in allowlist, then give them error page.
+            // Otherwise, if not in allowlist, then give them an error page.
             if ( $enable_user_allowlist && !$this->inUserAllowlist($userid) ) {
                 session_unset();
                 session_destroy();
@@ -219,16 +212,14 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         // To enable SLO
         $this->addReplaceLogoutLinkScript();
 
-        // If we are on the Browse Users page, add Yale-User information if applicable 
-        if ( $page === 'ControlCenter/view_users.php' ) {
-            $this->addYaleInfoToBrowseUsersTable();
-        }
+        // Yale-User information if applicable 
+        $this->addYaleInfoToBrowseUsersTable();
     }
 
     public function redcap_data_entry_form()
     {
         $user = $this->framework->getUser();
-        if ( !$this->isYaleUser($user->getUsername()) ) {
+        if ( !$this->isYaleUser($user->getUsername()) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
             return;
         }
         $esignatureHandler = new ESignatureHandler($this);
@@ -558,58 +549,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         $authenticator->logout($entraid);
     }
 
-    private function jwt_request(string $url, string $token)
-    {
-        $result = null;
-        try {
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $authorization = "Authorization: Basic " . $token;
-            $authheader    = array( 'Content-Type: application/json', $authorization );
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $authheader);
-            $result = curl_exec($ch);
-            curl_close($ch);
-            $response = preg_replace("/(<\/?)(\w+):([^>]*>)/", "$1$2$3", $result);
-            $xml      = new \SimpleXMLElement($response);
-            $result   = json_decode(json_encode((array) $xml), TRUE);
-        } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
-        } finally {
-            return $result;
-        }
-    }
-
-    private function fetchUserDetails(string $userid)
-    {
-        $url   = $this->getSystemSetting('yale-user-details-url');
-        $token = $this->getSystemSetting('yale-user-details-token');
-        if ( empty($url) || empty($token) ) {
-            return null;
-        }
-        $url      = str_replace('{userid}', $userid, $url);
-        $response = $this->jwt_request($url, $token);
-        return $this->parseUserDetailsResponse($response);
-    }
-
-    private function parseUserDetailsResponse($response)
-    {
-        if ( empty($response) ) {
-            return null;
-        }
-        $userDetails = [];
-        try {
-            $userDetails['user_firstname'] = $response['Person']['Names']['ReportingNm']['First'];
-            $userDetails['user_lastname']  = $response['Person']['Names']['ReportingNm']['Last'];
-            $userDetails['user_email']     = $response['Person']['Contacts']['Email'];
-            $userDetails['affiliation']    = $response['Person']['Affiliations']['PEDUAffiliation'];
-        } catch ( \Throwable $e ) {
-            $this->framework->log('Yale Authenticator: Error parsing user details response', [ 'error' => $e->getMessage() ]);
-        } finally {
-            return $userDetails;
-        }
-    }
-
     private function setUserDetails($userid, $details)
     {
         if ( $this->userExists($userid) ) {
@@ -680,6 +619,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function addYaleInfoToBrowseUsersTable()
     {
+        if ( !$page === 'ControlCenter/view_users.php' || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
+            return;
+        }
 
         $this->framework->initializeJavascriptModuleObject();
 
@@ -834,37 +776,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function checkYaleAffiliation($userid)
-    {
-        if ( !$this->framework->getSystemSetting('yale-check-affiliation') ) {
-            return true;
-        }
-        $allowedAffiliations   = $this->cleanArray($this->framework->getSystemSetting('yale-allowed-affiliations'));
-        $forbiddenAffiliations = $this->cleanArray($this->framework->getSystemSetting('yale-forbidden-affiliations'));
-
-        if ( !empty($allowedAffiliations) || !empty($forbiddenAffiliations) ) {
-            $userDetails = $this->fetchUserDetails($userid);
-            if ( empty($userDetails) ) {
-                return false;
-            }
-            $affiliation = $userDetails['affiliation'];
-            if ( !empty($allowedAffiliations) ) {
-                return in_array($affiliation, $allowedAffiliations);
-            }
-            if ( !empty($forbiddenAffiliations) ) {
-                return !in_array($affiliation, $forbiddenAffiliations);
-            }
-        }
-        return true;
-    }
-
-    private function cleanArray($array)
-    {
-        return array_map('upper', array_map('trim', array_filter($array, function ($value) {
-            return !empty ($value) && $value !== 'null';
-        })));
-    }
-
     private function setUserCreationTimestamp($userid)
     {
         try {
@@ -902,7 +813,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     }
 
     private function needsCustomLogin(string $page) {
-        return  !$this->resettingPassword($page) &&
+        return  $this->framework->getSystemSetting('custom-login-page-enabled') == 1 &&
+                !$this->resettingPassword($page) &&
                 !$this->doingLocalLogin() &&
                 $this->inLoginFunction() &&
                 \ExternalModules\ExternalModules::getUsername() === null &&
@@ -919,7 +831,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function addReplaceLogoutLinkScript() {
         $username = $this->framework->getUser()->getUsername();
-        if (!$this->isYaleUser($username)) {
+        if (!$this->isYaleUser($username) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
             return;
         }
         $logout_url = $this->framework->getUrl('logout.php');
