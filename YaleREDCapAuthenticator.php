@@ -168,11 +168,11 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 $this->setYaleUser($userid);
             }
             // If user is a table-based user, convert to Yale user
-            elseif ( \Authentication::isTableUser($userid) ) {
+            elseif ( \Authentication::isTableUser($userid) && $this->framework->getSystemSetting('convert-table-user-to-yale-user') == 1) {
                 $this->convertTableUserToYaleUser($userid);
             }
             // otherwise just make sure they are logged as a Yale user
-            else {
+            elseif ( !\Authentication::isTableUser($userid) ) {
                 $this->setYaleUser($userid);
             }
 
@@ -603,11 +603,11 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $this->isYaleUser($username) ) {
             return 'YALE';
         }
-        if ( $this->inUserAllowlist($username) ) {
-            return 'allowlist';
-        }
         if ( \Authentication::isTableUser($username) ) {
             return 'table';
+        }
+        if ( $this->inUserAllowlist($username) ) {
+            return 'allowlist';
         }
         return 'unknown';
     }

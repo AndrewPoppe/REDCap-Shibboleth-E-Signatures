@@ -26,6 +26,11 @@
             "type": "checkbox"
         },
         {
+            "key": "convert-table-user-to-yale-user",
+            "name": "<strong>Convert Table User to Yale User</strong>:<br>Check this box to convert an existing table user to a Yale user upon first login via Entra ID",
+            "type": "checkbox"
+        },
+        {
             "key": "entraid-yale-section",
             "name": "<div class='yale-redcap-authenticator-descriptive p-2' style='background-color:#00356b; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><strong>Yale Entra ID Details</strong><br>This section is used to configure the Entra ID connection for Yale University.<script>document.querySelectorAll('.yale-redcap-authenticator-descriptive').forEach(el => el.parentElement.style.width = '100%');</script></div>",
             "type": "descriptive"
