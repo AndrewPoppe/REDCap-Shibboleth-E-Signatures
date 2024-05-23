@@ -14,10 +14,12 @@ require_once 'classes/ESignatureHandler.php';
 class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
-    static $YNHH_AUTH = 'YNHH_auth';
-    static $ENTRAID_AUTH = 'EntraID_auth';
-    static $ENTRAID_URL_COOKIE = 'entraid-yale-origin-url';
-    static $ENTRAID_SESSION_ID_COOKIE = 'entraid-yale-session-id';
+    static $AUTH_QUERY = 'authtype';
+    static $YNHH_AUTH = 'ynhh';
+    static $YALE_AUTH = 'yale';
+    static $LOCAL_AUTH = 'local';
+    static $ENTRAID_URL_COOKIE = 'entraid-origin-url';
+    static $ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
@@ -59,16 +61,16 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             // Already logged in to REDCap
             if ( $this->isLoggedIntoREDCap() ) {
                 if ( $this->doingLocalLogin() ) {
-                    $cleanUrl = $this->stripQueryParameter($this->curPageURL(), 'logintype');
+                    $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$AUTH_QUERY);
                     $this->redirectAfterHook($cleanUrl);
                 }
                 return;
             }
             
             // Only authenticate if we're asked to
-            if ( isset($_GET[self::$YNHH_AUTH]) ) {
+            if ( $this->doingYNHHAuth() ) {
                 $this->handleYnhhAuth($page);
-            } elseif ( isset($_GET[self::$ENTRAID_AUTH]) ) {
+            } elseif ( $this->doingYaleAuth() ) {
                 $this->handleEntraIDAuth($this->curPageURL());
             }
             
@@ -213,7 +215,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         $this->addReplaceLogoutLinkScript();
 
         // Yale-User information if applicable 
-        $this->addYaleInfoToBrowseUsersTable();
+        $this->addYaleInfoToBrowseUsersTable($page);
     }
 
     public function redcap_data_entry_form()
@@ -414,18 +416,18 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                     <ul class="list-group list-group-flush">
                                         <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$ENTRAID_AUTH, '1') ?>';">
+                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, self::$YALE_AUTH) ?>';">
                                             <img src="<?= $loginButtonSettings['yaleLoginButtonLogo'] //?? $this->framework->getUrl('assets/images/YU.png') ?>"
                                                 class="login-logo" alt="Yale University">
                                         </li>
                                         <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$YNHH_AUTH, '1') ?>';">
+                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, self::$YNHH_AUTH) ?>';">
                                             <img src="<?= $this->framework->getUrl('assets/images/YNHH.png') ?>"
                                                 class="login-logo">
                                         </li>
                                     </ul>
                                 </div>
-                                <a href="<?= $this->addQueryParameter($this->curPageURL(), 'logintype', 'locallogin') ?>"
+                                <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
                                     class="text-primary">
                                     Local login
                                 </a>
@@ -627,7 +629,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         $this->framework->setSystemSetting('yale-user-' . $userid, $value);
     }
 
-    private function addYaleInfoToBrowseUsersTable()
+    private function addYaleInfoToBrowseUsersTable($page)
     {
         if ( !$page === 'ControlCenter/view_users.php' || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
             return;
@@ -832,7 +834,15 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     }
 
     private function doingLocalLogin() {
-        return isset($_GET['logintype']) && $_GET['logintype'] == 'locallogin';
+        return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$LOCAL_AUTH;
+    }
+
+    private function doingYaleAuth() {
+        return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$YALE_AUTH;
+    }
+
+    private function doingYNHHAuth() {
+        return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$YNHH_AUTH;
     }
 
     private function resettingPassword(string $page) {
@@ -851,8 +861,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 const link = document.querySelector('#nav-tab-logout a');
                 if (link) {
                     link.href = '<?=$logout_url?>';
-                } else {
-                    console.log('nope');
                 }
             });
         </script>

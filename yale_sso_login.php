@@ -29,7 +29,7 @@ if ( $result ) {
     unset($_SESSION['entraid-yale-user-data']);
 
     // strip the EntraID_auth and authed parameters from the URL
-    $redirectStripped = $module->stripQueryParameter($originUrl, YaleREDCapAuthenticator::$ENTRAID_AUTH);
+    $redirectStripped = $module->stripQueryParameter($originUrl, YaleREDCapAuthenticator::$YALE_AUTH);
     
     // Redirect to the page we were on
     header("Location: " . $redirectStripped);
