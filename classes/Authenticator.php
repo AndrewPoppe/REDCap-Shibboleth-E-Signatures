@@ -1,8 +1,8 @@
 <?php
 
-namespace YaleREDCap\YaleREDCapAuthenticator;
+namespace YaleREDCap\EntraIdAuthenticator;
 
-class Yale_EntraID_Authenticator
+class Authenticator
 {
     private $client_id;
     private $ad_tenant;
@@ -15,7 +15,7 @@ class Yale_EntraID_Authenticator
     private $allowedGroups;
     private $authType;
     private $entraIdSettings;
-    public function __construct(YaleREDCapAuthenticator $module, string $authType, string $session_id = null)
+    public function __construct(EntraIdAuthenticator $module, string $authType, string $session_id = null)
     {
         $this->module           = $module;
         $this->authType         = $authType;

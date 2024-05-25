@@ -1,17 +1,17 @@
 <?php
 
-namespace YaleREDCap\YaleREDCapAuthenticator;
+namespace YaleREDCap\EntraIdAuthenticator;
 
-/** @var YaleREDCapAuthenticator $module */
+/** @var EntraIdAuthenticator $module */
 
-session_id($_COOKIE[YaleREDCapAuthenticator::$ENTRAID_SESSION_ID_COOKIE]);
+session_id($_COOKIE[EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE]);
 session_start();
 
-$originUrl     = $_COOKIE[YaleREDCapAuthenticator::$ENTRAID_URL_COOKIE];
+$originUrl     = $_COOKIE[EntraIdAuthenticator::$ENTRAID_URL_COOKIE];
 
 [$state, $authType] = explode('AUTHTYPE', $_GET["state"]);
 
-$authenticator = new Yale_EntraID_Authenticator($module, $authType);
+$authenticator = new Authenticator($module, $authType);
 
 $authData = $authenticator->getAuthData($state, $_GET["code"]);
 $userData = $authenticator->getUserData($authData['access_token']);
@@ -27,11 +27,11 @@ if (!$authenticator->checkGroupMembership($userData)) {
 $result = $module->loginEntraIDUser($userData, $authType);
 if ( $result ) {
 
-    \Session::deletecookie(YaleREDCapAuthenticator::$ENTRAID_URL_COOKIE);
-    \Session::deletecookie(YaleREDCapAuthenticator::$ENTRAID_SESSION_ID_COOKIE);
+    \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_URL_COOKIE);
+    \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE);
 
     // strip the authtype parameters from the URL
-    $redirectStripped = $module->stripQueryParameter($originUrl, YaleREDCapAuthenticator::$AUTH_QUERY);
+    $redirectStripped = $module->stripQueryParameter($originUrl, EntraIdAuthenticator::$AUTH_QUERY);
     
     // Redirect to the page we were on
     header("Location: " . $redirectStripped);

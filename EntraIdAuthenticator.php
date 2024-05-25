@@ -1,17 +1,17 @@
 <?php
 
-namespace YaleREDCap\YaleREDCapAuthenticator;
+namespace YaleREDCap\EntraIdAuthenticator;
 
 /**
  * @property \ExternalModules\Framework $framework
  * @see Framework
  */
 
-require_once 'classes/Yale_EntraID_Authenticator.php';
+require_once 'classes/Authenticator.php';
 require_once 'classes/ESignatureHandler.php';
 require_once 'classes/EntraIdSettings.php';
 
-class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
+class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
     static $AUTH_QUERY = 'authtype';
@@ -51,8 +51,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' ) {
+                $authType = $this->getUserType();
                 $esignatureHandler = new ESignatureHandler($this);
-                $esignatureHandler->handleRequest($_POST);
+                $esignatureHandler->handleRequest($_POST, $authType);
                 return;
             }
 
@@ -83,38 +84,13 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     }
 
-    public function handleYnhhAuth($page)
-    {
-        if ( isset($_GET['authed']) ) {
-            return;
-        }
-
-        $curPageURL    = $this->curPageURL();
-        $newUrl        = $this->addQueryParameter($curPageURL, 'authed', 'true');
-        $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
-
-        // Perform login
-        $authenticator->login($newUrl, [], false, true);
-        // Check authentication status
-        if ( $authenticator->isAuthenticated() ) {
-            // User is authenticated, proceed with further actions
-            $attributes = $authenticator->getAttributes();
-            $this->log('authed', [ 'attributes' => json_encode($attributes, JSON_PRETTY_PRINT) ]);
-            // Process user attributes as needed
-        } else {
-            // Authentication failed
-            $this->log('no authed');
-            echo "Authentication failed. Reason: " . $authenticator->getLastError();
-        }
-    }
-
     public function handleEntraIDAuth($authType, $url)
     {
         try {
             $session_id = session_id();
             \Session::savecookie(self::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
             \Session::savecookie(self::$ENTRAID_URL_COOKIE, $url, 0, true);
-            $authenticator = new Yale_EntraID_Authenticator($this, $authType, $session_id);
+            $authenticator = new Authenticator($this, $authType, $session_id);
             $authenticator->authenticate();
             return true;
         } catch ( \Throwable $e ) {
@@ -252,6 +228,8 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
     private function showCustomLoginPage(string $redirect)
     {
         $loginButtonSettings = $this->getLoginButtonSettings();
+        $settings = new EntraIdSettings($this);
+        $entraIdSettings = $settings->getAllSettings();
         $backgroundUrl       = $this->framework->getUrl('assets/images/New_Haven_1.jpg');
         ?>
         <!DOCTYPE html>
@@ -265,62 +243,6 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         $objHtmlPage->PrintHeader(false);
         ?>
         <style>
-            .btn-yale {
-                background-color:
-                    <?= $loginButtonSettings['yaleLoginButtonBackgroundColor'] ?>;
-                background-image: url('<?= $loginButtonSettings['yaleLoginButtonLogo'] ?>');
-                width: auto;
-            }
-
-            .btn-yale:hover,
-            .btn-yale:focus,
-            .btn-yale:active,
-            .btn-yale.btn-active,
-            .btn-yale:active:focus,
-            .btn-yale:active:hover {
-                color: #fff !important;
-                background-color:
-                    <?= $loginButtonSettings['yaleLoginButtonBackgroundColorHover'] ?> !important;
-                border: 1px solid transparent;
-            }
-
-            .btn-login-original {
-                background-color:
-                    <?= $loginButtonSettings['localLoginButtonBackgroundColor'] ?>;
-                background-image: url('<?= $loginButtonSettings['localLoginButtonLogo'] ?>');
-                width: auto;
-            }
-
-            .btn-login-original:hover,
-            .btn-login-original:focus,
-            .btn-login-original:active,
-            .btn-login-original.btn-active,
-            .btn-login-original:active:focus,
-            .btn-login-original:active:hover {
-                color: #fff !important;
-                background-color:
-                    <?= $loginButtonSettings['localLoginButtonBackgroundColorHover'] ?> !important;
-                border: 1px solid transparent !important;
-            }
-
-            .btn-login:hover,
-            .btn-login:hover:active,
-            .btn-login.btn-active:hover,
-            .btn-login:focus {
-                outline: 1px solid #4ca2ff !important;
-            }
-
-            .btn-login {
-                background-size: contain;
-                background-repeat: no-repeat;
-                background-position: center;
-                max-width: 350px;
-                min-width: 250px;
-                height: 50px;
-                color: #fff;
-                border: 1px solid transparent;
-            }
-
             #rc-login-form {
                 display: none;
             }
@@ -412,16 +334,13 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                             <div class="card-body rounded-0">
                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                     <ul class="list-group list-group-flush">
-                                        <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY,  'yale') ?>';">
-                                            <img src="<?= $loginButtonSettings['yaleLoginButtonLogo'] //?? $this->framework->getUrl('assets/images/YU.png') ?>"
-                                                class="login-logo" alt="Yale University">
+                                        <?php foreach ($entraIdSettings as $site) { ?>
+                                            <li class="list-group-item list-group-item-action login-option"
+                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY,  $site['authValue']) ?>';">
+                                            <img src="<?= $this->getEdocFileContents($site['loginButtonLogo']) ?>"
+                                                class="login-logo" alt="<?=$site['label']?>">
                                         </li>
-                                        <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, 'ynhh') ?>';">
-                                            <img src="<?= $this->framework->getUrl('assets/images/YNHH.png') ?>"
-                                                class="login-logo">
-                                        </li>
+                                        <?php } ?>
                                     </ul>
                                 </div>
                                 <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
@@ -537,7 +456,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         $authType = $this->getUserType();
         session_unset();
         session_destroy();
-        $authenticator = new Yale_EntraID_Authenticator($this, $authType);
+        $authenticator = new Authenticator($this, $authType);
         $authenticator->logout();
     }
 

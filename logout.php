@@ -1,7 +1,7 @@
 <?php
 
-namespace YaleREDCap\YaleREDCapAuthenticator;
+namespace YaleREDCap\EntraIdAuthenticator;
 
-/** @var YaleREDCapAuthenticator $module */
+/** @var EntraIdAuthenticator $module */
 
 $module->handleLogout();

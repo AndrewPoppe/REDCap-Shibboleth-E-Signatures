@@ -1,23 +1,23 @@
 <?php
 
-namespace YaleREDCap\YaleREDCapAuthenticator;
+namespace YaleREDCap\EntraIdAuthenticator;
 
 class ESignatureHandler
 {
-    private YaleREDCapAuthenticator $module;
-    public function __construct(YaleREDCapAuthenticator $module)
+    private EntraIdAuthenticator $module;
+    public function __construct(EntraIdAuthenticator $module)
     {
         $this->module = $module;
     }
 
-    public function handleRequest(array $post)
+    public function handleRequest(array $post, string $authType)
     {
         if ( !isset($post['esign_action']) || $post['esign_action'] !== 'save' || !isset($post['token']) ) {
             return;
         }
 
         // Get username from token
-        $authenticator = new Yale_EntraID_Authenticator($this->module);
+        $authenticator = new Authenticator($this->module, $authType);
         $userData      = $authenticator->getUserData($post['token']);
         $username      = $userData['netid'];
 
@@ -40,7 +40,7 @@ class ESignatureHandler
     public function addEsignatureScript()
     {
         $authType = $this->module->getUserType();
-        $authenticator = new Yale_EntraID_Authenticator($this->module, $authType);
+        $authenticator = new Authenticator($this->module, $authType);
         ?>
         <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
         <script>

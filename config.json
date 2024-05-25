@@ -1,6 +1,6 @@
 {
-    "name": "Entra ID REDCap Authenticator",
-    "namespace": "YaleREDCap\\YaleREDCapAuthenticator",
+    "name": "Entra ID Authenticator",
+    "namespace": "YaleREDCap\\EntraIdAuthenticator",
     "description": "This External Module enables SSO with multiple Entra ID tenants.",
     "authors": [
         {

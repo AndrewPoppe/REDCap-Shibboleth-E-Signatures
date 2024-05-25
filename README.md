@@ -1,1 +1,1 @@
-# Yale REDCap Authenticator
+# Entra ID Authenticator

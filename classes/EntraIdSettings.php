@@ -1,11 +1,11 @@
 <?php
 
-namespace YaleREDCap\YaleREDCapAuthenticator;
+namespace YaleREDCap\EntraIdAuthenticator;
 
 class EntraIdSettings
 {
-    private YaleREDCapAuthenticator $module;
-    public function __construct(YaleREDCapAuthenticator $module)
+    private EntraIdAuthenticator $module;
+    public function __construct(EntraIdAuthenticator $module)
     {
         $this->module = $module;
     }
