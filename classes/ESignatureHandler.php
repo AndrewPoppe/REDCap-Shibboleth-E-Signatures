@@ -39,7 +39,8 @@ class ESignatureHandler
 
     public function addEsignatureScript()
     {
-        $authenticator = new Yale_EntraID_Authenticator($this->module);
+        $authType = $this->module->getUserType();
+        $authenticator = new Yale_EntraID_Authenticator($this->module, $authType);
         ?>
         <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
         <script>

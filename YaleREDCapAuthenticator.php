@@ -7,16 +7,14 @@ namespace YaleREDCap\YaleREDCapAuthenticator;
  * @see Framework
  */
 
-require_once 'classes/YNHH_SAML_Authenticator.php';
 require_once 'classes/Yale_EntraID_Authenticator.php';
 require_once 'classes/ESignatureHandler.php';
+require_once 'classes/EntraIdSettings.php';
 
 class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
     static $AUTH_QUERY = 'authtype';
-    static $YNHH_AUTH = 'ynhh';
-    static $YALE_AUTH = 'yale';
     static $LOCAL_AUTH = 'local';
     static $ENTRAID_URL_COOKIE = 'entraid-origin-url';
     static $ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
@@ -30,11 +28,11 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $action === 'getUserType' ) {
             return $this->getUserType($payload['username']);
         }
-        if ( $action === 'convertTableUserToYaleUser' ) {
-            return $this->convertTableUserToYaleUser($payload['username']);
+        if ( $action === 'convertTableUserToEntraIdUser' ) {
+            return $this->convertTableUserToEntraIdUser($payload['username'], $payload['authType']);
         }
-        if ( $action == 'convertYaleUsertoTableUser' ) {
-            return $this->convertYaleUsertoTableUser($payload['username']);
+        if ( $action == 'convertEntraIdUsertoTableUser' ) {
+            return $this->convertEntraIdUsertoTableUser($payload['username']);
         }
     }
 
@@ -68,10 +66,9 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             }
             
             // Only authenticate if we're asked to
-            if ( $this->doingYNHHAuth() ) {
-                $this->handleYnhhAuth($page);
-            } elseif ( $this->doingYaleAuth() ) {
-                $this->handleEntraIDAuth($this->curPageURL());
+            if ( isset($_GET[self::$AUTH_QUERY]) && !$this->doingLocalLogin() ) {
+                $authType = filter_input(INPUT_GET, self::$AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+                $this->handleEntraIdAuth($authType, $this->curPageURL());
             }
             
             // Inject the custom login page 
@@ -81,7 +78,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
         } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
         }
 
     }
@@ -111,24 +108,24 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function handleEntraIDAuth($url)
+    public function handleEntraIDAuth($authType, $url)
     {
         try {
             $session_id = session_id();
             \Session::savecookie(self::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
             \Session::savecookie(self::$ENTRAID_URL_COOKIE, $url, 0, true);
-            $authenticator = new Yale_EntraID_Authenticator($this, $session_id);
+            $authenticator = new Yale_EntraID_Authenticator($this, $authType, $session_id);
             $authenticator->authenticate();
             return true;
         } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error 1', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Entra ID REDCap Authenticator: Error 1', [ 'error' => $e->getMessage() ]);
             session_unset();
             session_destroy();
             return false;
         }
     }
 
-    public function loginEntraIDUser(array $userdata) {
+    public function loginEntraIDUser(array $userdata, string $authType) {
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
             $userid = $userdata['netid'];
@@ -143,13 +140,13 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // Successful authentication
-            $this->framework->log('Yale REDCap Authenticator: Auth Succeeded', [
+            $this->framework->log('Entra ID REDCap Authenticator: Auth Succeeded', [
                 "EntraID NetID" => $userid
             ]);
 
             // Trigger login
             \Authentication::autoLogin($userid);
-            $_SESSION['yale_entraid_id'] = $userdata['id'];
+            $_SESSION['entraid_id'] = $userdata['id'];
 
             // Update last login timestamp
             \Authentication::setUserLastLoginTimestamp($userid);
@@ -167,18 +164,18 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 ){
                     $this->setUserDetails($userid, $userdata);
                 }
-                $this->setYaleUser($userid);
+                $this->setEntraIdUser($userid, $authType);
             }
-            // If user is a table-based user, convert to Yale user
-            elseif ( \Authentication::isTableUser($userid) && $this->framework->getSystemSetting('convert-table-user-to-yale-user') == 1) {
-                $this->convertTableUserToYaleUser($userid);
+            // If user is a table-based user, convert to Entra ID user
+            elseif ( \Authentication::isTableUser($userid) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1) {
+                $this->convertTableUserToEntraIdUser($userid);
             }
-            // otherwise just make sure they are logged as a Yale user
+            // otherwise just make sure they are logged as an Entra ID user
             elseif ( !\Authentication::isTableUser($userid) ) {
-                $this->setYaleUser($userid);
+                $this->setEntraIdUser($userid, $authType);
             }
 
-            // 2. If user allowlist is not enabled, all Yale users are allowed.
+            // 2. If user allowlist is not enabled, all Entra ID users are allowed.
             // Otherwise, if not in allowlist, then give them an error page.
             if ( $enable_user_allowlist && !$this->inUserAllowlist($userid) ) {
                 session_unset();
@@ -197,7 +194,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             }
             return true;
         } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error 2', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Entra ID REDCap Authenticator: Error 2', [ 'error' => $e->getMessage() ]);
             session_unset();
             session_destroy();
             return false;
@@ -214,14 +211,14 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         // To enable SLO
         $this->addReplaceLogoutLinkScript();
 
-        // Yale-User information if applicable 
-        $this->addYaleInfoToBrowseUsersTable($page);
+        // Entra ID User information if applicable 
+        $this->addEntraIdInfoToBrowseUsersTable($page);
     }
 
     public function redcap_data_entry_form()
     {
         $user = $this->framework->getUser();
-        if ( !$this->isYaleUser($user->getUsername()) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
+        if ( !$this->isEntraIdUser($user->getUsername()) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
             return;
         }
         $esignatureHandler = new ESignatureHandler($this);
@@ -416,12 +413,12 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                     <ul class="list-group list-group-flush">
                                         <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, self::$YALE_AUTH) ?>';">
+                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY,  'yale') ?>';">
                                             <img src="<?= $loginButtonSettings['yaleLoginButtonLogo'] //?? $this->framework->getUrl('assets/images/YU.png') ?>"
                                                 class="login-logo" alt="Yale University">
                                         </li>
                                         <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, self::$YNHH_AUTH) ?>';">
+                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, 'ynhh') ?>';">
                                             <img src="<?= $this->framework->getUrl('assets/images/YNHH.png') ?>"
                                                 class="login-logo">
                                         </li>
@@ -491,7 +488,7 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
     }
 
-    private function convertTableUserToYaleUser(string $userid)
+    private function convertTableUserToEntraIdUser(string $userid, string $authType)
     {
         if ( empty($userid) ) {
             return;
@@ -499,15 +496,15 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         try {
             $SQL   = 'DELETE FROM redcap_auth WHERE username = ?';
             $query = $this->framework->query($SQL, [ $userid ]);
-            $this->setYaleUser($userid);
+            $this->setEntraIdUser($userid, $authType);
             return;
         } catch ( \Exception $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Entra ID REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
             return;
         }
     }
 
-    private function convertYaleUsertoTableUser(string $userid)
+    private function convertEntraIdUsertoTableUser(string $userid)
     {
         if ( empty($userid) ) {
             return;
@@ -516,10 +513,10 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
             $SQL   = "INSERT INTO redcap_auth (username) VALUES (?)";
             $query = $this->framework->query($SQL, [ $userid ]);
             \Authentication::resetPasswordSendEmail($userid);
-            $this->setYaleUser($userid, false);
+            $this->setEntraIdUser($userid, false);
             return;
         } catch ( \Exception $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Entra ID REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
             return;
         }
     }
@@ -537,28 +534,11 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function handleLogout()
     {
-        $yale_entra_id = isset($_SESSION['yale_entraid_id']) ? $_SESSION['yale_entraid_id'] : null;
-        $ynhh_entra_id = isset($_SESSION['ynhh_entraid_id']) ? $_SESSION['ynhh_entraid_id'] : null;
+        $authType = $this->getUserType();
         session_unset();
         session_destroy();
-        if (!is_null($yale_entra_id)) {
-            $this->handleYaleLogout($yale_entra_id);
-        }
-        if (!is_null($ynhh_entra_id)) {
-            $this->handleYnhhLogout($ynhh_entra_id);
-        }
-    }
-
-    private function handleYaleLogout($entraid)
-    {
-        $authenticator = new Yale_EntraID_Authenticator($this);
-        $authenticator->logout($entraid);
-    }
-
-    private function handleYnhhLogout($entraid)
-    {
-        $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
-        $authenticator->logout($entraid);
+        $authenticator = new Yale_EntraID_Authenticator($this, $authType);
+        $authenticator->logout();
     }
 
     private function setUserDetails($userid, $details)
@@ -605,15 +585,19 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function isYaleUser($username)
+    public function isEntraIdUser($username)
     {
         return !\Authentication::isTableUser($username) && $this->framework->getSystemSetting('yale-user-' . $username) === true;
     }
 
-    public function getUserType($username)
+    public function getUserType($username = null)
     {
-        if ( $this->isYaleUser($username) ) {
-            return 'YALE';
+        if ( $username === null ) {
+            $username = $this->framework->getUser()->getUsername();
+        }
+        $entraidAuthType = $this->framework->getSystemSetting('entraid-user-' . $username);
+        if ( $entraidAuthType ) {
+            return $entraidAuthType;
         }
         if ( \Authentication::isTableUser($username) ) {
             return 'table';
@@ -624,16 +608,19 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         return 'unknown';
     }
 
-    public function setYaleUser($userid, bool $value = true)
+    public function setEntraIdUser($userid, $value)
     {
-        $this->framework->setSystemSetting('yale-user-' . $userid, $value);
+        $this->framework->setSystemSetting('entraid-user-' . $userid, $value);
     }
 
-    private function addYaleInfoToBrowseUsersTable($page)
+    private function addEntraIdInfoToBrowseUsersTable($page)
     {
         if ( !$page === 'ControlCenter/view_users.php' || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
             return;
         }
+
+        $settings = new EntraIdSettings($this);
+        $authTypes = $settings->getAuthValues() ?? [];
 
         $this->framework->initializeJavascriptModuleObject();
 
@@ -646,18 +633,23 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         ?>
             <script>
                 var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
+                var authTypes = JSON.parse('<?= json_encode($authTypes) ?>');
 
-                function convertTableUserToYaleUser() {
+                function convertTableUserToEntraIdUser() {
                     const username = $('#user_search').val();
                     Swal.fire({
-                        title: "Are you sure you want to convert this table-based user to a YALE user?",
+                        title: "Are you sure you want to convert this table-based user to an Entra ID user?",
+                        input: 'select',
+                        inputOptions: authTypes,
                         icon: "warning",
                         showCancelButton: true,
-                        confirmButtonText: "Convert to YALE User"
+                        confirmButtonText: "Convert to Entra ID User"
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            authenticator.ajax('convertTableUserToYaleUser', {
-                                username: username
+                            let userType = authTypes[result.value];
+                            authenticator.ajax('convertTableUserToEntraIdUser', {
+                                username: username,
+                                authType: userType
                             }).then(() => {
                                 location.reload();
                             });
@@ -665,16 +657,16 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                     });
                 }
 
-                function convertYaleUsertoTableUser() {
+                function convertEntraIdUsertoTableUser() {
                     const username = $('#user_search').val();
                     Swal.fire({
-                        title: "Are you sure you want to convert this YALE user to a table-based user?",
+                        title: "Are you sure you want to convert this Entra ID user to a table-based user?",
                         icon: "warning",
                         showCancelButton: true,
                         confirmButtonText: "Convert to Table User"
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            authenticator.ajax('convertYaleUsertoTableUser', {
+                            authenticator.ajax('convertEntraIdUsertoTableUser', {
                                 username: username
                             }).then(() => {
                                 location.reload();
@@ -684,26 +676,23 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
                 }
 
                 function addTableRow(userType) {
-                    let yaleUserText = '';
+                    let userText = '';
                     switch (userType) {
-                        case 'YALE':
-                            yaleUserText =
-                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertYaleUsertoTableUser()" value="Convert to Table User">`;
-                            break;
                         case 'allowlist':
-                            yaleUserText = `<strong>${userType}</strong>`;
+                            userText = `<strong>${userType}</strong>`;
                             break;
                         case 'table':
-                            yaleUserText =
-                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertTableUserToYaleUser()" value="Convert to YALE User">`;
+                            userText =
+                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertTableUserToEntraIdUser()" value="Convert to Entra ID User">`;
                             break;
                         default:
-                            yaleUserText = `<strong>${userType}</strong>`;
+                            userText =
+                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertEntraIdUsertoTableUser()" value="Convert to Table User">`;
                             break;
                     }
                     console.log($('#indv_user_info'));
                     $('#indv_user_info').append('<tr id="userTypeRow"><td class="data2">User type</td><td class="data2">' +
-                        yaleUserText + '</td></tr>');
+                        userText + '</td></tr>');
                 }
 
                 view_user = function (username) {
@@ -756,45 +745,13 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         })) > 0;
     }
 
-    public function checkYNHHAuth()
-    {
-        $isAuthed = false;
-        try {
-            if ( isset($_GET['authed']) ) {
-                return;
-            }
-
-            // $protocol      = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-            // $curPageURL    = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-            $curPageURL    = $this->curPageURL();
-            $newUrl        = $this->addQueryParameter($curPageURL, 'authed', 'true');
-            $authenticator = new YNHH_SAML_Authenticator('http://localhost:33810', $this->framework->getUrl('YNHH_SAML_ACS.php', true));
-
-            // Perform login
-
-            // // $this->log('test', ['isAuthenticated' => $authenticator->]);
-            $authenticator->login(
-                $newUrl,
-                [],
-                false,
-                true
-            );
-            $isAuthed = $authenticator->isAuthenticated();
-
-        } catch ( \Throwable $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error checking YNHH auth', [ 'error' => $e->getMessage() ]);
-        } finally {
-            return $isAuthed;
-        }
-    }
-
     private function setUserCreationTimestamp($userid)
     {
         try {
             $SQL = "UPDATE redcap_user_information SET user_creation = ? WHERE username = ?";
             $this->framework->query($SQL, [ NOW, $userid ]);
         } catch ( \Exception $e ) {
-            $this->framework->log('Yale REDCap Authenticator: Error setting user creation timestamp', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('Entra ID REDCap Authenticator: Error setting user creation timestamp', [ 'error' => $e->getMessage() ]);
         }
     }
 
@@ -837,21 +794,13 @@ class YaleREDCapAuthenticator extends \ExternalModules\AbstractExternalModule
         return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$LOCAL_AUTH;
     }
 
-    private function doingYaleAuth() {
-        return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$YALE_AUTH;
-    }
-
-    private function doingYNHHAuth() {
-        return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$YNHH_AUTH;
-    }
-
     private function resettingPassword(string $page) {
         return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php';
     }
 
     private function addReplaceLogoutLinkScript() {
         $username = $this->framework->getUser()->getUsername();
-        if (!$this->isYaleUser($username) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
+        if (!$this->isEntraIdUser($username) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
             return;
         }
         $logout_url = $this->framework->getUrl('logout.php');

@@ -12,22 +12,33 @@ class Yale_EntraID_Authenticator
     private $module;
     private $session_id;
     private $logout_uri;
-    public function __construct(YaleREDCapAuthenticator $module, string $session_id = null)
+    private $allowedGroups;
+    private $authType;
+    private $entraIdSettings;
+    public function __construct(YaleREDCapAuthenticator $module, string $authType, string $session_id = null)
     {
         $this->module           = $module;
-        $this->client_id        = $this->module->framework->getSystemSetting('entraid-yale-client-id');  //Application (client) ID
-        $this->ad_tenant        = $this->module->framework->getSystemSetting('entraid-yale-ad-tenant-id');  //Entra ID Tenant ID, with Multitenant apps you can use "common" as Tenant ID, but using specific endpoint is recommended when possible
-        $this->client_secret    = $this->module->framework->getSystemSetting('entraid-yale-client-secret');  //Client Secret, remember that this expires someday unless you haven't set it not to do so
-        $this->redirect_uri     = $this->module->framework->getSystemSetting('entraid-yale-redirect-url');  //This needs to match 100% what is set in Entra ID
-        $this->redirect_uri_spa = $this->module->framework->getSystemSetting('entraid-yale-redirect-url-spa');  //This needs to match 100% what is set in Entra ID
+        $this->authType         = $authType;
+        $settings               = new EntraIdSettings($module);
+        $this->entraIdSettings  = $settings->getSettings($authType);
+        $this->module->log('ok', [ 'settings' => json_encode($settings->getAllSettings(), JSON_PRETTY_PRINT) ]);
+        if ( !$this->entraIdSettings ) {
+            return;
+        }
+        $this->client_id        = $this->entraIdSettings['clientId'];  //Client ID, this is the Application ID from Azure
+        $this->ad_tenant        = $this->entraIdSettings['adTenantId'];  //Azure AD Tenant ID
+        $this->client_secret    = $this->entraIdSettings['clientSecret'];  //Client Secret, this is the secret key from Azure
+        $this->redirect_uri     = $this->entraIdSettings['redirectUrl'];  //This needs to match 100% what is set in Entra ID
+        $this->redirect_uri_spa = $this->entraIdSettings['redirectUrlSpa'];  //This needs to match 100% what is set in Entra ID
+        $this->logout_uri       = $this->entraIdSettings['logoutUrl'];  //This needs to match 100% what is set in Entra ID
+        $this->allowedGroups    = $this->entraIdSettings['allowedGroups'];
         $this->session_id       = $session_id ?? session_id();
-        $this->logout_uri       = $this->module->framework->getSystemSetting('entraid-yale-logout-url');
     }
 
     public function authenticate(bool $refresh = false)
     {
         $url = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
-        $url .= "state=" . $this->session_id;
+        $url .= "state=" . $this->session_id . "AUTHTYPE" . $this->authType;
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
         $url .= "&approval_prompt=auto";
@@ -40,7 +51,9 @@ class Yale_EntraID_Authenticator
 
     public function getAuthData($state, $code)
     {
-        $stateMatches = strcmp(session_id(), $state) == 0;
+        //Checking if the state matches the session ID
+        [$sessionid, $authType] = explode('AUTHTYPE', $state);
+        $stateMatches = strcmp(session_id(), $sessionid ) == 0;
         if ( !$stateMatches ) {
             return;
         }
@@ -120,20 +133,19 @@ class Yale_EntraID_Authenticator
 
     public function checkGroupMembership($userData) {
         $userGroups = $userData['groups'];
-        $groups = $this->module->framework->getSystemSetting('entraid-yale-allowed-groups');
-        if (empty($groups)) {
+        if (empty($this->allowedGroups)) {
             return true;
         }
         foreach ($userGroups as $group) {
-            if (in_array($group['id'], $groups)) {
+            if (in_array($group['id'], $this->allowedGroups)) {
                 return true;
             }
         }
         return false;
     }
 
-    public function logout($entraid) {
-        header("Location: " . $this->module->addQueryParameter($this->getLogoutUri(), 'logout_hint', $entraid));
+    public function logout() {
+        header("Location: " . $this->getLogoutUri());
         return;
     }
 
