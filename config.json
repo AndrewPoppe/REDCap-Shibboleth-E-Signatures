@@ -16,9 +16,34 @@
             "type": "descriptive"
         },
         {
-            "key": "custom-login-page-enabled",
-            "name": "<strong>Custom Login Page Enabled</strong>:<br>Check this box to enable the custom login page. If unchecked, the default REDCap login page will be used. You can still use Entra ID SSO with the default REDCap login page",
-            "type": "checkbox"
+            "key": "custom-login-page-type",
+            "name": "<strong>Custom Login Page Type</strong>:<br>Select the kind of custom login page for the system. A complete custom page will replace the normal REDCap login page with a custom login page. A modified page will add Entra ID login buttons to the normal REDCap login page. None will use the default REDCap login page unaltered (you can still use Entra ID SSO with the default REDCap login page)",
+            "type": "radio",
+            "required": true,
+            "choices": [
+                {
+                    "value": "complete",
+                    "name": "Complete Custom Page"
+                },
+                {
+                    "value": "modified",
+                    "name": "Modified Page"
+                },
+                {
+                    "value": "none",
+                    "name": "None"
+                }
+            ]
+        },
+        {
+            "key": "custom-login-page-background-image",
+            "name": "<strong>Custom Login Page Background Image</strong>:<br>Upload an image to use as the background for the custom login page",
+            "type": "file",
+            "required": true,
+            "branchingLogic": {
+                "field": "custom-login-page-type",
+                "value": "complete"
+            }
         },
         {
             "key": "create-new-users-on-login",

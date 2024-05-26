@@ -44,14 +44,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
-            if ( isset($_GET['logout']) && $_GET['logout']) {
+            if ( isset($_GET['logout']) && $_GET['logout'] ) {
                 \Authentication::checkLogout();
                 return;
             }
 
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' ) {
-                $authType = $this->getUserType();
+                $authType          = $this->getUserType();
                 $esignatureHandler = new ESignatureHandler($this);
                 $esignatureHandler->handleRequest($_POST, $authType);
                 return;
@@ -65,19 +65,37 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 }
                 return;
             }
-            
+
             // Only authenticate if we're asked to
             if ( isset($_GET[self::$AUTH_QUERY]) && !$this->doingLocalLogin() ) {
                 $authType = filter_input(INPUT_GET, self::$AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
                 $this->handleEntraIdAuth($authType, $this->curPageURL());
             }
-            
+
             // Inject the custom login page 
             if ( $this->needsCustomLogin($page) ) {
                 $this->showCustomLoginPage($this->curPageURL());
                 $this->exitAfterHook();
                 return;
             }
+
+            // Or overwrite the login page
+            if ( $this->needsModifiedLogin($page) ) {
+                $this->modifyLoginPage($this->curPageURL());
+                return;
+            }
+
+            // If doing local login, append a link to the custom login page
+            if (
+                $this->doingLocalLogin() && (
+                    $this->framework->getSystemSetting('custom-login-page-enabled') == 1 ||
+                    $this->framework->getSystemSetting('modified-login-page-enabled') == 1
+                )
+            ) {
+                $this->addCustomLoginLinkScript();
+                return;
+            }
+
         } catch ( \Throwable $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
         }
@@ -101,7 +119,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function loginEntraIDUser(array $userdata, string $authType) {
+    public function loginEntraIDUser(array $userdata, string $authType)
+    {
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
             $userid = $userdata['netid'];
@@ -110,8 +129,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
-            if (!$this->userExists($userid) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1)
-            {
+            if ( !$this->userExists($userid) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
                 exit('User does not exist in REDCap. Please contact your administrator.');
             }
 
@@ -133,17 +151,17 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             // Handle account-related things.
             // If the user does not exist, create them.
             if ( !$this->userExists($userid) ) {
-                if ( 
+                if (
                     isset($userdata['user_firstname']) &&
                     isset($userdata['user_lastname']) &&
                     isset($userdata['user_email'])
-                ){
+                ) {
                     $this->setUserDetails($userid, $userdata);
                 }
                 $this->setEntraIdUser($userid, $authType);
             }
             // If user is a table-based user, convert to Entra ID user
-            elseif ( \Authentication::isTableUser($userid) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1) {
+            elseif ( \Authentication::isTableUser($userid) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
                 $this->convertTableUserToEntraIdUser($userid);
             }
             // otherwise just make sure they are logged as an Entra ID user
@@ -194,43 +212,29 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function redcap_data_entry_form()
     {
         $user = $this->framework->getUser();
-        if ( !$this->isEntraIdUser($user->getUsername()) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
+        if ( !$this->isEntraIdUser($user->getUsername()) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1 ) {
             return;
         }
         $esignatureHandler = new ESignatureHandler($this);
         $esignatureHandler->addEsignatureScript();
     }
 
-    private function getLoginButtonSettings()
+    private function getEdocFileContents($edocId)
     {
-        return [
-            'yaleLoginButtonBackgroundColor'        => $this->framework->getSystemSetting('yale-login-button-background-color') ?? 'transparent',//'#00356b',
-            'yaleLoginButtonBackgroundColorHover'   => $this->framework->getSystemSetting('yale-login-button-background-color-hover') ?? 'transparent',//'#286dc0',
-            'yaleLoginButtonText'                   => $this->framework->getSystemSetting('yale-login-button-text') ?? 'Yale University',
-            'yaleLoginButtonLogo'                   => $this->getEdocFileContents($this->framework->getSystemSetting('entraid-yale-login-button-logo')) ?? $this->framework->getUrl('assets/images/YU.png', true, true),//'<i class="fas fa-sign-in-alt"></i>',
-            'localLoginButtonBackgroundColor'      => $this->framework->getSystemSetting('local-login-button-background-color') ?? 'transparent',//'#00a9e0',
-            'localLoginButtonBackgroundColorHover' => $this->framework->getSystemSetting('local-login-button-background-color-hover') ?? 'transparent',//'#32bae6',
-            'localLoginButtonText'                 => $this->framework->getSystemSetting('local-login-button-text') ?? 'Yale New Haven Health',
-            'localLoginButtonLogo'                 => $this->framework->getSystemSetting('local-login-button-logo') ?? $this->framework->getUrl('assets/images/YNHH.png', true, true),//'<i class="fas fa-sign-in-alt"></i>',
-        ];
-    }
-
-    private function getEdocFileContents($edocId) {
-        if (empty($edocId)) {
+        if ( empty($edocId) ) {
             return;
         }
-        $file = \REDCap::getFile($edocId);
+        $file     = \REDCap::getFile($edocId);
         $contents = $file[2];
 
-        echo 'data:'.$file[0].';base64,'.base64_encode($contents);
+        return 'data:' . $file[0] . ';base64,' . base64_encode($contents);
     }
 
     private function showCustomLoginPage(string $redirect)
     {
-        $loginButtonSettings = $this->getLoginButtonSettings();
-        $settings = new EntraIdSettings($this);
+        $settings        = new EntraIdSettings($this);
         $entraIdSettings = $settings->getAllSettings();
-        $backgroundUrl       = $this->framework->getUrl('assets/images/New_Haven_1.jpg');
+        $backgroundUrl   = $this->getEdocFileContents($this->framework->getSystemSetting('custom-login-page-background-image')) ?? $this->framework->getUrl('assets/images/New_Haven_1.jpg');
         ?>
         <!DOCTYPE html>
         <html lang="en">
@@ -300,9 +304,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 text-decoration: none;
                 color: inherit;
             }
+
+            body {
+                background-image: url('<?= $backgroundUrl ?>');
+            }
         </style>
 
-        <body background="<?= $backgroundUrl ?>">
+        <body>
             <?php
 
             global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email;
@@ -334,12 +342,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                             <div class="card-body rounded-0">
                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                     <ul class="list-group list-group-flush">
-                                        <?php foreach ($entraIdSettings as $site) { ?>
+                                        <?php foreach ( $entraIdSettings as $site ) { ?>
                                             <li class="list-group-item list-group-item-action login-option"
-                                            onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY,  $site['authValue']) ?>';">
-                                            <img src="<?= $this->getEdocFileContents($site['loginButtonLogo']) ?>"
-                                                class="login-logo" alt="<?=$site['label']?>">
-                                        </li>
+                                                onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
+                                                <img src="<?= $this->getEdocFileContents($site['loginButtonLogo']) ?>"
+                                                    class="login-logo" alt="<?= $site['label'] ?>">
+                                            </li>
                                         <?php } ?>
                                     </ul>
                                 </div>
@@ -534,11 +542,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function addEntraIdInfoToBrowseUsersTable($page)
     {
-        if ( !$page === 'ControlCenter/view_users.php' || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
+        if ( !$page === 'ControlCenter/view_users.php' || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1 ) {
             return;
         }
 
-        $settings = new EntraIdSettings($this);
+        $settings  = new EntraIdSettings($this);
         $authTypes = $settings->getAuthValues() ?? [];
 
         $this->framework->initializeJavascriptModuleObject();
@@ -700,38 +708,177 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         return (defined('USERID') && USERID !== '') || $this->framework->isAuthenticated();
     }
 
-    private function needsCustomLogin(string $page) {
-        return  $this->framework->getSystemSetting('custom-login-page-enabled') == 1 &&
-                !$this->resettingPassword($page) &&
-                !$this->doingLocalLogin() &&
-                $this->inLoginFunction() &&
-                \ExternalModules\ExternalModules::getUsername() === null &&
-                !\ExternalModules\ExternalModules::isNoAuth();
+    private function needsCustomLogin(string $page)
+    {
+        return $this->framework->getSystemSetting('custom-login-page-type') === "complete" &&
+            !$this->resettingPassword($page) &&
+            !$this->doingLocalLogin() &&
+            $this->inLoginFunction() &&
+            \ExternalModules\ExternalModules::getUsername() === null &&
+            !\ExternalModules\ExternalModules::isNoAuth();
     }
 
-    private function doingLocalLogin() {
+    private function needsModifiedLogin(string $page)
+    {
+        return $this->framework->getSystemSetting('custom-login-page-type') === "modified" &&
+            !$this->resettingPassword($page) &&
+            !$this->doingLocalLogin() &&
+            $this->inLoginFunction() &&
+            \ExternalModules\ExternalModules::getUsername() === null &&
+            !\ExternalModules\ExternalModules::isNoAuth();
+    }
+
+    private function doingLocalLogin()
+    {
         return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$LOCAL_AUTH;
     }
 
-    private function resettingPassword(string $page) {
+    private function resettingPassword(string $page)
+    {
         return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php';
     }
 
-    private function addReplaceLogoutLinkScript() {
+    private function addReplaceLogoutLinkScript()
+    {
         $username = $this->framework->getUser()->getUsername();
-        if (!$this->isEntraIdUser($username) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1) {
+        if ( !$this->isEntraIdUser($username) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1 ) {
             return;
         }
         $logout_url = $this->framework->getUrl('logout.php');
         ?>
-        <script>
-            $(document).ready(function () {
-                const link = document.querySelector('#nav-tab-logout a');
-                if (link) {
-                    link.href = '<?=$logout_url?>';
+            <script>
+                $(document).ready(function () {
+                    const link = document.querySelector('#nav-tab-logout a');
+                    if (link) {
+                        link.href = '<?= $logout_url ?>';
+                    }
+                });
+            </script>
+            <?php
+    }
+
+    private function modifyLoginPage(string $redirect)
+    {
+        $settings        = new EntraIdSettings($this);
+        $entraIdSettings = $settings->getAllSettings();
+        ?>
+            <style>
+                #rc-login-form {
+                    display: none;
                 }
-            });
-        </script>
-        <?php
+
+                #login-card {
+                    border-radius: 0;
+                }
+
+                .login-option {
+                    cursor: pointer;
+                    border-radius: 0 !important;
+                }
+
+                .login-option:hover {
+                    background-color: #dddddd !important;
+                }
+
+                #login-card {
+                    width: 502px;
+                    height: auto;
+                    margin: 0 auto;
+                    left: 50%;
+                    margin-left: -250px;
+                    border: none;
+                }
+
+                #container,
+                #pagecontainer {
+                    background-color: transparent !important;
+                }
+
+                body {
+                    background-repeat: no-repeat !important;
+                    background-attachment: fixed !important;
+                    background-size: cover !important;
+                }
+
+                .login-options {
+                    left: 50%;
+                    margin-left: -37.5%;
+                    width: 75%;
+                    border-radius: 0 !important;
+                }
+
+                .login-logo {
+                    width: 100%;
+                }
+
+                div#working {
+                    top: 50% !important;
+                }
+
+                #my_page_footer a {
+                    text-decoration: none;
+                    color: inherit;
+                }
+            </style>
+            <?php
+
+            global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email, $homepage_contact_url;
+
+
+            ?>
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    $(`<p style='font-size:13px;'>Please choose the organization to authenticate with. If you are having issues, please contact <a style="font-size:13px;text-decoration:underline;" href="<?= trim($homepage_contact_url) == '' ? "mailto:$homepage_contact_email" : trim($homepage_contact_url) ?>"><?= $homepage_contact ?></a>.</p>
+                            <div class="container text-center">
+                                <div class="row align-items-center">
+                                    <div class="col">
+                                        <div class="card" id="login-card">
+                                            <div class="card-body rounded-0">
+                                                <div class="card align-self-center text-center mb-2 login-options rounded-0">
+                                                    <ul class="list-group list-group-flush">
+                                                        <?php foreach ( $entraIdSettings as $site ) { ?>
+                                                                <li class="list-group-item list-group-item-action login-option"
+                                                                onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
+                                                                <img src="<?= $this->getEdocFileContents($site['loginButtonLogo']) ?>"
+                                                                    class="login-logo" alt="<?= $site['label'] ?>">
+                                                            </li>
+                                                        <?php } ?>
+                                                    </ul>
+                                                </div>
+                                                <hr>
+                                                <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
+                                                    class="text-primary">
+                                                    Local login
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>`).insertBefore('#rc-login-form');
+                });
+            </script>
+            <?php
+    }
+
+    private function addCustomLoginLinkScript()
+    {
+        ?>
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    const loginForm = document.querySelector('#rc-login-form form[name="form"]');
+                    if (loginForm) {
+                        const link = document.createElement('a');
+                        link.href = '<?= $this->stripQueryParameter($this->curPageURL(), 'authtype') ?>';
+                        link.innerText = 'Login with your organization credentials';
+                        link.classList.add('text-primary', 'text-center');
+                        link.style.display = 'block';
+                        link.style.marginTop = '10px';
+                        link.style.width = 'fit-content';
+                        loginForm.appendChild(document.createElement('hr'));
+                        loginForm.appendChild(link);
+                    }
+                });
+            </script>
+            <?php
     }
 }
