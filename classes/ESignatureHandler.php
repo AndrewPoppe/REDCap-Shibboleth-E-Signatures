@@ -19,7 +19,7 @@ class ESignatureHandler
         // Get username from token
         $authenticator = new Authenticator($this->module, $authType);
         $userData      = $authenticator->getUserData($post['token']);
-        $username      = $userData['netid'];
+        $username      = $userData['username'];
 
         // Check if username matches
         $realUsername = $this->module->framework->getUser()->getUsername();
@@ -39,7 +39,7 @@ class ESignatureHandler
 
     public function addEsignatureScript()
     {
-        $authType = $this->module->getUserType();
+        $authType      = $this->module->getUserType();
         $authenticator = new Authenticator($this->module, $authType);
         ?>
         <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>

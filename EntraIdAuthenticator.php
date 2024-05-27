@@ -123,7 +123,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     {
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
-            $userid = $userdata['netid'];
+            $userid = $userdata['username'];
             if ( $userid === false || empty($userid) ) {
                 return false;
             }
@@ -135,7 +135,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Successful authentication
             $this->framework->log('Entra ID REDCap Authenticator: Auth Succeeded', [
-                "EntraID NetID" => $userid
+                "EntraID Username" => $userid
             ]);
 
             // Trigger login
@@ -232,9 +232,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function showCustomLoginPage(string $redirect)
     {
-        $settings        = new EntraIdSettings($this);
-        $entraIdSettings = $settings->getAllSettings();
-        $backgroundUrl   = $this->getEdocFileContents($this->framework->getSystemSetting('custom-login-page-background-image')) ?? $this->framework->getUrl('assets/images/New_Haven_1.jpg');
+        $settings          = new EntraIdSettings($this);
+        $entraIdSettings   = $settings->getAllSettings();
+        $backgroundUrl     = $this->getEdocFileContents($this->framework->getSystemSetting('custom-login-page-background-image')) ?? $this->framework->getUrl('assets/images/New_Haven_1.jpg');
         $backgroundImgText = $this->framework->getSystemSetting('custom-login-page-background-image-copyright-text');
         $backgroundImgLink = empty($this->framework->getSystemSetting('custom-login-page-background-image-copyright-text')) ? '' : $this->framework->getSystemSetting('custom-login-page-background-image-copyright-link');
         ?>
@@ -292,7 +292,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 border-radius: 0 !important;
             }
 
-            .login-logo, .login-label {
+            .login-logo,
+            .login-label {
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
@@ -351,10 +352,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                             <div class="card-body rounded-0">
                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                     <ul class="list-group list-group-flush">
-                                        <?php foreach ( $entraIdSettings as $site ) { 
-                                            $loginImg = $site['loginButtonLogo'] ? 
-                                            '<img src="'.$this->getEdocFileContents($site['loginButtonLogo']) .'" class="login-logo" alt="'.$site['label'].'">':
-                                            '<span class="login-label">'.$site['label'].'</span>';
+                                        <?php foreach ( $entraIdSettings as $site ) {
+                                            $loginImg = $site['loginButtonLogo'] ?
+                                                '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                                                '<span class="login-label">' . $site['label'] . '</span>';
                                             ?>
                                             <li class="list-group-item list-group-item-action login-option"
                                                 onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
@@ -370,8 +371,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                 <div id="my_page_footer" class="text-secondary mt-4">
                                     <?= \REDCap::getCopyright() ?>
                                     <br>
-                                    <span><a href="<?=$backgroundImgLink?>" tabindex="-1" target="_blank"
-                                            rel="noopener noreferrer"><?=$backgroundImgText?></a>
+                                    <span><a href="<?= $backgroundImgLink ?>" tabindex="-1" target="_blank"
+                                            rel="noopener noreferrer"><?= $backgroundImgText ?></a>
                                     </span>
                                 </div>
                             </div>
@@ -816,7 +817,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     border-radius: 0 !important;
                 }
 
-                .login-logo, .login-label {
+                .login-logo,
+                .login-label {
                     width: 100%;
                     height: 100%;
                     object-fit: contain;
@@ -854,15 +856,15 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                             <div class="card-body rounded-0">
                                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                                     <ul class="list-group list-group-flush">
-                                                        <?php foreach ( $entraIdSettings as $site ) { 
-                                                            $loginImg = $site['loginButtonLogo'] ? 
-                                                                '<img src="'.$this->getEdocFileContents($site['loginButtonLogo']) .'" class="login-logo" alt="'.$site['label'].'">':
-                                                                '<span class="login-label">'.$site['label'].'</span>';
+                                                        <?php foreach ( $entraIdSettings as $site ) {
+                                                            $loginImg = $site['loginButtonLogo'] ?
+                                                                '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                                                                '<span class="login-label">' . $site['label'] . '</span>';
                                                             ?>
-                                                                <li class="list-group-item list-group-item-action login-option"
-                                                                onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
-                                                                <?= $loginImg ?>
-                                                            </li>
+                                                                    <li class="list-group-item list-group-item-action login-option"
+                                                                    onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
+                                                                    <?= $loginImg ?>
+                                                                </li>
                                                         <?php } ?>
                                                     </ul>
                                                 </div>
@@ -872,11 +874,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                                     Local login
                                                 </a>
                                             </div>
-                                        </div>
-                                    </div>
                                 </div>
+                            </div>
+                        </div>
                             </div>`).insertBefore('#rc-login-form');
-                });
+                    });
             </script>
             <?php
     }

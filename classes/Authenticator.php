@@ -17,10 +17,10 @@ class Authenticator
     private $entraIdSettings;
     public function __construct(EntraIdAuthenticator $module, string $authType, string $session_id = null)
     {
-        $this->module           = $module;
-        $this->authType         = $authType;
-        $settings               = new EntraIdSettings($module);
-        $this->entraIdSettings  = $settings->getSettings($authType);
+        $this->module          = $module;
+        $this->authType        = $authType;
+        $settings              = new EntraIdSettings($module);
+        $this->entraIdSettings = $settings->getSettings($authType);
         $this->module->log('ok', [ 'settings' => json_encode($settings->getAllSettings(), JSON_PRETTY_PRINT) ]);
         if ( !$this->entraIdSettings ) {
             return;
@@ -52,8 +52,8 @@ class Authenticator
     public function getAuthData($state, $code)
     {
         //Checking if the state matches the session ID
-        [$sessionid, $authType] = explode('AUTHTYPE', $state);
-        $stateMatches = strcmp(session_id(), $sessionid ) == 0;
+        [ $sessionid, $authType ] = explode('AUTHTYPE', $state);
+        $stateMatches           = strcmp(session_id(), $sessionid) == 0;
         if ( !$stateMatches ) {
             return;
         }
@@ -100,7 +100,7 @@ class Authenticator
         );
         $context = stream_context_create($options);
         $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
-        $json2    = file_get_contents("https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group?\$select=displayName,id", false, $context);
+        $json2   = file_get_contents("https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group?\$select=displayName,id", false, $context);
         if ( $json === false ) {
             // errorhandler(array( "Description" => "Error received during user data fetch.", "PHP_Error" => error_get_last(), "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
             return;
@@ -118,7 +118,7 @@ class Authenticator
             'user_email'     => $userdata['mail'],
             'user_firstname' => $userdata['givenName'],
             'user_lastname'  => $userdata['surname'],
-            'netid'          => $userdata['onPremisesSamAccountName'],
+            'username'       => $userdata['onPremisesSamAccountName'],
             'company'        => $userdata['companyName'],
             'department'     => $userdata['department'],
             'job_title'      => $userdata['jobTitle'],
@@ -131,20 +131,22 @@ class Authenticator
         return $userdata_parsed;
     }
 
-    public function checkGroupMembership($userData) {
+    public function checkGroupMembership($userData)
+    {
         $userGroups = $userData['groups'];
-        if (empty($this->allowedGroups)) {
+        if ( empty($this->allowedGroups) ) {
             return true;
         }
-        foreach ($userGroups as $group) {
-            if (in_array($group['id'], $this->allowedGroups)) {
+        foreach ( $userGroups as $group ) {
+            if ( in_array($group['id'], $this->allowedGroups) ) {
                 return true;
             }
         }
         return false;
     }
 
-    public function logout() {
+    public function logout()
+    {
         header("Location: " . $this->getLogoutUri());
         return;
     }
