@@ -1,7 +1,7 @@
 {
-    "name": "Yale REDCap Authenticator",
-    "namespace": "YaleREDCap\\YaleREDCapAuthenticator",
-    "description": "This External Module enables SSO using Yale CAS and YNHH ADFS.",
+    "name": "Entra ID Authenticator",
+    "namespace": "YaleREDCap\\EntraIdAuthenticator",
+    "description": "This External Module enables SSO with multiple Entra ID tenants.",
     "authors": [
         {
             "name": "Andrew Poppe",
@@ -11,175 +11,148 @@
     ],
     "system-settings": [
         {
-            "key": "cas-host",
-            "name": "<strong>Full Hostname of your CAS Server</strong>:<br>e.g., secure.its.yale.edu",
-            "required": true,
-            "type": "text"
-        },
-        {
-            "key": "cas-context",
-            "name": "<strong>Context of the CAS Server</strong>:<br>e.g., /cas",
-            "required": true,
-            "type": "text"
-        },
-        {
-            "key": "cas-port",
-            "name": "<strong>Port of your CAS server</strong>:<br>Normally for a https server it's 443",
-            "required": true,
-            "type": "text"
-        },
-        {
-            "key": "cas-server-ca-cert-pem",
-            "name": "<strong>CA cert pem file</strong>:<br>e.g., cacert.pem",
-            "type": "file"
-        },
-        {
-            "key": "server-force-https",
-            "name": "<strong>HTTPS Override</strong>:<br>Check this if you experience the CAS server redirecting to http despite your REDCap server using https protocol",
-            "type": "checkbox"
-        },
-        {
-            "key": "cas-user-details-section",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightcoral; border: 1px solid red; border-radius: 0.375rem; text-align: center;'><strong>CAS User Details</strong><br>These settings are used to map the CAS user details to the REDCap user details. They won't be useful outside of Yale University.</div>",
+            "key": "general-section",
+            "name": "<div class='redcap-authenticator-descriptive p-2' style='background-color:#bd5319; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><strong>General Settings</strong></div>",
             "type": "descriptive"
         },
         {
-            "key": "cas-user-details-url",
-            "name": "<strong>CAS User Details URL</strong>:<br>User {userid} as a placeholder for the username of the person to grab details about",
-            "type": "text"
-        },
-        {
-            "key": "cas-user-details-token",
-            "name": "<strong>CAS User Details Token</strong>:<br>Token to use to authenticate with the CAS User Details URL",
-            "type": "password"
-        },
-        {
-            "key": "cas-check-affiliation",
-            "name": "<strong>Check Affiliation</strong>:<br>Check this if you want to check the affiliation of the Yale University user against a list of allowed affiliations. Common affiliations are STUDENT, FACULTY, STAFF, EMPLOYEE, MEMBER, AFFILIATE, ALUM",
-            "type": "checkbox"
-        },
-        {
-            "key": "cas-allowed-affiliations",
-            "name": "<strong>Allowed Affiliations</strong>:<br>Which Yale University affiliations should be allowed to log in? If left blank, all affiliations are allowed. <span class='text-dangerrc'>This setting supercedes the forbidden affiliations setting</span>",
-            "type": "text",
-            "repeatable": true,
-            "branchingLogic": {
-                "field": "cas-check-affiliation",
-                "value": "1"
-            }
-        },
-        {
-            "key": "cas-forbidden-affiliations",
-            "name": "<strong>Forbidden Affiliations</strong>:<br>Which Yale University affiliations should be forbidden from logging in? If left blank, no affiliations are forbidden. <span class='text-dangerrc'>If the allowed affiliations setting is set, this setting will be ignored</span>",
-            "type": "text",
-            "repeatable": true,
-            "branchingLogic": {
-                "field": "cas-check-affiliation",
-                "value": "1"
-            }
-        }
-    ],
-    "project-settings": [
-        {
-            "key": "general-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:LightGoldenRodYellow; border: 1px solid Khaki; border-radius: 0.375rem; text-align: center;'><strong>General Settings</strong></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "logging",
-            "name": "<strong>Enable logging</strong>:<br>Check this if you want to log CAS authentication events",
-            "type": "checkbox"
-        },
-        {
-            "key": "survey-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightgreen; border: 1px solid limegreen; border-radius: 0.375rem; text-align: center;'><strong>Surveys</strong><br>Select surveys to add CAS to<br><em>Note: this setting has no effect if surveys are disabled</em></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "survey-subsettings",
-            "name": "<strong>Select survey</strong>",
-            "type": "sub_settings",
-            "repeatable": true,
-            "sub_settings": [
+            "key": "custom-login-page-type",
+            "name": "<strong>Custom Login Page Type</strong>:<br>Select the kind of custom login page for the system. A complete custom page will replace the normal REDCap login page with a custom login page. A modified page will add Entra ID login buttons to the normal REDCap login page. None will use the default REDCap login page unaltered (you can still use Entra ID SSO with the default REDCap login page)",
+            "type": "radio",
+            "required": true,
+            "choices": [
                 {
-                    "key": "event",
-                    "name": "<strong>Event</strong>:<br>Leave blank if not applicable or if CAS should apply to the chosen survey across all events",
-                    "required": false,
-                    "type": "event-list",
-                    "autocomplete": true
+                    "value": "complete",
+                    "name": "Complete Custom Page"
                 },
                 {
-                    "key": "survey",
-                    "name": "<strong>Survey</strong>",
-                    "required": false,
-                    "type": "dropdown",
-                    "autocomplete": true
+                    "value": "modified",
+                    "name": "Modified Page"
                 },
                 {
-                    "key": "id-field",
-                    "name": "<strong>ID Field</strong>:<br>If you want to store the id of the person who logged in with CAS, select the field to store it here (it should be a text input field on the same survey)",
-                    "required": false,
-                    "type": "field-list",
-                    "autocomplete": true
+                    "value": "none",
+                    "name": "None"
                 }
             ]
         },
         {
-            "key": "report-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightsalmon; border: 1px solid salmon; border-radius: 0.375rem; text-align: center;'><strong>Reports</strong><br>Select public reports to add CAS to<br><em>Note: this setting has no effect if sharing reports publicly is disabled</em></div>",
+            "key": "custom-login-page-background-image",
+            "name": "<strong>Custom Login Page Background Image</strong>:<br>Upload an image to use as the background for the custom login page",
+            "type": "file",
+            "required": true,
+            "branchingLogic": {
+                "field": "custom-login-page-type",
+                "value": "complete"
+            }
+        },
+        {
+            "key": "custom-login-page-background-image-copyright-text",
+            "name": "<strong>Custom Login Page Background Image Copyright Text</strong>:<br>If using a custom background image and required to provide a copyright, enter the text here<br>For example, 'Background image © 2024 John Doe'",
+            "type": "text",
+            "branchingLogic": {
+                "field": "custom-login-page-type",
+                "value": "complete"
+            }
+        },
+        {
+            "key": "custom-login-page-background-image-copyright-link",
+            "name": "<strong>Custom Login Page Background Image Copyright Link</strong>:<br>If using a custom background image and required to provide a source link, enter the URL here. You must provide a value for the Copyright Text in order for the link to show.",
+            "type": "text",
+            "branchingLogic": {
+                "field": "custom-login-page-type",
+                "value": "complete"
+            }
+        },
+        {
+            "key": "create-new-users-on-login",
+            "name": "<strong>Create New Users on Login</strong>:<br>Check this box to create new users in the REDCap user table when they log in with Entra ID for the first time. If unchecked, only users that already exist in the REDCap user table will be able to log in with Entra ID",
+            "type": "checkbox"
+        },
+        {
+            "key": "convert-table-user-to-entraid-user",
+            "name": "<strong>Convert Table User to Entra ID User</strong>:<br>Check this box to convert an existing table user to an Entra ID user upon first login via Entra ID",
+            "type": "checkbox"
+        },
+        {
+            "key": "entraid-greater-section",
+            "name": "<div class='redcap-authenticator-descriptive p-2' style='background-color:#00356b; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><svg id=\"uuid-f8d4d392-7c12-4bd9-baff-66fbf7814b91\" data-name=\"Layer 1\" xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 18 18\">            <path d=\"m3.802,14.032c.388.242,1.033.511,1.715.511.621,0,1.198-.18,1.676-.487,0,0,.001,0,.002-.001l1.805-1.128v4.073c-.286,0-.574-.078-.824-.234l-4.374-2.734Z\" fill=\"#225086\"/>            <path d=\"m7.853,1.507L.353,9.967c-.579.654-.428,1.642.323,2.111,0,0,2.776,1.735,3.126,1.954.388.242,1.033.511,1.715.511.621,0,1.198-.18,1.676-.487,0,0,.001,0,.002-.001l1.805-1.128-4.364-2.728,4.365-4.924V1s0,0,0,0c-.424,0-.847.169-1.147.507Z\" fill=\"#6df\"/>            <polygon points=\"4.636 10.199 4.688 10.231 9 12.927 9.001 12.927 9.001 12.927 9.001 5.276 9 5.275 4.636 10.199\" fill=\"#cbf8ff\"/>            <path d=\"m17.324,12.078c.751-.469.902-1.457.323-2.111l-4.921-5.551c-.397-.185-.842-.291-1.313-.291-.925,0-1.752.399-2.302,1.026l-.109.123h0s4.364,4.924,4.364,4.924h0s0,0,0,0l-4.365,2.728v4.073c.287,0,.573-.078.823-.234l7.5-4.688Z\" fill=\"#074793\"/>            <path d=\"m9.001,1v4.275s.109-.123.109-.123c.55-.627,1.377-1.026,2.302-1.026.472,0,.916.107,1.313.291l-2.579-2.909c-.299-.338-.723-.507-1.146-.507Z\" fill=\"#0294e4\"/>            <polygon points=\"13.365 10.199 13.365 10.199 13.365 10.199 9.001 5.276 9.001 12.926 13.365 10.199\" fill=\"#96bcc2\"/>          </svg>&nbsp;<strong>Entra ID Details</strong><br>This section is used to configure the Entra ID connections for your sites.<script>document.querySelectorAll('.redcap-authenticator-descriptive').forEach(el => el.parentElement.style.width = '100%'); function updateLabels() {$('.sub_start').each((i,section) => {let label = $(section).nextAll('tr[field=\"entraid-label\"]').eq(0).find('input').val(); if (label === '') label = 'Entra ID Site';$(section).nextUntil('.sub_end').each((i, tr) => $(tr).find('span.entraid-label').text(label))})}; updateLabels();</script></div>",
             "type": "descriptive"
         },
         {
-            "key": "report",
-            "name": "<strong>Report</strong>",
-            "type": "dropdown",
+            "key": "entraid-site",
+            "name": "<strong>Entra ID Site</strong>:<br>Configure an Entra ID site to use for authentication / SSO",
+            "type": "sub_settings",
             "repeatable": true,
-            "autocomplete": true
-        },
-        {
-            "key": "dashboard-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:lightskyblue; border: 1px solid deepskyblue; border-radius: 0.375rem; text-align: center;'><strong>Dashboards</strong><br>Select public dashboards to add CAS to<br><em>Note: this setting has no effect if sharing dashboards publicly is disabled</em></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "dashboard",
-            "name": "<strong>Dashboard</strong>",
-            "type": "dropdown",
-            "repeatable": true,
-            "autocomplete": true
-        },
-        {
-            "key": "file-repository-descriptive",
-            "name": "<div class='cas-descriptive p-2' style='background-color:plum; border: 1px solid purple; border-radius: 0.375rem; text-align: center;'><strong>File Repository</strong><br>Select files and/or entire folders from the file repository to add CAS to.<br><em>Note: this setting has no effect if sharing files publicly is disabled</em></div>",
-            "type": "descriptive"
-        },
-        {
-            "key": "file",
-            "name": "<strong>File</strong><br>Choose any file from the file repository",
-            "type": "dropdown",
-            "repeatable": true,
-            "autocomplete": true
-        },
-        {
-            "key": "folder",
-            "name": "<strong>Folder</strong><br>Choose any folder from the file repository. All files in the folder will be protected by CAS when shared publicly",
-            "type": "dropdown",
-            "repeatable": true,
-            "autocomplete": true
+            "sub_settings": [
+                {
+                    "key": "entraid-section",
+                    "name": "<div class='redcap-authenticator-descriptive p-2' style='background-color:#63aaff; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><strong><span class='entraid-label'>Entra ID Site</span> Entra ID Details</strong></div><script>document.querySelectorAll('.redcap-authenticator-descriptive').forEach(el => el.parentElement.style.width = '100%');</script>",
+                    "type": "descriptive"
+                },
+                {
+                    "key": "entraid-label",
+                    "name": "<strong>Label for this Entra ID Site</strong>:<br>Enter a label for this Entra ID site<script>$('tr[field=\"entraid-label\"] input:not(\".handled\")').on('keyup', updateLabels).addClass('handled') </script>",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "entraid-auth-value",
+                    "name": "<strong>Value for the <code>authtype</code> parameter</strong>:<br>This is the value that will be passed to the <code>authtype</code> query parameter in the Entra ID login URL<br>For example, if this is set to <code>yale</code> then the query string to trigger SSO using this site will be <code>?authtype=yale</code>",
+                    "type": "text",
+                    "required": true
+                },
+                {
+                    "key": "entraid-login-button-logo",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Login Button Logo</strong>:<br>Upload a logo to display on the login button for <span class='entraid-label'>this Entra ID Site</span>",
+                    "type": "file"
+                },
+                {
+                    "key": "entraid-ad-tenant-id",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID AD Tenant ID</strong>",
+                    "type": "text"
+                },
+                {
+                    "key": "entraid-client-id",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Client ID</strong>",
+                    "type": "text"
+                },
+                {
+                    "key": "entraid-client-secret",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Client Secret</strong>",
+                    "type": "password"
+                },
+                {
+                    "key": "entraid-redirect-url",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Redirect URL</strong>",
+                    "type": "text"
+                },
+                {
+                    "key": "entraid-redirect-url-spa",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Redirect URL for SPA</strong>",
+                    "type": "text"
+                },
+                {
+                    "key": "entraid-logout-url",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Logout URL</strong>",
+                    "type": "text"
+                },
+                {
+                    "key": "entraid-allowed-groups",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Allowed Groups</strong>:<br>Which <span class='entraid-label'>Entra ID Site</span> groups should be allowed to log in? If left blank, all groups are allowed",
+                    "type": "text",
+                    "repeatable": true
+                }
+            ]
         }
     ],
     "auth-ajax-actions": [
-        "eraseCasSession",
-        "isCasUser",
         "getUserType",
-        "convertTableUserToCasUser",
-        "convertCasUsertoTableUser"
+        "convertTableUserToEntraIdUser",
+        "convertEntraIdUsertoTableUser"
     ],
     "no-auth-pages": [
-        "YNHH_SAML_ACS"
-    ],
-    "no-csrf-pages": [
-        "YNHH_SAML_ACS"
+        "entraid_sso_login",
+        "logout"
     ],
     "enable-no-auth-logging": true,
     "enable-every-page-hooks-on-system-pages": true,
