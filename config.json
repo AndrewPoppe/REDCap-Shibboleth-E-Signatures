@@ -65,7 +65,7 @@
         },
         {
             "key": "create-new-users-on-login",
-            "name": "<strong>Create New Users on Login</strong>:<br>Check this box to create new users in the REDCap user table when they log in with SSO for the first time. If unchecked, only users that already exist in the REDCap user table will be able to log in with SSO",
+            "name": "<strong>Create New Users on Login</strong>:<br>Check this box to create new users in the REDCap user table when they log in with Entra ID for the first time. If unchecked, only users that already exist in the REDCap user table will be able to log in with Entra ID",
             "type": "checkbox"
         },
         {
