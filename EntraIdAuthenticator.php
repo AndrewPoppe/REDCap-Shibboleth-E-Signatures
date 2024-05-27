@@ -87,10 +87,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // If doing local login, append a link to the custom login page
             if (
-                $this->doingLocalLogin() && (
-                    $this->framework->getSystemSetting('custom-login-page-enabled') == 1 ||
-                    $this->framework->getSystemSetting('modified-login-page-enabled') == 1
-                )
+                $this->doingLocalLogin() && $this->framework->getSystemSetting('custom-login-page-type') !== 'none'
             ) {
                 $this->addCustomLoginLinkScript();
                 return;
@@ -212,7 +209,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function redcap_data_entry_form()
     {
         $user = $this->framework->getUser();
-        if ( !$this->isEntraIdUser($user->getUsername()) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1 ) {
+        if ( !$this->isEntraIdUser($user->getUsername()) || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
             return;
         }
         $esignatureHandler = new ESignatureHandler($this);
@@ -554,7 +551,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function addEntraIdInfoToBrowseUsersTable($page)
     {
-        if ( !$page === 'ControlCenter/view_users.php' || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1 ) {
+        if ( !$page === 'ControlCenter/view_users.php' || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
             return;
         }
 
@@ -753,7 +750,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     private function addReplaceLogoutLinkScript()
     {
         $username = $this->framework->getUser()->getUsername();
-        if ( !$this->isEntraIdUser($username) || !$this->framework->getSystemSetting('custom-login-page-enabled') == 1 ) {
+        if ( !$this->isEntraIdUser($username) || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
             return;
         }
         $logout_url = $this->framework->getUrl('logout.php');
