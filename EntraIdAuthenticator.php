@@ -235,6 +235,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         $settings        = new EntraIdSettings($this);
         $entraIdSettings = $settings->getAllSettings();
         $backgroundUrl   = $this->getEdocFileContents($this->framework->getSystemSetting('custom-login-page-background-image')) ?? $this->framework->getUrl('assets/images/New_Haven_1.jpg');
+        $backgroundImgText = $this->framework->getSystemSetting('custom-login-page-background-image-copyright-text');
+        $backgroundImgLink = empty($this->framework->getSystemSetting('custom-login-page-background-image-copyright-text')) ? '' : $this->framework->getSystemSetting('custom-login-page-background-image-copyright-link');
         ?>
         <!DOCTYPE html>
         <html lang="en">
@@ -251,13 +253,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 display: none;
             }
 
-            #login-card {
-                border-radius: 0;
-            }
-
             .login-option {
                 cursor: pointer;
                 border-radius: 0 !important;
+                height: 70px;
             }
 
             .login-option:hover {
@@ -265,6 +264,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             #login-card {
+                border-radius: 0;
                 position: absolute;
                 width: 502px;
                 height: auto;
@@ -292,8 +292,17 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 border-radius: 0 !important;
             }
 
-            .login-logo {
+            .login-logo, .login-label {
                 width: 100%;
+                height: 100%;
+                object-fit: contain;
+                display: flex;
+                justify-content: space-evenly;
+                align-items: center;
+            }
+
+            .login-label {
+                font-weight: bold;
             }
 
             div#working {
@@ -342,11 +351,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                             <div class="card-body rounded-0">
                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                     <ul class="list-group list-group-flush">
-                                        <?php foreach ( $entraIdSettings as $site ) { ?>
+                                        <?php foreach ( $entraIdSettings as $site ) { 
+                                            $loginImg = $site['loginButtonLogo'] ? 
+                                            '<img src="'.$this->getEdocFileContents($site['loginButtonLogo']) .'" class="login-logo" alt="'.$site['label'].'">':
+                                            '<span class="login-label">'.$site['label'].'</span>';
+                                            ?>
                                             <li class="list-group-item list-group-item-action login-option"
                                                 onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
-                                                <img src="<?= $this->getEdocFileContents($site['loginButtonLogo']) ?>"
-                                                    class="login-logo" alt="<?= $site['label'] ?>">
+                                                <?= $loginImg ?>
                                             </li>
                                         <?php } ?>
                                     </ul>
@@ -358,9 +370,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                 <div id="my_page_footer" class="text-secondary mt-4">
                                     <?= \REDCap::getCopyright() ?>
                                     <br>
-                                    <span><a href="https://campusphotos.yale.edu/" tabindex="-1" target="_blank"
-                                            rel="noopener noreferrer">Image</a> - &copy;
-                                        <?= date("Y") ?> Yale University
+                                    <span><a href="<?=$backgroundImgLink?>" tabindex="-1" target="_blank"
+                                            rel="noopener noreferrer"><?=$backgroundImgText?></a>
                                     </span>
                                 </div>
                             </div>
@@ -767,13 +778,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     display: none;
                 }
 
-                #login-card {
-                    border-radius: 0;
-                }
-
                 .login-option {
                     cursor: pointer;
                     border-radius: 0 !important;
+                    height: 70px;
                 }
 
                 .login-option:hover {
@@ -781,6 +789,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 }
 
                 #login-card {
+                    border-radius: 0;
                     width: 502px;
                     height: auto;
                     margin: 0 auto;
@@ -807,8 +816,17 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     border-radius: 0 !important;
                 }
 
-                .login-logo {
+                .login-logo, .login-label {
                     width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    display: flex;
+                    justify-content: space-evenly;
+                    align-items: center;
+                }
+
+                .login-label {
+                    font-weight: bold;
                 }
 
                 div#working {
@@ -836,11 +854,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                             <div class="card-body rounded-0">
                                                 <div class="card align-self-center text-center mb-2 login-options rounded-0">
                                                     <ul class="list-group list-group-flush">
-                                                        <?php foreach ( $entraIdSettings as $site ) { ?>
+                                                        <?php foreach ( $entraIdSettings as $site ) { 
+                                                            $loginImg = $site['loginButtonLogo'] ? 
+                                                                '<img src="'.$this->getEdocFileContents($site['loginButtonLogo']) .'" class="login-logo" alt="'.$site['label'].'">':
+                                                                '<span class="login-label">'.$site['label'].'</span>';
+                                                            ?>
                                                                 <li class="list-group-item list-group-item-action login-option"
                                                                 onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
-                                                                <img src="<?= $this->getEdocFileContents($site['loginButtonLogo']) ?>"
-                                                                    class="login-logo" alt="<?= $site['label'] ?>">
+                                                                <?= $loginImg ?>
                                                             </li>
                                                         <?php } ?>
                                                     </ul>

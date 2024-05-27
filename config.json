@@ -46,6 +46,24 @@
             }
         },
         {
+            "key": "custom-login-page-background-image-copyright-text",
+            "name": "<strong>Custom Login Page Background Image Copyright Text</strong>:<br>If using a custom background image and required to provide a copyright, enter the text here<br>For example, 'Background image © 2024 John Doe'",
+            "type": "text",
+            "branchingLogic": {
+                "field": "custom-login-page-type",
+                "value": "complete"
+            }
+        },
+        {
+            "key": "custom-login-page-background-image-copyright-link",
+            "name": "<strong>Custom Login Page Background Image Copyright Link</strong>:<br>If using a custom background image and required to provide a source link, enter the URL here. You must provide a value for the Copyright Text in order for the link to show.",
+            "type": "text",
+            "branchingLogic": {
+                "field": "custom-login-page-type",
+                "value": "complete"
+            }
+        },
+        {
             "key": "create-new-users-on-login",
             "name": "<strong>Create New Users on Login</strong>:<br>Check this box to create new users in the REDCap user table when they log in with SSO for the first time. If unchecked, only users that already exist in the REDCap user table will be able to log in with SSO",
             "type": "checkbox"
