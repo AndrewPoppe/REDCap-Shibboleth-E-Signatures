@@ -21,7 +21,6 @@ class Authenticator
         $this->authType        = $authType;
         $settings              = new EntraIdSettings($module);
         $this->entraIdSettings = $settings->getSettings($authType);
-        $this->module->log('ok', [ 'settings' => json_encode($settings->getAllSettings(), JSON_PRETTY_PRINT) ]);
         if ( !$this->entraIdSettings ) {
             return;
         }
