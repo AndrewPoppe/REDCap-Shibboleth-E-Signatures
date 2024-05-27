@@ -124,7 +124,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
             $userid = $userdata['netid'];
-            if ( $userid === false ) {
+            if ( $userid === false || empty($userid) ) {
                 return false;
             }
 
