@@ -50,7 +50,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // Handle E-Signature form action
-            if ( $page === 'Locking/single_form_action.php' ) {
+            if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $authType          = $this->getUserType();
                 $esignatureHandler = new ESignatureHandler($this);
                 $esignatureHandler->handleRequest($_POST, $authType);
@@ -62,6 +62,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 if ( $this->doingLocalLogin() ) {
                     $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$AUTH_QUERY);
                     $this->redirectAfterHook($cleanUrl);
+                }
+                $userid = $this->framework->getUser()->getUsername();
+                if ( !$this->checkAllowlist($userid) ) {
+                    $this->showNoUserAccessPage($userid);
+                    $this->framework->exitAfterHook();
                 }
                 return;
             }
@@ -168,19 +173,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // 2. If user allowlist is not enabled, all Entra ID users are allowed.
             // Otherwise, if not in allowlist, then give them an error page.
-            if ( $enable_user_allowlist && !$this->inUserAllowlist($userid) ) {
-                session_unset();
-                session_destroy();
-                $objHtmlPage = new \HtmlPage();
-                $objHtmlPage->addExternalJS(APP_PATH_JS . "base.js");
-                $objHtmlPage->addStylesheet("home.css", 'screen,print');
-                $objHtmlPage->PrintHeader();
-                print "<div class='red' style='margin:40px 0 20px;padding:20px;'>
-                            {$lang['config_functions_78']} \"<b>$userid</b>\"{$lang['period']}
-                            {$lang['config_functions_79']} <a href='mailto:$homepage_contact_email'>$homepage_contact</a>{$lang['period']}
-                        </div>
-                        <button onclick=\"window.location.href='" . APP_PATH_WEBROOT_FULL . "index.php?logout=1';\">Go back</button>";
-                print '<div id="my_page_footer">' . \REDCap::getCopyright() . '</div>';
+            if ( !$this->checkAllowlist($userid) ) {
+                $this->showNoUserAccessPage($userid);
                 return false;
             }
             return true;
@@ -899,5 +893,52 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 });
             </script>
             <?php
+    }
+
+    private function showNoUserAccessPage($userid) {
+        global $homepage_contact, $homepage_contact_email, $lang;
+        session_unset();
+        session_destroy();
+        ?>
+        <style>
+            body {
+                font: normal 13px "Open Sans",Helvetica,Arial, Helvetica, sans-serif;
+            }
+            .container {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .red {
+                padding: 6px;
+                border: 1px solid red;
+                color: #800000;
+                max-width: 1100px;
+                background-color: #FFE1E1;
+            }
+            #footer {
+                color: #888;
+                font-size: 11px;
+                text-align: center;
+                margin: 0;
+                padding: 15px 0 5px;
+            }
+        </style>
+        <div class='container'>
+            <div class='red' style='margin:40px 0 20px;padding:20px;'>
+                <?= $lang['config_functions_78'] ?>"<b><?=$userid?></b>"<?= $lang['period'] ?>
+                <?= $lang['config_functions_79'] ?> <a href='mailto:$homepage_contact_email'><?= $homepage_contact ?></a><?= $lang['period'] ?>
+            </div>
+            <button onclick="window.location.href='<?= APP_PATH_WEBROOT_FULL ?>index.php?logout=1'"><?= $this->framework->tt('error_5') ?></button>
+            <div id="footer"><?= \REDCap::getCopyright() ?></div>
+        </div>
+        <?php
+    }
+
+    private function checkAllowlist($userid) {
+        global $enable_user_allowlist;
+        return !$enable_user_allowlist || \Authentication::isTableUser($userid) || $this->inUserAllowlist($userid) || $userid === 'SYSTEM';
     }
 }
