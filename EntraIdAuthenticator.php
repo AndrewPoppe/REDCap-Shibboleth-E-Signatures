@@ -23,7 +23,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     {
         // Admins only
         if ( !$this->framework->getUser()->isSuperUser() ) {
-            throw new \Exception('Unauthorized');
+            throw new \Exception($this->framework->tt('error_1'));
         }
         if ( $action === 'getUserType' ) {
             return $this->getUserType($payload['username']);
@@ -127,7 +127,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
             if ( !$this->userExists($userid) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
-                exit('User does not exist in REDCap. Please contact your administrator.');
+                exit($this->framework->tt('error_2'));
             }
 
             // Successful authentication
@@ -363,7 +363,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                 </div>
                                 <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
                                     class="text-primary">
-                                    Local login
+                                    <?= $this->framework->tt('login_1') ?>
                                 </a>
                                 <div id="my_page_footer" class="text-secondary mt-4">
                                     <?= \REDCap::getCopyright() ?>
@@ -574,12 +574,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 function convertTableUserToEntraIdUser() {
                     const username = $('#user_search').val();
                     Swal.fire({
-                        title: "Are you sure you want to convert this table-based user to an Entra ID user?",
+                        title: "<?= $this->framework->tt('convert_1') ?>",
                         input: 'select',
                         inputOptions: authTypes,
                         icon: "warning",
                         showCancelButton: true,
-                        confirmButtonText: "Convert to Entra ID User"
+                        confirmButtonText: "<?= $this->framework->tt('convert_2') ?>"
                     }).then((result) => {
                         if (result.isConfirmed) {
                             let userType = authTypes[result.value];
@@ -596,10 +596,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 function convertEntraIdUsertoTableUser() {
                     const username = $('#user_search').val();
                     Swal.fire({
-                        title: "Are you sure you want to convert this Entra ID user to a table-based user?",
+                        title: "<?= $this->framework->tt('convert_3') ?>",
                         icon: "warning",
                         showCancelButton: true,
-                        confirmButtonText: "Convert to Table User"
+                        confirmButtonText: "<?= $this->framework->tt('convert_4') ?>"
                     }).then((result) => {
                         if (result.isConfirmed) {
                             authenticator.ajax('convertEntraIdUsertoTableUser', {
@@ -615,18 +615,17 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     let userText = '';
                     switch (userType) {
                         case 'allowlist':
-                            userText = `<strong>${userType}</strong>`;
+                            userText = `<strong><?= $this->framework->tt('user_types_1') ?></strong>`;
                             break;
                         case 'table':
                             userText =
-                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertTableUserToEntraIdUser()" value="Convert to Entra ID User">`;
+                                `<strong><?= $this->framework->tt('user_types_2') ?></strong> <input type="button" style="font-size:11px" onclick="convertTableUserToEntraIdUser()" value="Convert to Entra ID User">`;
                             break;
                         default:
                             userText =
-                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertEntraIdUsertoTableUser()" value="Convert to Table User">`;
+                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertEntraIdUsertoTableUser()" value="<?= $this->framework->tt('convert_4') ?>">`;
                             break;
                     }
-                    console.log($('#indv_user_info'));
                     $('#indv_user_info').append('<tr id="userTypeRow"><td class="data2">User type</td><td class="data2">' +
                         userText + '</td></tr>');
                 }
@@ -840,12 +839,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             <?php
 
             global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email, $homepage_contact_url;
-
-
+            $contactLinkHref = trim($homepage_contact_url) == '' ? 'mailto:'.$homepage_contact_email : trim($homepage_contact_url);
+            $contactLink = '<a style=\"font-size:13px;text-decoration:underline;\" href=\"'.$contactLinkHref.'\">'.$homepage_contact.'</a>';
             ?>
             <script>
                 document.addEventListener("DOMContentLoaded", function () {
-                    $(`<p style='font-size:13px;'>Please choose the organization to authenticate with. If you are having issues, please contact <a style="font-size:13px;text-decoration:underline;" href="<?= trim($homepage_contact_url) == '' ? "mailto:$homepage_contact_email" : trim($homepage_contact_url) ?>"><?= $homepage_contact ?></a>.</p>
+                    $(`<p style='font-size:13px;'><?= $this->framework->tt('contact_1') . $contactLink ?></p>
                             <div class="container text-center">
                                 <div class="row align-items-center">
                                     <div class="col">
@@ -868,7 +867,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                                 <hr>
                                                 <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
                                                     class="text-primary">
-                                                    Local login
+                                                    <?= $this->framework->tt('login_1') ?>
                                                 </a>
                                             </div>
                                 </div>
@@ -889,7 +888,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     if (loginForm) {
                         const link = document.createElement('a');
                         link.href = '<?= $this->stripQueryParameter($this->curPageURL(), 'authtype') ?>';
-                        link.innerText = 'Login with your organization credentials';
+                        link.innerText = '<?= $this->framework->tt('login_2') ?>';
                         link.classList.add('text-primary', 'text-center');
                         link.style.display = 'block';
                         link.style.marginTop = '10px';

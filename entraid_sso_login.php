@@ -17,11 +17,11 @@ $authData = $authenticator->getAuthData($state, $_GET["code"]);
 $userData = $authenticator->getUserData($authData['access_token']);
 
 if (!$userData['accountEnabled']) {
-    exit('Your Entra ID account is not enabled. Please contact your administrator.');
+    exit($module->framework->tt('error_3'));
 }
 
 if (!$authenticator->checkGroupMembership($userData)) {
-    exit('You are not a member of an allowed group. Please contact your administrator.');
+    exit($module->framework->tt('error_4'));
 }
 
 $result = $module->loginEntraIDUser($userData, $authType);
