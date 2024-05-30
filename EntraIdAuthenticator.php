@@ -754,6 +754,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     if (link) {
                         link.href = '<?= $logout_url ?>';
                     }
+
+                    const projectLink = document.querySelector('#username-reference ~ span a');
+                    if (projectLink) {
+                        projectLink.href = '<?= $logout_url ?>';
+                    }
                 });
             </script>
             <?php
