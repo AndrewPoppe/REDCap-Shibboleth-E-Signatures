@@ -34,10 +34,10 @@ class Authenticator
         $this->session_id       = $session_id ?? session_id();
     }
 
-    public function authenticate(bool $refresh = false)
+    public function authenticate(bool $refresh = false, string  $originUrl = '')
     {
         $url = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
-        $url .= "state=" . $this->session_id . "AUTHTYPE" . $this->authType;
+        $url .= "state=" . $this->session_id . "EIASEP" . $this->authType . "EIASEP" . urlencode( $originUrl );
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
         $url .= "&approval_prompt=auto";
@@ -48,11 +48,10 @@ class Authenticator
         return;
     }
 
-    public function getAuthData($state, $code)
+    public function getAuthData($session_id, $code)
     {
         //Checking if the state matches the session ID
-        [ $sessionid, $authType ] = explode('AUTHTYPE', $state);
-        $stateMatches           = strcmp(session_id(), $sessionid) == 0;
+        $stateMatches           = strcmp(session_id(), $session_id) == 0;
         if ( !$stateMatches ) {
             return;
         }

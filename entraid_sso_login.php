@@ -7,13 +7,11 @@ namespace YaleREDCap\EntraIdAuthenticator;
 session_id($_COOKIE[EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE]);
 session_start();
 
-$originUrl     = $_COOKIE[EntraIdAuthenticator::$ENTRAID_URL_COOKIE];
-
-[$state, $authType] = explode('AUTHTYPE', $_GET["state"]);
+[$session_id, $authType, $originUrl] = explode('EIASEP', $_GET["state"]);
 
 $authenticator = new Authenticator($module, $authType);
 
-$authData = $authenticator->getAuthData($state, $_GET["code"]);
+$authData = $authenticator->getAuthData($session_id, $_GET["code"]);
 $userData = $authenticator->getUserData($authData['access_token']);
 
 if (!$userData['accountEnabled']) {
@@ -27,7 +25,6 @@ if (!$authenticator->checkGroupMembership($userData)) {
 $result = $module->loginEntraIDUser($userData, $authType);
 if ( $result ) {
 
-    \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_URL_COOKIE);
     \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE);
 
     // strip the authtype parameters from the URL

@@ -16,7 +16,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     static $AUTH_QUERY = 'authtype';
     static $LOCAL_AUTH = 'local';
-    static $ENTRAID_URL_COOKIE = 'entraid-origin-url';
     static $ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
@@ -109,9 +108,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         try {
             $session_id = session_id();
             \Session::savecookie(self::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
-            \Session::savecookie(self::$ENTRAID_URL_COOKIE, $url, 0, true);
             $authenticator = new Authenticator($this, $authType, $session_id);
-            $authenticator->authenticate();
+            $authenticator->authenticate(false, $url);
             return true;
         } catch ( \Throwable $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error 1', [ 'error' => $e->getMessage() ]);
@@ -387,7 +385,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         } else {
             $pageURL .= $_SERVER["SERVER_NAME"] . $_SERVER["REQUEST_URI"];
         }
-        return $pageURL;
+        $pageURLClean = filter_var($pageURL, FILTER_SANITIZE_URL);
+        return $pageURLClean;
     }
 
     public function stripQueryParameter($url, $param)
