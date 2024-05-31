@@ -885,7 +885,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     const loginForm = document.querySelector('#rc-login-form form[name="form"]');
                     if (loginForm) {
                         const link = document.createElement('a');
-                        link.href = '<?= $this->stripQueryParameter($this->curPageURL(), 'authtype') ?>';
+
+                        const url = new URL(window.location);
+                        const p = url.searchParams;
+                        p.delete('authtype');
+
+                        link.href = url.href;
                         link.innerText = '<?= $this->framework->tt('login_2') ?>';
                         link.classList.add('text-primary', 'text-center');
                         link.style.display = 'block';
