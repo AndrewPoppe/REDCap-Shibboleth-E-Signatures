@@ -10,6 +10,7 @@ namespace YaleREDCap\EntraIdAuthenticator;
 require_once 'classes/Authenticator.php';
 require_once 'classes/ESignatureHandler.php';
 require_once 'classes/EntraIdSettings.php';
+require_once 'classes/Users.php';
 
 class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 {
@@ -32,6 +33,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
         if ( $action == 'convertEntraIdUsertoTableUser' ) {
             return $this->convertEntraIdUsertoTableUser($payload['username']);
+        }
+        if ( $action === 'getEntraIdUsers' ) {
+            $users = new Users($this);
+            return json_encode(['data' => $users->getAllUserData()]);
         }
     }
 

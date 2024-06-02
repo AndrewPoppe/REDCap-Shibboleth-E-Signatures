@@ -183,7 +183,8 @@
     "auth-ajax-actions": [
         "getUserType",
         "convertTableUserToEntraIdUser",
-        "convertEntraIdUsertoTableUser"
+        "convertEntraIdUsertoTableUser",
+        "getEntraIdUsers"
     ],
     "no-auth-pages": [
         "entraid_sso_login",
