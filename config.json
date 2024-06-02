@@ -170,6 +170,16 @@
             ]
         }
     ],
+    "links": {
+        "control-center": [
+            {
+                "name": "Entra ID Authenticator",
+                "icon": "assets/images/entraid-logo.png",
+                "url": "user_dashboard.php",
+                "show-header-and-footer": true
+            }
+        ]
+    },
     "auth-ajax-actions": [
         "getUserType",
         "convertTableUserToEntraIdUser",

@@ -12,8 +12,24 @@ class EntraIdSettings
 
     public function getSettings(string $authValue)
     {
+        if ( $authValue === $this->module::$LOCAL_AUTH) {
+            return [
+                'authValue'       => $this->module::$LOCAL_AUTH,
+                'label'           => 'Local',
+                'loginButtonLogo' => '',
+                'adTenantId'      => '',
+                'clientId'        => '',
+                'clientSecret'    => '',
+                'redirectUrl'     => '',
+                'redirectUrlSpa'  => '',
+                'logoutUrl'       => '',
+                'allowedGroups'   => '',
+            ];
+        }
         $settings = $this->getAllSettings();
-        return $settings[$authValue];
+        return array_filter($settings, function ($setting) use ($authValue) {
+            return $setting['authValue'] === $authValue;
+        })[0];
     }
 
     public function getAllSettings()
@@ -34,7 +50,7 @@ class EntraIdSettings
 
         for ( $i = 0; $i < $nSites; $i++ ) {
             $auth = $authValues[$i];
-            $settings[$auth] = [
+            $settings[] = [
                 'authValue'       => $auth,
                 'label'           => $labels[$i],
                 'loginButtonLogo' => $loginButtonLogos[$i],
@@ -52,7 +68,10 @@ class EntraIdSettings
 
     public function getAuthValues()
     {
-        return $this->module->framework->getSystemSetting('entraid-auth-value');
+        $values = $this->module->framework->getSystemSetting('entraid-auth-value');
+        return array_filter($values, function ($value) {
+            return $value !== $this->module::$LOCAL_AUTH;
+        });
     }
 
 }
