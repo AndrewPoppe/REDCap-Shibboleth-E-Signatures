@@ -31,11 +31,12 @@ table.dataTable#users-table tbody tr.selected:hover>* {
     <div class="mb-2">
         <p>Below is a list of all users in the system and their EntraID status.</p>
     </div>
-    <div class="border border-secondary-subtle p-3">
+    <div class="border border-secondary-subtle p-3 rounded-2">
         <div class="d-flex flex-row mb-3">
             <button id="entraButton" class="btn btn-info mr-2" onclick="convertToEntra()" disabled>Convert to Entra ID</button>
             <button id="tableButton" class="btn btn-warning" onclick="convertToTable()" disabled>Convert to Table</button>
             <select id="userTypeSelect" class="form-select ml-auto" style="width: 200px;">
+                <option disabled selected value>Filter by User Type</option>
                 <option value="all">All Users</option>
                 <option value="entraid">EntraID Users</option>
                 <option value="table">Table Users</option>
@@ -44,9 +45,6 @@ table.dataTable#users-table tbody tr.selected:hover>* {
         <table id="users-table" class="hover stripe row-border" style="width:100%">
             <thead>
                 <tr>
-                    <!-- <th>
-                        <input type="checkbox" id="entraid_user_select_all" onchange="selectAllUsers(event)">
-                    </th> -->
                     <th></th>
                     <th>Username</th>
                     <th>First Name</th>
@@ -119,9 +117,9 @@ table.dataTable#users-table tbody tr.selected:hover>* {
         if (selectedUserType === 'all') {
             searchTerm = '';
         } else if (selectedUserType === 'entraid') {
-            searchTerm = (d) => d !== 'Table';
+            searchTerm = (d) => d !== 'false';
         } else if (selectedUserType === 'table') {
-            searchTerm = 'Table';
+            searchTerm = 'false';
             searchOptions = {exact: true};
         }
         table.column(5).search(searchTerm, searchOptions).draw();
@@ -167,6 +165,10 @@ table.dataTable#users-table tbody tr.selected:hover>* {
                 {
                     title: 'Entra ID User Type',
                     data: function (row, type, set, meta) {
+
+                        if (type === 'filter') {
+                            return row.siteId;
+                        }
 
                         if (row.entraid === 'false' || row.entraid === null) {
                             return 'Table';
