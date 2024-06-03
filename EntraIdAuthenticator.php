@@ -29,10 +29,25 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             return $this->getUserType($payload['username']);
         }
         if ( $action === 'convertTableUserToEntraIdUser' ) {
-            return $this->convertTableUserToEntraIdUser($payload['username'], $payload['authType']);
+            return $this->convertTableUserToEntraIdUser($payload['username'], $payload['siteId']);
+        }
+        if ( $action === 'convertTableUsersToEntraIdUsers' ) {
+            $users = $payload['usernames'];
+            $siteId = $payload['siteId'];
+            foreach ( $users as $user ) {
+                $this->convertTableUserToEntraIdUser($user, $siteId);
+            }
+            return;
         }
         if ( $action == 'convertEntraIdUsertoTableUser' ) {
             return $this->convertEntraIdUsertoTableUser($payload['username']);
+        }
+        if ( $action === 'convertEntraIdUsersToTableUsers' ) {
+            $users = $payload['usernames'];
+            foreach ( $users as $user ) {
+                $this->convertEntraIdUsertoTableUser($user);
+            }
+            return;
         }
         if ( $action === 'getEntraIdUsers' ) {
             $users = new Users($this);
@@ -113,7 +128,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         try {
             $session_id = session_id();
             \Session::savecookie(self::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
-            $authenticator = new Authenticator($this, $authType, $session_id);
+            $settings = new EntraIdSettings($this);
+            $site    = $settings->getSettingsByAuthValue($authType);
+            $authenticator = new Authenticator($this, $site['siteId'], $session_id);
             $authenticator->authenticate(false, $url);
             return true;
         } catch ( \Throwable $e ) {
@@ -124,7 +141,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function loginEntraIDUser(array $userdata, string $authType)
+    public function loginEntraIDUser(array $userdata, string $siteId)
     {
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
@@ -163,15 +180,15 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 ) {
                     $this->setUserDetails($userid, $userdata);
                 }
-                $this->setEntraIdUser($userid, $authType);
+                $this->setEntraIdUser($userid, $siteId);
             }
             // If user is a table-based user, convert to Entra ID user
             elseif ( \Authentication::isTableUser($userid) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
-                $this->convertTableUserToEntraIdUser($userid);
+                $this->convertTableUserToEntraIdUser($userid, $siteId);
             }
             // otherwise just make sure they are logged as an Entra ID user
             elseif ( !\Authentication::isTableUser($userid) ) {
-                $this->setEntraIdUser($userid, $authType);
+                $this->setEntraIdUser($userid, $siteId);
             }
 
             // 2. If user allowlist is not enabled, all Entra ID users are allowed.
@@ -422,7 +439,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
     }
 
-    private function convertTableUserToEntraIdUser(string $userid, string $authType)
+    private function convertTableUserToEntraIdUser(string $userid, string $siteId)
     {
         if ( empty($userid) ) {
             return;
@@ -430,7 +447,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         try {
             $SQL   = 'DELETE FROM redcap_auth WHERE username = ?';
             $query = $this->framework->query($SQL, [ $userid ]);
-            $this->setEntraIdUser($userid, $authType);
+            $this->setEntraIdUser($userid, $siteId);
             return;
         } catch ( \Exception $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
@@ -468,10 +485,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function handleLogout()
     {
-        $authType = $this->getUserType();
+        $site = $this->getUserType();
         session_unset();
         session_destroy();
-        $authenticator = new Authenticator($this, $authType);
+        $authenticator = new Authenticator($this, $site['siteId']);
         $authenticator->logout();
     }
 
@@ -524,22 +541,39 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         return !\Authentication::isTableUser($username) && $this->framework->getSystemSetting('yale-user-' . $username) === true;
     }
 
-    public function getUserType($username = null)
+    public function getUserType($username = null) : array
     {
         if ( $username === null ) {
             $username = $this->framework->getUser()->getUsername();
         }
-        $entraidAuthType = $this->framework->getSystemSetting('entraid-user-' . $username);
-        if ( $entraidAuthType ) {
-            return $entraidAuthType;
+        $siteId = $this->framework->getSystemSetting('entraid-user-' . $username);
+        if ( $siteId ) {
+            $site = (new EntraIdSettings($this))->getSettings($siteId);
+            return [
+                'siteId'   => $siteId,
+                'authType' => $site['authValue'],
+                'label'    => $site['label']
+            ];
         }
         if ( \Authentication::isTableUser($username) ) {
-            return 'table';
+            return [
+                'siteId'   => false,
+                'authType' => 'table',
+                'label'    => 'Table User'
+            ];
         }
         if ( $this->inUserAllowlist($username) ) {
-            return 'allowlist';
+            return [
+                'siteId'   => false,
+                'authType' => 'allowlist',
+                'label'    => 'Allowlisted User'
+            ];
         }
-        return 'unknown';
+        return [
+            'siteId'   => false,
+            'authType' => 'unknown',
+            'label'    => 'Unknown'
+        ];
     }
 
     public function setEntraIdUser($userid, $value)
@@ -549,41 +583,47 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function addEntraIdInfoToBrowseUsersTable($page)
     {
-        if ( !$page === 'ControlCenter/view_users.php' || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
+        if ( $page !== 'ControlCenter/view_users.php' || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
             return;
         }
 
         $settings  = new EntraIdSettings($this);
-        $authTypes = $settings->getAuthValues() ?? [];
+        $sites    = $settings->getAllSettings() ?? [];
+        $siteData = [];
+        foreach ( $sites as $site ) {
+            $siteData[$site['siteId']] = $site['authValue'] . ' (' . $site['label'] . ')';
+        }
 
         $this->framework->initializeJavascriptModuleObject();
 
         parse_str($_SERVER['QUERY_STRING'], $query);
         if ( isset($query['username']) ) {
             $userid   = $query['username'];
-            $userType = $this->getUserType($userid);
+            $site = $this->getUserType($userid);
         }
 
         ?>
             <script>
                 var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
-                var authTypes = JSON.parse('<?= json_encode($authTypes) ?>');
+                var sites = JSON.parse('<?= json_encode( $siteData ) ?>');
 
                 function convertTableUserToEntraIdUser() {
                     const username = $('#user_search').val();
                     Swal.fire({
                         title: "<?= $this->framework->tt('convert_1') ?>",
                         input: 'select',
-                        inputOptions: authTypes,
+                        inputOptions: sites,
                         icon: "warning",
                         showCancelButton: true,
                         confirmButtonText: "<?= $this->framework->tt('convert_2') ?>"
                     }).then((result) => {
+                        console.log(result);
                         if (result.isConfirmed) {
-                            let userType = authTypes[result.value];
+                            let site = result.value;
+                            console.log(site);
                             authenticator.ajax('convertTableUserToEntraIdUser', {
                                 username: username,
-                                authType: userType
+                                siteId: site
                             }).then(() => {
                                 location.reload();
                             });
@@ -609,20 +649,21 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     });
                 }
 
-                function addTableRow(userType) {
+                function addTableRow(siteJson) {
+                    const site = JSON.parse(siteJson);
                     let userText = '';
-                    switch (userType) {
-                        case 'allowlist':
-                            userText = `<strong><?= $this->framework->tt('user_types_1') ?></strong>`;
-                            break;
-                        case 'table':
-                            userText =
-                                `<strong><?= $this->framework->tt('user_types_2') ?></strong> <input type="button" style="font-size:11px" onclick="convertTableUserToEntraIdUser()" value="Convert to Entra ID User">`;
-                            break;
-                        default:
-                            userText =
-                                `<strong>${userType}</strong> <input type="button" style="font-size:11px" onclick="convertEntraIdUsertoTableUser()" value="<?= $this->framework->tt('convert_4') ?>">`;
-                            break;
+                    if (site['siteId'] === false) {
+                        switch (site['authType']) {
+                            case 'allowlist':
+                                userText = `<strong><?= $this->framework->tt('user_types_1') ?></strong>`;
+                                break;
+                            case 'table':
+                                userText =
+                                    `<strong><?= $this->framework->tt('user_types_2') ?></strong> <input type="button" style="font-size:11px" onclick="convertTableUserToEntraIdUser()" value="Convert to Entra ID User">`;
+                                break;
+                            }
+                    } else {
+                        userText = `<strong>${site['label']}</strong> (${site['authType']}) <input type="button" style="font-size:11px" onclick="convertEntraIdUsertoTableUser()" value="<?= $this->framework->tt('convert_4') ?>">`;
                     }
                     $('#indv_user_info').append('<tr id="userTypeRow"><td class="data2">User type</td><td class="data2">' +
                         userText + '</td></tr>');
@@ -643,9 +684,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                         function (data) {
                             authenticator.ajax('getUserType', {
                                 username: username
-                            }).then((userType) => {
+                            }).then((site) => {
+                                console.log(site)
                                 $('#view_user_div').html(data);
-                                addTableRow(userType);
+                                addTableRow(JSON.stringify(site));
                                 enableUserSearch();
                                 highlightTable('indv_user_info', 1000);
                             });
@@ -655,7 +697,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
                 <?php if ( isset($userid) ) { ?>
                     window.requestAnimationFrame(() => {
-                        addTableRow('<?= $userType ?>')
+                        addTableRow('<?= json_encode($site) ?>')
                     });
                 <?php } ?>
 
@@ -893,7 +935,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
                         const url = new URL(window.location);
                         const p = url.searchParams;
-                        p.delete('authtype');
+                        p.delete('<?= self::$AUTH_QUERY ?>');
 
                         link.href = url.href;
                         link.innerText = '<?= $this->framework->tt('login_2') ?>';
@@ -954,5 +996,45 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     private function checkAllowlist($userid) {
         global $enable_user_allowlist;
         return !$enable_user_allowlist || \Authentication::isTableUser($userid) || $this->inUserAllowlist($userid) || $userid === 'SYSTEM';
+    }
+
+    private function generateSiteId() {
+        return bin2hex(random_bytes(16));
+    }
+
+    public function redcap_module_configuration_settings($project_id, $settings) {
+        try {
+            foreach ( $settings as $index => $setting ) {
+                if ( $setting['key'] === 'entraid-site' ) {
+                    $subsettings                      = $settings[$index]['sub_settings'];
+                    $subsettings_filtered             = array_filter($subsettings, function ($subsetting) {
+                        return $subsetting['key'] !== 'entraid-site-id';
+                    });                    
+                    $settings[$index]['sub_settings'] = array_values($subsettings_filtered);
+                }
+            }
+            return $settings;
+        } catch (\Throwable $e) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+        }
+    }
+
+    public function redcap_module_save_configuration($project_id) {
+        if (!empty($project_id)){
+            return;
+        }
+        $sites = $this->getSystemSetting('entraid-site');
+        $siteIds = $this->getSystemSetting('entraid-site-id');
+
+        foreach ($sites as $index => $site) {
+            if (empty($siteIds)) {
+                $siteIds = [];
+            }
+            if (empty($siteIds[$index])) {
+                $siteIds[$index] = $this->generateSiteId();
+            }
+        }
+        
+        $this->setSystemSetting('entraid-site-id', $siteIds);
     }
 }

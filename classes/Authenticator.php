@@ -13,23 +13,25 @@ class Authenticator
     private $session_id;
     private $logout_uri;
     private $allowedGroups;
+    private $siteId;
     private $authType;
     private $entraIdSettings;
-    public function __construct(EntraIdAuthenticator $module, string $authType, string $session_id = null)
+    public function __construct(EntraIdAuthenticator $module, string $siteId, string $session_id = null)
     {
         $this->module          = $module;
-        $this->authType        = $authType;
+        $this->siteId          = $siteId;
         $settings              = new EntraIdSettings($module);
-        $this->entraIdSettings = $settings->getSettings($authType);
+        $this->entraIdSettings = $settings->getSettings($siteId);
         if ( !$this->entraIdSettings ) {
             return;
         }
-        $this->client_id        = $this->entraIdSettings['clientId'];  //Client ID, this is the Application ID from Azure
-        $this->ad_tenant        = $this->entraIdSettings['adTenantId'];  //Azure AD Tenant ID
-        $this->client_secret    = $this->entraIdSettings['clientSecret'];  //Client Secret, this is the secret key from Azure
-        $this->redirect_uri     = $this->entraIdSettings['redirectUrl'];  //This needs to match 100% what is set in Entra ID
-        $this->redirect_uri_spa = $this->entraIdSettings['redirectUrlSpa'];  //This needs to match 100% what is set in Entra ID
-        $this->logout_uri       = $this->entraIdSettings['logoutUrl'];  //This needs to match 100% what is set in Entra ID
+        $this->authType         = $this->entraIdSettings['authValue'];
+        $this->client_id        = $this->entraIdSettings['clientId'];
+        $this->ad_tenant        = $this->entraIdSettings['adTenantId'];
+        $this->client_secret    = $this->entraIdSettings['clientSecret'];
+        $this->redirect_uri     = $this->entraIdSettings['redirectUrl'];
+        $this->redirect_uri_spa = $this->entraIdSettings['redirectUrlSpa'];
+        $this->logout_uri       = $this->entraIdSettings['logoutUrl'];
         $this->allowedGroups    = $this->entraIdSettings['allowedGroups'];
         $this->session_id       = $session_id ?? session_id();
     }
@@ -37,7 +39,7 @@ class Authenticator
     public function authenticate(bool $refresh = false, string  $originUrl = '')
     {
         $url = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
-        $url .= "state=" . $this->session_id . "EIASEP" . $this->authType . "EIASEP" . urlencode( $originUrl );
+        $url .= "state=" . $this->session_id . "EIASEP" . $this->siteId . "EIASEP" . urlencode( $originUrl );
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
         $url .= "&approval_prompt=auto";
@@ -172,6 +174,11 @@ class Authenticator
     public function getLogoutUri()
     {
         return $this->logout_uri;
+    }
+
+    public function getAuthType()
+    {
+        return $this->authType;
     }
 
 }

@@ -14,6 +14,8 @@ class Users
     public function getAllUserData()
     {
         try {
+            $settings = new EntraIdSettings($this->module);
+            $entraidSettings = $settings->getAllSettings();
             $sql = "SELECT 
                     u.username, 
                     u.user_firstname,
@@ -31,6 +33,13 @@ class Users
             $result = $this->module->framework->query($sql, [$this->external_module_id]);
             $users = [];
             while ($row = $result->fetch_assoc()) {
+                $row['siteId'] = $row['entraid'];
+                $site = array_filter($entraidSettings, function ($setting) use ($row) {
+                    return $setting['siteId'] === $row['siteId'];
+                });
+                $site = reset($site);
+                $row['authType'] = $site['authValue'];
+                $row['label'] = $site['label'];
                 $users[] = $row;
             }
             return $users;

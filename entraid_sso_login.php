@@ -7,9 +7,9 @@ namespace YaleREDCap\EntraIdAuthenticator;
 session_id($_COOKIE[EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE]);
 session_start();
 
-[$session_id, $authType, $originUrl] = explode('EIASEP', $_GET["state"]);
+[$session_id, $siteId, $originUrl] = explode('EIASEP', $_GET["state"]);
 
-$authenticator = new Authenticator($module, $authType);
+$authenticator = new Authenticator($module, $siteId);
 
 $authData = $authenticator->getAuthData($session_id, $_GET["code"]);
 $userData = $authenticator->getUserData($authData['access_token']);
@@ -22,7 +22,7 @@ if (!$authenticator->checkGroupMembership($userData)) {
     exit($module->framework->tt('error_4'));
 }
 
-$result = $module->loginEntraIDUser($userData, $authType);
+$result = $module->loginEntraIDUser($userData, $siteId);
 if ( $result ) {
 
     \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE);

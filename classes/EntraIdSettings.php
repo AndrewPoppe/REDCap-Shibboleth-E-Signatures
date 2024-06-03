@@ -10,9 +10,9 @@ class EntraIdSettings
         $this->module = $module;
     }
 
-    public function getSettings(string $authValue)
+    public function getSettings(string $siteId)
     {
-        if ( $authValue === $this->module::$LOCAL_AUTH) {
+        if ( empty($siteId) ) {
             return [
                 'authValue'       => $this->module::$LOCAL_AUTH,
                 'label'           => 'Local',
@@ -27,9 +27,19 @@ class EntraIdSettings
             ];
         }
         $settings = $this->getAllSettings();
-        return array_filter($settings, function ($setting) use ($authValue) {
+        $results  = array_filter($settings, function ($setting) use ($siteId) {
+            return $setting['siteId'] === $siteId;
+        });
+        return reset($results);
+    }
+
+    public function getSettingsByAuthValue(string $authValue)
+    {
+        $settings = $this->getAllSettings();
+        $sites    = array_filter($settings, function ($setting) use ($authValue) {
             return $setting['authValue'] === $authValue;
-        })[0];
+        });
+        return $sites[0] ?? [];
     }
 
     public function getAllSettings()
@@ -37,6 +47,7 @@ class EntraIdSettings
         $settings         = [];
         $sites            = $this->module->framework->getSystemSetting('entraid-site') ?? [];
         $nSites           = count($sites);
+        $siteIds          = $this->module->framework->getSystemSetting('entraid-site-id') ?? [];
         $authValues       = $this->module->framework->getSystemSetting('entraid-auth-value') ?? [];
         $labels           = $this->module->framework->getSystemSetting('entraid-label') ?? [];
         $loginButtonLogos = $this->module->framework->getSystemSetting('entraid-login-button-logo') ?? [];
@@ -49,9 +60,9 @@ class EntraIdSettings
         $allowedGroupss   = $this->module->framework->getSystemSetting('entraid-allowed-groups') ?? [];
 
         for ( $i = 0; $i < $nSites; $i++ ) {
-            $auth = $authValues[$i];
             $settings[] = [
-                'authValue'       => $auth,
+                'siteId'          => $siteIds[$i],
+                'authValue'       => $authValues[$i],
                 'label'           => $labels[$i],
                 'loginButtonLogo' => $loginButtonLogos[$i],
                 'adTenantId'      => $adTenantIds[$i],
@@ -72,6 +83,18 @@ class EntraIdSettings
         return array_filter($values, function ($value) {
             return $value !== $this->module::$LOCAL_AUTH;
         });
+    }
+
+    public function getSiteInfo()
+    {
+        $settings = $this->getAllSettings();
+        return array_map(function ($setting) {
+            return [
+                'siteId'   => $setting['siteId'],
+                'label'    => $setting['label'],
+                'authType' => $setting['authValue'],
+            ];
+        }, $settings);
     }
 
 }

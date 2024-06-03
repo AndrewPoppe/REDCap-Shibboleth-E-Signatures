@@ -105,6 +105,11 @@
                     "type": "descriptive"
                 },
                 {
+                    "key": "entraid-site-id",
+                    "name": "<strong>Entra ID Site ID</strong>:<br>Randomly generated",
+                    "type": "text"
+                },
+                {
                     "key": "entraid-label",
                     "name": "<strong>Label for this Entra ID Site</strong>:<br>Enter a label for this Entra ID site<script>$('tr[field=\"entraid-label\"] input:not(\".handled\")').on('keyup', updateLabels).addClass('handled') </script>",
                     "tt_name": "entraid_label",
@@ -174,7 +179,7 @@
         "control-center": [
             {
                 "name": "Entra ID Authenticator",
-                "icon": "assets/images/entraid-logo.png",
+                "icon": "assets/images/entraid-logo.svg",
                 "url": "user_dashboard.php",
                 "show-header-and-footer": true
             }
@@ -183,7 +188,9 @@
     "auth-ajax-actions": [
         "getUserType",
         "convertTableUserToEntraIdUser",
+        "convertTableUsersToEntraIdUsers",
         "convertEntraIdUsertoTableUser",
+        "convertEntraIdUsersToTableUsers",
         "getEntraIdUsers"
     ],
     "no-auth-pages": [
