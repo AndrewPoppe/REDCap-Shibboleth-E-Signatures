@@ -16,6 +16,10 @@ class ESignatureHandler
             return;
         }
 
+        if ( $authType === $this->module::$LOCAL_AUTH ) {
+            return;
+        }
+
         // Get username from token
         $authenticator = new Authenticator($this->module, $authType);
         $userData      = $authenticator->getUserData($post['token']);

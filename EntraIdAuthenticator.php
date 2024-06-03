@@ -224,7 +224,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function redcap_data_entry_form()
     {
         $user = $this->framework->getUser();
-        if ( !$this->isEntraIdUser($user->getUsername()) || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
+        if ( !$this->isEntraIdUser($user->getUsername()) || 
+            $this->framework->getSystemSetting('custom-login-page-type') === 'none' ||
+            $this->getUserType($user->getUsername())['authType'] === self::$LOCAL_AUTH
+        ) {
             return;
         }
         $esignatureHandler = new ESignatureHandler($this);
