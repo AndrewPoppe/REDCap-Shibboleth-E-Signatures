@@ -39,8 +39,8 @@ class ESignatureHandler
 
     public function addEsignatureScript()
     {
-        $authType      = $this->module->getUserType();
-        $authenticator = new Authenticator($this->module, $authType);
+        $site          = $this->module->getUserType();
+        $authenticator = new Authenticator($this->module, $site['siteId']);
         ?>
         <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
         <script>

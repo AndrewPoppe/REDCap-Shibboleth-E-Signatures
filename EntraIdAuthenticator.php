@@ -70,7 +70,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-                $authType          = $this->getUserType();
+                $site              = $this->getUserType();
+                $authType          = $site['authType'];
                 $esignatureHandler = new ESignatureHandler($this);
                 $esignatureHandler->handleRequest($_POST, $authType);
                 return;
@@ -538,7 +539,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function isEntraIdUser($username)
     {
-        return !\Authentication::isTableUser($username) && $this->framework->getSystemSetting('yale-user-' . $username) === true;
+        return !\Authentication::isTableUser($username) &&
+        !empty($this->framework->getSystemSetting('entraid-user-' . $username)) &&
+        $this->framework->getSystemSetting('entraid-user-' . $username) !== false;
     }
 
     public function getUserType($username = null) : array
@@ -685,7 +688,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                             authenticator.ajax('getUserType', {
                                 username: username
                             }).then((site) => {
-                                console.log(site)
                                 $('#view_user_div').html(data);
                                 addTableRow(JSON.stringify(site));
                                 enableUserSearch();
