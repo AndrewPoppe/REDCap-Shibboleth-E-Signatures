@@ -14,16 +14,20 @@ class EntraIdSettings
     {
         if ( empty($siteId) ) {
             return [
-                'authValue'       => $this->module::$LOCAL_AUTH,
-                'label'           => 'Local',
-                'loginButtonLogo' => '',
-                'adTenantId'      => '',
-                'clientId'        => '',
-                'clientSecret'    => '',
-                'redirectUrl'     => '',
-                'redirectUrlSpa'  => '',
-                'logoutUrl'       => '',
-                'allowedGroups'   => '',
+                'authValue'               => $this->module::$LOCAL_AUTH,
+                'label'                   => 'Local',
+                'loginButtonLogo'         => '',
+                'adTenantId'              => '',
+                'clientId'                => '',
+                'clientSecret'            => '',
+                'redirectUrl'             => '',
+                'redirectUrlSpa'          => '',
+                'logoutUrl'               => '',
+                'allowedGroups'           => '',
+                'showAttestation'         => '',
+                'attestationText'         => '',
+                'attestationCheckboxText' => '',
+                'attestationVersion'      => '',
             ];
         }
         $settings = $this->getAllSettings();
@@ -44,34 +48,42 @@ class EntraIdSettings
 
     public function getAllSettings()
     {
-        $settings         = [];
-        $sites            = $this->module->framework->getSystemSetting('entraid-site') ?? [];
-        $nSites           = count($sites);
-        $siteIds          = $this->module->framework->getSystemSetting('entraid-site-id') ?? [];
-        $authValues       = $this->module->framework->getSystemSetting('entraid-auth-value') ?? [];
-        $labels           = $this->module->framework->getSystemSetting('entraid-label') ?? [];
-        $loginButtonLogos = $this->module->framework->getSystemSetting('entraid-login-button-logo') ?? [];
-        $adTenantIds      = $this->module->framework->getSystemSetting('entraid-ad-tenant-id') ?? [];
-        $clientIds        = $this->module->framework->getSystemSetting('entraid-client-id') ?? [];
-        $clientSsecrets   = $this->module->framework->getSystemSetting('entraid-client-secret') ?? [];
-        $redirectUrls     = $this->module->framework->getSystemSetting('entraid-redirect-url') ?? [];
-        $redirectUrlSpas  = $this->module->framework->getSystemSetting('entraid-redirect-url-spa') ?? [];
-        $logoutUrls       = $this->module->framework->getSystemSetting('entraid-logout-url') ?? [];
-        $allowedGroupss   = $this->module->framework->getSystemSetting('entraid-allowed-groups') ?? [];
+        $settings                = [];
+        $sites                   = $this->module->framework->getSystemSetting('entraid-site') ?? [];
+        $nSites                  = count($sites);
+        $siteIds                 = $this->module->framework->getSystemSetting('entraid-site-id') ?? [];
+        $authValues              = $this->module->framework->getSystemSetting('entraid-auth-value') ?? [];
+        $labels                  = $this->module->framework->getSystemSetting('entraid-label') ?? [];
+        $loginButtonLogos        = $this->module->framework->getSystemSetting('entraid-login-button-logo') ?? [];
+        $adTenantIds             = $this->module->framework->getSystemSetting('entraid-ad-tenant-id') ?? [];
+        $clientIds               = $this->module->framework->getSystemSetting('entraid-client-id') ?? [];
+        $clientSsecrets          = $this->module->framework->getSystemSetting('entraid-client-secret') ?? [];
+        $redirectUrls            = $this->module->framework->getSystemSetting('entraid-redirect-url') ?? [];
+        $redirectUrlSpas         = $this->module->framework->getSystemSetting('entraid-redirect-url-spa') ?? [];
+        $logoutUrls              = $this->module->framework->getSystemSetting('entraid-logout-url') ?? [];
+        $allowedGroupss          = $this->module->framework->getSystemSetting('entraid-allowed-groups') ?? [];
+        $showAttestation         = $this->module->framework->getSystemSetting('entraid-attestation') ?? [];
+        $attestationText         = $this->module->framework->getSystemSetting('entraid-attestation-text') ?? [];
+        $attestationCheckboxText = $this->module->framework->getSystemSetting('entraid-attestation-checkbox-text') ?? [];
+        $attestationVersion      = $this->module->framework->getSystemSetting('entraid-attestation-version') ?? [];
 
         for ( $i = 0; $i < $nSites; $i++ ) {
             $settings[] = [
-                'siteId'          => $siteIds[$i],
-                'authValue'       => $authValues[$i],
-                'label'           => $labels[$i],
-                'loginButtonLogo' => $loginButtonLogos[$i],
-                'adTenantId'      => $adTenantIds[$i],
-                'clientId'        => $clientIds[$i],
-                'clientSecret'    => $clientSsecrets[$i],
-                'redirectUrl'     => $redirectUrls[$i],
-                'redirectUrlSpa'  => $redirectUrlSpas[$i],
-                'logoutUrl'       => $logoutUrls[$i],
-                'allowedGroups'   => $allowedGroupss[$i],
+                'siteId'                  => $siteIds[$i],
+                'authValue'               => $authValues[$i],
+                'label'                   => $labels[$i],
+                'loginButtonLogo'         => $loginButtonLogos[$i],
+                'adTenantId'              => $adTenantIds[$i],
+                'clientId'                => $clientIds[$i],
+                'clientSecret'            => $clientSsecrets[$i],
+                'redirectUrl'             => $redirectUrls[$i],
+                'redirectUrlSpa'          => $redirectUrlSpas[$i],
+                'logoutUrl'               => $logoutUrls[$i],
+                'allowedGroups'           => $allowedGroupss[$i],
+                'showAttestation'         => $showAttestation[$i],
+                'attestationText'         => $attestationText[$i],
+                'attestationCheckboxText' => $attestationCheckboxText[$i],
+                'attestationVersion'      => $attestationVersion[$i],
             ];
         }
         return $settings;

@@ -21,6 +21,15 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
+
+        // No-auth
+        
+        if ( $action === 'handleAttestation' ) {
+            $username = $this->framework->escape($payload['username']);
+            $siteId = $this->framework->escape($payload['siteId']);
+            return $this->handleAttestation($username, $siteId);
+        }
+
         // Admins only
         if ( !$this->framework->getUser()->isSuperUser() ) {
             throw new \Exception($this->framework->tt('error_1'));
@@ -142,7 +151,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function loginEntraIDUser(array $userdata, string $siteId)
+    public function loginEntraIDUser(array $userdata, string $siteId, string $originUrl)
     {
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
         try {
@@ -154,6 +163,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
             if ( !$this->userExists($userid) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
                 exit($this->framework->tt('error_2'));
+            }
+
+            // Force custom attestation
+            $settings = new EntraIdSettings($this);
+            $site     = $settings->getSettings($siteId);
+            if ( $site['showAttestation'] == 1 && !$this->userAttested($userid, $site) ) {
+                $this->showAttestationPage($site, $originUrl, $userdata);
+                return false;
             }
 
             // Successful authentication
@@ -232,6 +249,120 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
         $esignatureHandler = new ESignatureHandler($this);
         $esignatureHandler->addEsignatureScript();
+    }
+
+    private function userAttested($userid, $site)
+    {
+        if ( empty($userid) ) {
+            return false;
+        }
+        $attestationText = $this->framework->getSystemSetting('entraid-attestation-' . $userid);
+        if (empty($attestationText)) {
+            return false;
+        }
+        $attestation = json_decode($attestationText, true);
+        if (empty($attestation) || empty($attestation['siteId']) || empty($attestation['version'])) {
+            return false;
+        }
+
+        // Check that the site matches
+        $attestationSite = $attestation['siteId'];
+        if ($attestationSite !== $site['siteId']) {
+            return false;
+        }
+
+        // Check that the attestation is still valid
+        $attestationVersion = $attestation['version'];
+        $currentVersion = $site['attestationVersion'];
+        if (!empty($attestationVersion) && $attestationVersion !== $currentVersion) {
+            return false;
+        }
+
+        return true;
+    }
+    private function showAttestationPage($site, $originUrl, $userdata)
+    {
+
+        // TODO: THIS IS A WORKAROUND TO A BUG IN EM FRAMEWORK - REMOVE WHEN FIXED
+        require_once APP_PATH_DOCROOT . "ExternalModules/manager/templates/hooks/every_page_top.php";
+
+        $attestationHtml         = \REDCap::filterHtml($site['attestationText']);
+        $attestationCheckboxText = \REDCap::filterHtml($site['attestationCheckboxText']);
+        $cssPath = APP_PATH_WEBROOT_FULL . APP_PATH_CSS . 'style.css';
+        $this->framework->initializeJavascriptModuleObject();
+        $this->framework->tt_transferToJavascriptModuleObject();
+        ?>
+        
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <link href="<?= $cssPath ?>" rel="stylesheet">
+            </head>
+            <body>
+                <div class="container">
+                    <div class="attestation">
+                    <?= $attestationHtml ?>
+                    </div>
+                    <div class="attestation-checkbox">
+                        <input type="checkbox" id="attestation-checkbox" required>
+                        <label for="attestation-checkbox"><?= $attestationCheckboxText ?></label>
+                    </div>
+                    <div class="attestation-submit">
+                        <button id= "attestation-submit-button" type="button"><?= $this->framework->tt('submit') ?></button>
+                    </div>
+                    <div class="hidden-elements">
+                        <input type="hidden" id="originUrl" value="<?= $originUrl ?>">
+                        <input type="hidden" id="siteId" value="<?= $site['siteId'] ?>">
+                        <input type="hidden" id="userid" value="<?= $userdata['username'] ?>">
+                    </div>
+                </div>
+            </body>
+        </html>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const module = <?=$this->getJavascriptModuleObjectName()?>;
+                document.getElementById('attestation-submit-button').addEventListener('click', function() {
+                    if (document.getElementById('attestation-checkbox').checked) {
+                        module.ajax('handleAttestation', {
+                            username: document.getElementById('userid').value,
+                            siteId: document.getElementById('siteId').value
+                        }).then(result => {
+                            if (result === true) {
+                                window.location.href = document.getElementById('originUrl').value;
+                            } else {
+                                console.log(result);
+                            }
+                        });
+                    } else {
+                        alert('<?= $this->framework->tt('error_6') ?>');
+                    }
+                });
+            });
+        </script>
+        <?php
+    }
+
+    private function handleAttestation($username, $siteId) {
+        try {
+            if ( empty($username) || empty($siteId) ) {
+                return false;
+            }
+            $settings = new EntraIdSettings($this);
+            $site = $settings->getSettings($siteId);
+            if ( empty($site) ) {
+                return false;
+            }
+            $version = $site['attestationVersion'];
+            $attestation = [
+                'siteId' => $siteId,
+                'version' => $version
+            ];
+            $this->framework->setSystemSetting('entraid-attestation-' . $username, json_encode($attestation));
+            return true;
+        } catch ( \Throwable $e ) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error handling attestation', [ 'error' => $e->getMessage() ]);
+            return false;
+        }
     }
 
     private function getEdocFileContents($edocId)

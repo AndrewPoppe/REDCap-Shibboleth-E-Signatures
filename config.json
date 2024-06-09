@@ -37,7 +37,7 @@
                 },
                 {
                     "value": "none",
-                    "name": "None",
+                    "name": "SSO Only",
                     "tt_name": "page_type_none"
                 }
             ]
@@ -171,6 +171,30 @@
                     "tt_name": "entraid_allowed_groups",
                     "type": "text",
                     "repeatable": true
+                },
+                {
+                    "key": "entraid-attestation",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation</strong>:<br>Check this box to require users to attest to the terms of use for this <span class='entraid-label'>Entra ID Site</span> before logging in",
+                    "tt_name": "entraid_attestation",
+                    "type": "checkbox"
+                },
+                {
+                    "key": "entraid-attestation-text",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation Text</strong>:<br>Enter the text to display on the attestation page for this <span class='entraid-label'>Entra ID Site</span>",
+                    "tt_name": "entraid_attestation_text",
+                    "type": "rich-text"
+                },
+                {
+                    "key": "entraid-attestation-checkbox-text",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation Checkbox Text</strong>:<br>Enter the text to display next to the checkbox on the attestation page for this <span class='entraid-label'>Entra ID Site</span>",
+                    "tt_name": "entraid_attestation_checkbox_text",
+                    "type": "text"
+                },
+                {
+                    "key": "entraid-attestation-version",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation Version</strong>:<br>Enter the version number/label for the attestation text for this <span class='entraid-label'>Entra ID Site</span>. If you want users to re-attest to the terms of use, change this value",
+                    "tt_name": "entraid_attestation_version",
+                    "type": "text"
                 }
             ]
         }
@@ -192,6 +216,9 @@
         "convertEntraIdUsertoTableUser",
         "convertEntraIdUsersToTableUsers",
         "getEntraIdUsers"
+    ],
+    "no-auth-ajax-actions": [
+        "handleAttestation"
     ],
     "no-auth-pages": [
         "entraid_sso_login",

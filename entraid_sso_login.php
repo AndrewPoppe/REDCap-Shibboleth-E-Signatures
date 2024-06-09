@@ -22,7 +22,7 @@ if (!$authenticator->checkGroupMembership($userData)) {
     exit($module->framework->tt('error_4'));
 }
 
-$result = $module->loginEntraIDUser($userData, $siteId);
+$result = $module->loginEntraIDUser($userData, $siteId, $originUrl);
 if ( $result ) {
 
     \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE);
