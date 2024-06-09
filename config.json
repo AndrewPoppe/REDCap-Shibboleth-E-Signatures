@@ -174,9 +174,26 @@
                 },
                 {
                     "key": "entraid-attestation",
-                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation</strong>:<br>Check this box to require users to attest to the terms of use for this <span class='entraid-label'>Entra ID Site</span> before logging in",
+                    "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation</strong>:<br>This setting forces the user to attest to terms of use for this <span class='entraid-label'>Entra ID Site</span> before accessing the system. If set to 'On account creation', the user will be forced to attest to the terms of use when their account is created (<em>Note: this has no effect if the \"Create New Users on Login\" setting is not active</em>). If set to 'On every login (only if needed)', the user will be forced to attest to the terms of use when they log in each time the version of the attestation changes",
                     "tt_name": "entraid_attestation",
-                    "type": "checkbox"
+                    "type": "radio",
+                    "choices": [
+                        {
+                            "value": 0,
+                            "name": "No Attestation",
+                            "tt_name": "no_attestation"
+                        },
+                        {
+                            "value": 1,
+                            "name": "On account creation",
+                            "tt_name": "attestation_at_creation"
+                        },
+                        {
+                            "value": 2,
+                            "name": "On every login (only if needed)",
+                            "tt_name": "attestation_every_login"
+                        }
+                    ]
                 },
                 {
                     "key": "entraid-attestation-text",

@@ -165,11 +165,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 exit($this->framework->tt('error_2'));
             }
 
-            // Force custom attestation
-            $settings = new EntraIdSettings($this);
-            $site     = $settings->getSettings($siteId);
-            if ( $site['showAttestation'] == 1 && !$this->userAttested($userid, $site) ) {
-                $this->showAttestationPage($site, $originUrl, $userdata);
+            // Force custom attestation page if needed
+            if ($this->needsAttestation($userid, $siteId)) {
+                $this->showAttestationPage($siteId , $originUrl, $userdata);
                 return false;
             }
 
@@ -280,8 +278,46 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
         return true;
     }
-    private function showAttestationPage($site, $originUrl, $userdata)
+
+    private function needsAttestation($userid, $siteId)
     {
+        $settings = new EntraIdSettings($this);
+        $site = $settings->getSettings($siteId);
+        
+        $loginPageType = $this->framework->getSystemSetting('custom-login-page-type');
+        if ($loginPageType === 'none') {
+            return false;
+        }
+
+        $userExists = $this->userExists($userid);
+        $showAttestationSetting = $site['showAttestation'];
+        $createUsers = $this->framework->getSystemSetting('create-new-users-on-login');
+
+
+        // User is going to be created
+        if ( 
+            !$userExists && 
+            $showAttestationSetting > 0 &&
+            $createUsers == 1
+        ) {
+            return true;
+        }
+
+        // User is just logging in
+        $userAttested = $this->userAttested($userid, $site);
+        if (
+            $userExists && 
+            $showAttestationSetting == 2 &&
+            !$userAttested
+        ) {
+            return true;
+        }
+    }
+    
+    private function showAttestationPage($siteId, $originUrl, $userdata)
+    {
+        $settings = new EntraIdSettings($this);
+        $site     = $settings->getSettings($siteId);
 
         // TODO: THIS IS A WORKAROUND TO A BUG IN EM FRAMEWORK - REMOVE WHEN FIXED
         require_once APP_PATH_DOCROOT . "ExternalModules/manager/templates/hooks/every_page_top.php";
@@ -355,7 +391,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $version = $site['attestationVersion'];
             $attestation = [
                 'siteId' => $siteId,
-                'version' => $version
+                'version' => $version,
+                'date' => NOW
             ];
             $this->framework->setSystemSetting('entraid-attestation-' . $username, json_encode($attestation));
             return true;
