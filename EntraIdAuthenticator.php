@@ -23,7 +23,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     {
 
         // No-auth
-        
         if ( $action === 'handleAttestation' ) {
             $username = $this->framework->escape($payload['username']);
             $siteId = $this->framework->escape($payload['siteId']);
@@ -313,7 +312,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             return true;
         }
     }
-    
+
     private function showAttestationPage($siteId, $originUrl, $userdata)
     {
         $settings = new EntraIdSettings($this);
@@ -333,18 +332,33 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <html lang="en">
             <head>
                 <link href="<?= $cssPath ?>" rel="stylesheet">
+                <style>
+                    div.attestation-container {
+                        display: flex;
+                        flex-direction: column;
+                        min-height: 50%;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    div.attestation {
+                        margin-bottom: 20px;
+                    }
+                    div.attestation-checkbox {
+                        margin-bottom: 10px;
+                    }
+                </style>
             </head>
             <body>
-                <div class="container">
+                <div class="attestation-container container">
                     <div class="attestation">
-                    <?= $attestationHtml ?>
+                        <?= $attestationHtml ?>
                     </div>
                     <div class="attestation-checkbox">
                         <input type="checkbox" id="attestation-checkbox" required>
                         <label for="attestation-checkbox"><?= $attestationCheckboxText ?></label>
                     </div>
                     <div class="attestation-submit">
-                        <button id= "attestation-submit-button" type="button"><?= $this->framework->tt('submit') ?></button>
+                        <button id= "attestation-submit-button" type="button" disabled><?= $this->framework->tt('submit') ?></button>
                     </div>
                     <div class="hidden-elements">
                         <input type="hidden" id="originUrl" value="<?= $originUrl ?>">
@@ -372,6 +386,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     } else {
                         alert('<?= $this->framework->tt('error_6') ?>');
                     }
+                });
+                document.getElementById('attestation-checkbox').addEventListener('change', function() {
+                    document.getElementById('attestation-submit-button').disabled = !this.checked;
                 });
             });
         </script>
@@ -1196,6 +1213,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if (!empty($project_id)){
             return;
         }
+
+        // Handle Site IDs
         $sites = $this->getSystemSetting('entraid-site');
         $siteIds = $this->getSystemSetting('entraid-site-id');
 
@@ -1209,5 +1228,31 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
         
         $this->setSystemSetting('entraid-site-id', $siteIds);
+
+        // Handle Site Attestation Versioning
+        // If the attestation version changes, log the new version
+        $this->saveAttestationVersions($siteIds);
+    }
+
+    private function saveAttestationVersions($siteIds) {
+        try {
+            $currentVersions = $this->getSystemSetting('entraid-attestation-version');
+            $currentAttestations = $this->getSystemSetting('entraid-attestation-text');
+            foreach ($siteIds as $index => $siteId) {
+                $sql = "SELECT attestationVersion WHERE message = 'entra-id-attestation-version' AND siteId = ? ORDER BY timestamp DESC LIMIT 1";
+                $param = [ $siteId ];
+                $result = $this->framework->queryLogs($sql, $param);
+                $latestSavedVersion = $result->fetch_assoc();
+                $latestSavedVersion = $latestSavedVersion ? $latestSavedVersion['attestationVersion'] : 0;
+                $currentVersion = $this->framework->escape($currentVersions[$index]);
+
+                if ($currentVersion != $latestSavedVersion) {
+                    $currentAttestation = $this->framework->escape($currentAttestations[$index]);
+                    $this->framework->log('entra-id-attestation-version', [ 'siteId' => $siteId, 'attestationVersion' => $currentVersion, 'attestation' => $currentAttestation ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error saving attestation versions', [ 'error' => $e->getMessage() ]);
+        }
     }
 }

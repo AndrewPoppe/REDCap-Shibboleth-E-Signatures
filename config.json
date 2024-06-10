@@ -77,13 +77,43 @@
             "key": "create-new-users-on-login",
             "name": "<strong>Create New Users on Login</strong>:<br>Check this box to create new users in the REDCap user table when they log in with Entra ID for the first time. If unchecked, only users that already exist in the REDCap user table will be able to log in with Entra ID",
             "tt_name": "create_new_users_on_login",
-            "type": "checkbox"
+            "type": "checkbox",
+            "branchingLogic": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "complete"
+                    },
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "modified"
+                    }
+                ]
+            }
         },
         {
             "key": "convert-table-user-to-entraid-user",
             "name": "<strong>Convert Table User to Entra ID User</strong>:<br>Check this box to convert an existing table user to an Entra ID user upon first login via Entra ID",
             "tt_name": "convert_table_user_to_entraid_user",
-            "type": "checkbox"
+            "type": "checkbox",
+            "branchingLogic": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "complete"
+                    },
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "modified"
+                    }
+                ]
+            }
         },
         {
             "key": "entraid-greater-section",
@@ -127,7 +157,22 @@
                     "key": "entraid-login-button-logo",
                     "name": "<strong><span class='entraid-label'>Entra ID Site</span> Login Button Logo</strong>:<br>Upload a logo to display on the login button for <span class='entraid-label'>this Entra ID Site</span>",
                     "tt_name": "entraid_login_button_logo",
-                    "type": "file"
+                    "type": "file",
+                    "branchingLogic": {
+                        "type": "or",
+                        "conditions": [
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "complete"
+                            },
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "modified"
+                            }
+                        ]
+                    }
                 },
                 {
                     "key": "entraid-ad-tenant-id",
@@ -193,25 +238,85 @@
                             "name": "On every login (only if needed)",
                             "tt_name": "attestation_every_login"
                         }
-                    ]
+                    ],
+                    "branchingLogic": {
+                        "type": "or",
+                        "conditions": [
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "complete"
+                            },
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "modified"
+                            }
+                        ]
+                    }
                 },
                 {
                     "key": "entraid-attestation-text",
                     "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation Text</strong>:<br>Enter the text to display on the attestation page for this <span class='entraid-label'>Entra ID Site</span>",
                     "tt_name": "entraid_attestation_text",
-                    "type": "rich-text"
+                    "type": "rich-text",
+                    "branchingLogic": {
+                        "type": "or",
+                        "conditions": [
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "complete"
+                            },
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "modified"
+                            }
+                        ]
+                    }
                 },
                 {
                     "key": "entraid-attestation-checkbox-text",
                     "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation Checkbox Text</strong>:<br>Enter the text to display next to the checkbox on the attestation page for this <span class='entraid-label'>Entra ID Site</span>",
                     "tt_name": "entraid_attestation_checkbox_text",
-                    "type": "text"
+                    "type": "text",
+                    "branchingLogic": {
+                        "type": "or",
+                        "conditions": [
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "complete"
+                            },
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "modified"
+                            }
+                        ]
+                    }
                 },
                 {
                     "key": "entraid-attestation-version",
                     "name": "<strong><span class='entraid-label'>Entra ID Site</span> Entra ID Attestation Version</strong>:<br>Enter the version number/label for the attestation text for this <span class='entraid-label'>Entra ID Site</span>. If you want users to re-attest to the terms of use, change this value",
                     "tt_name": "entraid_attestation_version",
-                    "type": "text"
+                    "type": "text",
+                    "branchingLogic": {
+                        "type": "or",
+                        "conditions": [
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "complete"
+                            },
+                            {
+                                "field": "custom-login-page-type",
+                                "op": "=",
+                                "value": "modified"
+                            }
+                        ]
+                    }
                 }
             ]
         }
