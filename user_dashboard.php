@@ -26,10 +26,10 @@ table.dataTable#users-table tbody tr.selected:hover>* {
 <div class="container">
     <div class="d-flex flex-row mb-3">
             <img class="mr-2" src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>" alt="EntraID Logo" class="img-fluid" style="width: 64px;">
-            <h1 class="align-self-center">EntraID Users</h1>
+            <h1 class="align-self-center"><?= $module->framework->tt('entraid_users') ?></h1>
     </div>
     <div class="mb-2">
-        <p>Below is a list of all users in the system and their EntraID status.</p>
+        <p><?= $module->framework->tt('dashboard_1') ?></p>
     </div>
     <div class="border border-secondary-subtle p-3 rounded-2">
         <div class="d-flex flex-row mb-3">

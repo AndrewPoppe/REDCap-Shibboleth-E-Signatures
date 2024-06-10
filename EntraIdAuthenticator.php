@@ -26,7 +26,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $action === 'handleAttestation' ) {
             $username = $this->framework->escape($payload['username']);
             $siteId = $this->framework->escape($payload['siteId']);
-            return $this->handleAttestation($username, $siteId);
+            $logId = $this->framework->escape($payload['logId']);
+            if ($this->checkAttestationRequest($username, $siteId, $logId) === true) {
+                return $this->handleAttestation($username, $siteId);
+            } else {
+                return false;
+            }
         }
 
         // Admins only
@@ -166,7 +171,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Force custom attestation page if needed
             if ($this->needsAttestation($userid, $siteId)) {
-                $this->showAttestationPage($siteId , $originUrl, $userdata);
+                $logId = $this->framework->log('Entra ID REDCap Authenticator: Needs Attestation', [
+                    "userid" => $userid,
+                    "siteId" => $siteId
+                ]);
+                $this->showAttestationPage($siteId , $originUrl, $userdata , $logId);
                 return false;
             }
 
@@ -291,19 +300,19 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         $userExists = $this->userExists($userid);
         $showAttestationSetting = $site['showAttestation'];
         $createUsers = $this->framework->getSystemSetting('create-new-users-on-login');
-
+        $userAttested = $this->userAttested($userid, $site);
 
         // User is going to be created
         if ( 
             !$userExists && 
             $showAttestationSetting > 0 &&
-            $createUsers == 1
+            $createUsers == 1 &&
+            !$userAttested
         ) {
             return true;
         }
 
         // User is just logging in
-        $userAttested = $this->userAttested($userid, $site);
         if (
             $userExists && 
             $showAttestationSetting == 2 &&
@@ -311,9 +320,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         ) {
             return true;
         }
+
+        return false;
     }
 
-    private function showAttestationPage($siteId, $originUrl, $userdata)
+    private function showAttestationPage($siteId, $originUrl, $userdata, $logId)
     {
         $settings = new EntraIdSettings($this);
         $site     = $settings->getSettings($siteId);
@@ -333,6 +344,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             <head>
                 <link href="<?= $cssPath ?>" rel="stylesheet">
                 <style>
+                    body {
+                        height: 100%;
+                        margin: 0;
+                    }
                     div.attestation-container {
                         display: flex;
                         flex-direction: column;
@@ -360,11 +375,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     <div class="attestation-submit">
                         <button id= "attestation-submit-button" type="button" disabled><?= $this->framework->tt('submit') ?></button>
                     </div>
-                    <div class="hidden-elements">
-                        <input type="hidden" id="originUrl" value="<?= $originUrl ?>">
-                        <input type="hidden" id="siteId" value="<?= $site['siteId'] ?>">
-                        <input type="hidden" id="userid" value="<?= $userdata['username'] ?>">
-                    </div>
                 </div>
             </body>
         </html>
@@ -374,17 +384,16 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 document.getElementById('attestation-submit-button').addEventListener('click', function() {
                     if (document.getElementById('attestation-checkbox').checked) {
                         module.ajax('handleAttestation', {
-                            username: document.getElementById('userid').value,
-                            siteId: document.getElementById('siteId').value
+                            username: '<?= $userdata['username'] ?>',
+                            siteId: '<?= $site['siteId'] ?>',
+                            logId: '<?= $logId ?>'
                         }).then(result => {
                             if (result === true) {
-                                window.location.href = document.getElementById('originUrl').value;
+                                window.location.href = '<?= $originUrl ?>';
                             } else {
                                 console.log(result);
                             }
                         });
-                    } else {
-                        alert('<?= $this->framework->tt('error_6') ?>');
                     }
                 });
                 document.getElementById('attestation-checkbox').addEventListener('change', function() {
@@ -417,6 +426,16 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $this->framework->log('Entra ID REDCap Authenticator: Error handling attestation', [ 'error' => $e->getMessage() ]);
             return false;
         }
+    }
+
+    private function checkAttestationRequest($username, $siteId, $logId) {
+        $log = $this->framework->queryLogs('SELECT userid, siteId WHERE log_id = ?', [$logId]);
+        while ($row = $log->fetch_assoc()) {
+            if ($row['userid'] === $username && $row['siteId'] === $siteId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function getEdocFileContents($edocId)
@@ -1254,5 +1273,19 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         } catch (\Throwable $e) {
             $this->framework->log('Entra ID REDCap Authenticator: Error saving attestation versions', [ 'error' => $e->getMessage() ]);
         }
+    }
+
+    public function redcap_module_link_check_display($project_id, $link) {
+        if (!is_null($project_id)) {
+            return null;
+        }
+
+        $loginType = $this->framework->getSystemSetting('custom-login-page-type');
+        if ($loginType === 'none') {
+            return null;
+        }
+
+        return $link;
+        
     }
 }

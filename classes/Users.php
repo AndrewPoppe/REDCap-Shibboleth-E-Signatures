@@ -21,7 +21,8 @@ class Users
                     u.user_firstname,
                     u.user_lastname,
                     u.user_email,
-                    em.entraid
+                    em.entraid,
+                    at.attestation
                 FROM redcap_user_information u 
                 LEFT JOIN (
                     SELECT substring(`key`, 14) username, `value` entraid
@@ -29,8 +30,15 @@ class Users
                     WHERE external_module_id = ?
                     AND `key` like 'entraid-user-%'
                     ) em
-                ON u.username = em.username";
-            $result = $this->module->framework->query($sql, [$this->external_module_id]);
+                ON u.username = em.username
+                LEFT JOIN (
+                    SELECT substring(`key`, 21) username, `value` attestation
+                    FROM redcap_external_module_settings
+                    WHERE external_module_id = ?
+                    AND `key` like 'entraid-attestation-%'
+                    ) at
+                ON u.username = at.username";
+            $result = $this->module->framework->query($sql, [$this->external_module_id, $this->external_module_id]);
             $users = [];
             while ($row = $result->fetch_assoc()) {
                 $row['siteId'] = $row['entraid'];
@@ -40,35 +48,6 @@ class Users
                 $site = reset($site);
                 $row['authType'] = $site['authValue'];
                 $row['label'] = $site['label'];
-                $users[] = $row;
-            }
-            return $users;
-        } catch (\Exception $e) {
-            return [];
-        }
-    }
-
-    public function getUserData($userId)
-    {
-        try {
-            $sql = "SELECT 
-                    u.username, 
-                    u.user_firstname,
-                    u.user_lastname,
-                    u.user_email,
-                    em.entraid
-                FROM redcap_user_information u 
-                LEFT JOIN (
-                    SELECT substring(`key`, 14) username, `value` entraid
-                    FROM redcap_external_module_settings
-                    WHERE external_module_id = ?
-                    AND `key` like 'entraid-user-%'
-                    ) em
-                ON u.username = em.username";
-            $result = $this->module->framework->query($sql, [$this->external_module_id]);
-            $users = [];
-            while ($row = $result->fetch_assoc()) {
-                $userid = $row['username'];
                 $users[] = $row;
             }
             return $users;
