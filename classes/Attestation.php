@@ -58,7 +58,6 @@ class Attestation
             ];
             $this->module->framework->setSystemSetting('entraid-attestation-' . $this->username, json_encode($attestation));
 
-            $site                    = $this->settings->getSettings($this->siteId);
             $attestationText         = $site['attestationText'];
             $attestationCheckboxText = $site['attestationCheckboxText'];
             $this->module->framework->log('Entra ID REDCap Authenticator: Attestation', [
@@ -242,13 +241,13 @@ class Attestation
 
         // Check that the site matches
         $attestationSite = $attestation['siteId'];
-        $site            = $this->settings->getSettings($this->siteId);
-        if ( $attestationSite !== $site['siteId'] ) {
+        if ( $attestationSite !== $this->siteId) {
             return false;
         }
 
         // Check that the attestation is still valid
         $attestationVersion = $attestation['version'];
+        $site               = $this->settings->getSettings($this->siteId);
         $currentVersion     = $site['attestationVersion'];
         if ( !empty($attestationVersion) && $attestationVersion !== $currentVersion ) {
             return false;
