@@ -167,7 +167,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             // Force custom attestation page if needed
             $attestation = new Attestation($this, $userid, $siteId);
             if ($attestation->needsAttestation()) {
-                $attestation->showAttestationPage($userdata);
+                $attestation->showAttestationPage($userdata, $originUrl);
                 return false;
             }
 

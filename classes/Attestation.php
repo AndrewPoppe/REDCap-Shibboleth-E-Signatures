@@ -111,7 +111,7 @@ class Attestation
         return false;
     }
 
-    public function showAttestationPage(array $userdata)
+    public function showAttestationPage(array $userdata, string $originUrl)
     {
         $logId = $this->module->framework->log('Entra ID REDCap Authenticator: Needs Attestation', [
             "userid" => $this->username,
