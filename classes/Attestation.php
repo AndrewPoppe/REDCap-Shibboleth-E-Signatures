@@ -57,6 +57,18 @@ class Attestation
                 'date'    => defined('NOW') ? NOW : date('Y-m-d H:i:s')
             ];
             $this->module->framework->setSystemSetting('entraid-attestation-' . $this->username, json_encode($attestation));
+
+            $site                    = $this->settings->getSettings($this->siteId);
+            $attestationText         = $site['attestationText'];
+            $attestationCheckboxText = $site['attestationCheckboxText'];
+            $this->module->framework->log('Entra ID REDCap Authenticator: Attestation', [
+                'userid'                  => $this->username,
+                'siteId'                  => $this->siteId,
+                'version'                 => $version,
+                'date'                    => $attestation['date'],
+                'attestationText'         => $this->module->escape($attestationText),
+                'attestationCheckboxText' => $this->module->escape($attestationCheckboxText)
+            ]);
             return true;
         } catch ( \Throwable $e ) {
             $this->module->framework->log('Entra ID REDCap Authenticator: Error handling attestation', [ 'error' => $e->getMessage() ]);

@@ -55,6 +55,7 @@ class Authenticator
         //Checking if the state matches the session ID
         $stateMatches           = strcmp(session_id(), $session_id) == 0;
         if ( !$stateMatches ) {
+            $this->module->framework->log('EntraIdAuthenticator Authentication Error', ['error' => 'State does not match session ID']);
             return;
         }
 
@@ -75,12 +76,12 @@ class Authenticator
         $context = stream_context_create($options);
         $json    = file_get_contents("https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/token", false, $context);
         if ( $json === false ) {
-            // errorhandler(array( "Description" => "Error received during Bearer token fetch.", "PHP_Error" => error_get_last(), "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
+            $this->module->framework->log('EntraIdAuthenticator Authentication Error', ['error' => 'Error received during Bearer token fetch.']);
             return;
         }
         $authdata = json_decode($json, true);
         if ( isset($authdata["error"]) ) {
-            // errorhandler(array( "Description" => "Bearer token fetch contained an error.", "\$authdata[]" => $authdata, "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
+            $this->module->framework->log('EntraIdAuthenticator Authentication Error', ['error' => 'Bearer token fetch contained an error.']);
             return;
         }
 
@@ -102,13 +103,13 @@ class Authenticator
         $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
         $json2   = file_get_contents("https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group?\$select=displayName,id", false, $context);
         if ( $json === false ) {
-            // errorhandler(array( "Description" => "Error received during user data fetch.", "PHP_Error" => error_get_last(), "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
+            $this->module->framework->log('EntraIdAuthenticator Authentication Error', ['error' => 'Error received during user data fetch.']);
             return;
         }
 
         $userdata = json_decode($json, true);  //This should now contain your logged on user information
         if ( isset($userdata["error"]) ) {
-            // errorhandler(array( "Description" => "User data fetch contained an error.", "\$userdata[]" => $userdata, "\$authdata[]" => $authdata, "\$_GET[]" => $_GET, "HTTP_msg" => $options ), $error_email);
+            $this->module->framework->log('EntraIdAuthenticator Authentication Error', ['error' => 'User data fetch contained an error.']);
             return;
         }
 
