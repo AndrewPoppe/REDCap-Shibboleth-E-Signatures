@@ -10,8 +10,8 @@ $settings = new EntraIdSettings($module);
 $siteInfo = $settings->getSiteInfo();
 
 ?>
-<link href="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.css" rel="stylesheet">
-<script src="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.css" integrity="sha384-lluZ5q447IVGiQSlbck8r3dVX5tqlfcHYtv+dU3I8XHFdrkk8BaL4TmtN5eH30AC" crossorigin="anonymous">
+<script src="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.js" integrity="sha384-7Ta/pBTlGc9JmZ3QFnmf31bK6w0HQ53a+Wzy5LkwMYUGxSriueF1p267aoTRyaG7" crossorigin="anonymous"></script>
 <style>
 table.dataTable#users-table tbody tr.selected>*,
 table.dataTable#users-table tbody tr.selected:hover>* {

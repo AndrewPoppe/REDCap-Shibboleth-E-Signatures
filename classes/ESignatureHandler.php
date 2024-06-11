@@ -46,7 +46,7 @@ class ESignatureHandler
         $site          = $this->module->getUserType();
         $authenticator = new Authenticator($this->module, $site['siteId']);
         ?>
-        <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
+        <script src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js" integrity="sha384-hhkHFODse2T75wPL7oJ0RZ+0CgRa74LNPhgx6wO6DMNEhU3/fSbTZdVzxsgyUelp" crossorigin="anonymous"></script>
         <script>
             $(document).ready(function () {
                 var numLogins = 0;
