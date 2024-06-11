@@ -401,8 +401,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                 <div id="my_page_footer" class="text-secondary mt-4">
                                     <?= \REDCap::getCopyright() ?>
                                     <br>
-                                    <span><a href="<?= $backgroundImgLink ?>" tabindex="-1" target="_blank"
-                                            rel="noopener noreferrer"><?= $backgroundImgText ?></a>
+                                    <span><a href="<?= $backgroundImgLink ?>" tabindex="-1" target="_blank" rel="noopener noreferrer"><?= $backgroundImgText ?></a>
                                     </span>
                                 </div>
                             </div>
@@ -968,10 +967,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     }
                 });
             </script>
-            <?php
+        <?php
     }
 
-    private function showNoUserAccessPage($userid) {
+    private function showNoUserAccessPage($userid) 
+    {
         global $homepage_contact, $homepage_contact_email, $lang;
         session_unset();
         session_destroy();
@@ -1013,16 +1013,19 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <?php
     }
 
-    private function checkAllowlist($userid) {
+    private function checkAllowlist($userid) 
+    {
         global $enable_user_allowlist;
         return !$enable_user_allowlist || \Authentication::isTableUser($userid) || $this->inUserAllowlist($userid) || $userid === 'SYSTEM';
     }
 
-    private function generateSiteId() {
+    private function generateSiteId() 
+    {
         return bin2hex(random_bytes(16));
     }
 
-    public function redcap_module_configuration_settings($project_id, $settings) {
+    public function redcap_module_configuration_settings($project_id, $settings) 
+    {
         try {
             foreach ( $settings as $index => $setting ) {
                 if ( $setting['key'] === 'entraid-site' ) {
@@ -1039,7 +1042,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function redcap_module_save_configuration($project_id) {
+    public function redcap_module_save_configuration($project_id) 
+    {
         if (!empty($project_id)){
             return;
         }
@@ -1064,7 +1068,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         Attestation::saveAttestationVersions($siteIds, $this);
     }
 
-    public function redcap_module_link_check_display($project_id, $link) {
+    public function redcap_module_link_check_display($project_id, $link) 
+    {
         if (!is_null($project_id)) {
             return null;
         }
