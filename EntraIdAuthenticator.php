@@ -167,7 +167,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             // Force custom attestation page if needed
             $attestation = new Attestation($this, $userid, $siteId);
             if ($attestation->needsAttestation()) {
-                $attestation->showAttestationPage();
+                $attestation->showAttestationPage($userdata);
                 return false;
             }
 
@@ -520,7 +520,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function userExists($userid)
+    public function userExists($userid)
     {
         $SQL = 'SELECT 1 FROM redcap_user_information WHERE username = ?';
         $q   = $this->framework->query($SQL, [ $userid ]);
