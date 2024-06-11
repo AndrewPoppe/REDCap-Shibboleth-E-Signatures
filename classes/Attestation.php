@@ -187,7 +187,7 @@ class Attestation
                             logId: '<?= $logId ?>'
                         }).then(result => {
                             if (result === true) {
-                                window.location.href = '<?= $originUrl ?>';
+                                window.location.href = decodeURIComponent("<?= urlencode($originUrl) ?>");
                             } else {
                                 console.log(result);
                             }
