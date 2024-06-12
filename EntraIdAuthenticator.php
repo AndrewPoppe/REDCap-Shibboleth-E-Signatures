@@ -17,6 +17,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
     static $AUTH_QUERY = 'authtype';
+    static $SITEID_QUERY = 'sid';
     static $LOCAL_AUTH = 'local';
     static $ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
 
@@ -66,32 +67,22 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function redcap_every_page_before_render($project_id = null)
     {
         try {
-            $page = defined('PAGE') ? PAGE : null;
-            if ( empty($page) ) {
+            $page = defined('PAGE') ? PAGE : null;            
+            if ( empty($page) ) {                
                 return;
-            }
-
-            if ( isset($_GET['logout']) && $_GET['logout'] ) {
+            }            
+            if ($this->resettingPassword($page)) {                
+                return;
+            }            
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {                
+                return;
+            }            
+            if ( isset($_GET['logout']) && $_GET['logout'] ) {                
                 \Authentication::checkLogout();
                 return;
-            }
-
-            // TODO: CLEAN THIS UP
-            if ( defined('USERID') && $_GET['authtype'] === 'local' ) {
-                $userid = USERID;
-                $siteId = filter_input(INPUT_GET, 'sid', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-                if (empty($siteId)) {
-                    $url = $this->stripQueryParameter($this->curPageURL(), 'authtype');
-                    $url = $this->addQueryParameter($url, 'logout', '1');
-                    $this->redirectAfterHook($url);
-                    return;
-                }
-                $attestation = new Attestation($this, $userid, $siteId);
-                if ( $attestation->needsAttestation() ) {
-                    $attestation->showAttestationPage(['username' => $userid], $this->curPageURL());
-                    $this->exitAfterHook();
-                    return;
-                }
+            }            
+            if (defined('USERID') && USERID === 'SYSTEM') {                
+                return;
             }
 
             // Handle E-Signature form action
@@ -105,11 +96,27 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Already logged in to REDCap
             if ( $this->isLoggedIntoREDCap() ) {
-                if ( $this->doingLocalLogin() ) {
-                    $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$AUTH_QUERY);
-                    $this->redirectAfterHook($cleanUrl);
+                $userid = $this->getUserId();
+                $userType = $this->getUserType($userid);
+                if ( $this->doingLocalLogin() || $userType['authValue'] === self::$LOCAL_AUTH ) {
+                    // Local/LDAP user just logged in - Check if attestation is needed
+                    $siteId = $this->inferSiteId($userType);
+                    if ( isset($_GET[self::$SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1) {
+                        $this->setEntraIdUser($userid, $siteId);
+                    }
+                    $attestation = new Attestation($this, $userid, $siteId);
+                    if ( $attestation->needsAttestationLocal() ) {
+                        $attestation->showAttestationPage(['username' => $userid], $this->curPageURL());
+                        $this->exitAfterHook();
+                        return;
+                    }
+                    // Otherwise just redirect to the page without the auth query
+                    if ( isset($_GET[self::$AUTH_QUERY]) ) {
+                        $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$AUTH_QUERY);
+                        $cleanUrl = $this->stripQueryParameter($cleanUrl, self::$SITEID_QUERY);
+                        $this->redirectAfterHook($cleanUrl);
+                    }
                 }
-                $userid = $this->framework->getUser()->getUsername();
                 if ( !$this->checkAllowlist($userid) ) {
                     $this->showNoUserAccessPage($userid);
                     $this->framework->exitAfterHook();
@@ -256,10 +263,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_data_entry_form()
     {
-        $user = $this->framework->getUser();
-        if ( !$this->isEntraIdUser($user->getUsername()) || 
+        $username = $this->getUserId();
+        if ( !$this->isEntraIdUser($username) || 
             $this->framework->getSystemSetting('custom-login-page-type') === 'none' ||
-            $this->getUserType($user->getUsername())['authType'] === self::$LOCAL_AUTH
+            $this->getUserType($username)['authType'] === self::$LOCAL_AUTH
         ) {
             return;
         }
@@ -582,13 +589,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function getUserType($username = null) : array
     {
         if ( $username === null ) {
-            $username = $this->framework->getUser()->getUsername();
+            $username = $this->getUserId();
         }
         $siteId = $this->framework->getSystemSetting('entraid-user-' . $username);
         if ( $siteId ) {
             $site = (new EntraIdSettings($this))->getSettings($siteId);
             return [
                 'siteId'   => $siteId,
+                'authValue' => $site['authValue'],
                 'authType' => $site['authValue'],
                 'label'    => $site['label']
             ];
@@ -596,6 +604,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( \Authentication::isTableUser($username) ) {
             return [
                 'siteId'   => false,
+                'authValue' => 'local',
                 'authType' => 'table',
                 'label'    => 'Table User'
             ];
@@ -603,12 +612,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $this->inUserAllowlist($username) ) {
             return [
                 'siteId'   => false,
+                'authValue' => 'local',
                 'authType' => 'allowlist',
                 'label'    => 'Allowlisted User'
             ];
         }
         return [
             'siteId'   => false,
+            'authValue' => 'local',
             'authType' => 'unknown',
             'label'    => 'Unknown'
         ];
@@ -757,6 +768,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         })) > 0;
     }
 
+    private function inAuthenticateFunction() 
+    {
+        return sizeof(array_filter(debug_backtrace(), function ($value) {
+            return $value['function'] == 'authenticate';
+        })) > 0;
+    }
+
     private function setUserCreationTimestamp($userid)
     {
         try {
@@ -790,7 +808,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function isLoggedIntoREDCap()
     {
-        return (defined('USERID') && USERID !== '') || $this->framework->isAuthenticated();
+        return (defined('USERID') && USERID !== '') || $this->framework->isAuthenticated();// || isset($_SESSION['username']);
     }
 
     private function needsCustomLogin(string $page)
@@ -820,31 +838,41 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function resettingPassword(string $page)
     {
-        return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || $page == 'Authentication/password_recovery.php';
+        return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || 
+            $page == 'Authentication/password_recovery.php' || 
+            $page == 'Authentication/password_reset.php' ||
+            $page == 'Profile/user_info_action.php';
     }
 
     private function addReplaceLogoutLinkScript()
     {
-        $username = $this->framework->getUser()->getUsername();
-        if ( !$this->isEntraIdUser($username) || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
-            return;
-        }
-        $logout_url = $this->framework->getUrl('logout.php');
-        ?>
-            <script>
-                $(document).ready(function () {
-                    const link = document.querySelector('#nav-tab-logout a');
-                    if (link) {
-                        link.href = '<?= $logout_url ?>';
-                    }
+        try {
+            if (!$this->isLoggedIntoREDCap()) {
+                return;
+            }
+            $username = $this->getUserId();
+            if ( !$this->isEntraIdUser($username) || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
+                return;
+            }
+            $logout_url = $this->framework->getUrl('logout.php');
+            ?>
+                <script>
+                    $(document).ready(function () {
+                        const link = document.querySelector('#nav-tab-logout a');
+                        if (link) {
+                            link.href = '<?= $logout_url ?>';
+                        }
 
-                    const projectLink = document.querySelector('#username-reference ~ span a');
-                    if (projectLink) {
-                        projectLink.href = '<?= $logout_url ?>';
-                    }
-                });
-            </script>
-            <?php
+                        const projectLink = document.querySelector('#username-reference ~ span a');
+                        if (projectLink) {
+                            projectLink.href = '<?= $logout_url ?>';
+                        }
+                    });
+                </script>
+                <?php
+        } catch ( \Throwable $e ) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error adding replace logout link script', [ 'error' => $e->getMessage() ]);
+        }
     }
 
     private function modifyLoginPage(string $redirect)
@@ -939,7 +967,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                                                 '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                                                                 '<span class="login-label">' . $site['label'] . '</span>';
                                                             $redirect = $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
-                                                            $redirect = $this->addQueryParameter($redirect, 'sid', $site['siteId']);
+                                                            $redirect = $this->addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
                                                             ?>
                                                                     <li class="list-group-item list-group-item-action login-option"
                                                                     onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
@@ -1101,5 +1129,56 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
         return $link;
         
+    }
+
+    private function getSiteIdFromAuthValue($authValue = '') : string
+    {
+        try {
+            $settings = new EntraIdSettings($this);
+            $site = $settings->getSettingsByAuthValue($authValue ?? '');
+            return $site['siteId'] ?? '';
+        } catch (\Throwable $e) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            return '';
+        }
+    }
+
+    private function inferSiteId(array $userType = []) {
+        $siteId = filter_input(INPUT_GET, self::$SITEID_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+        if ($this->verifySiteId($siteId)) {
+            return $siteId;
+        }
+        $siteId = $this->getSiteIdFromAuthValue($_GET[self::$AUTH_QUERY]);
+        if ($this->verifySiteId($siteId)) {
+            return $siteId;
+        }
+        $siteId = $userType['siteId'];
+        if ($siteId) {
+            return $siteId;
+        }
+        return null;
+    }
+
+    private function verifySiteId($siteId) {
+        if (empty($siteId)) {
+            return false;
+        }
+        $settings = new EntraIdSettings($this);
+        $site = $settings->getSettings($siteId);
+        return $site['siteId'] === $siteId;
+    }
+
+    public function getUserId() {
+        try {
+            if (isset($_SESSION['username'])) {
+                return $_SESSION['username'];
+            } elseif (defined('USERID') && USERID !== '') {
+                return USERID;
+            } else {
+                return $this->framework->getUser()->getUsername();
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

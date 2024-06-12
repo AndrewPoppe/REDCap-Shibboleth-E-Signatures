@@ -43,7 +43,7 @@ class Attestation
     private function handleAttestation()
     {
         try {
-            if ( empty($this->username) || empty($this->siteId) ) {
+            if ( empty($this->username) ) {
                 return false;
             }
             $site = $this->settings->getSettings($this->siteId);
@@ -77,23 +77,20 @@ class Attestation
 
     public function needsAttestation()
     {
-        $site = $this->settings->getSettings($this->siteId);
-
-        $loginPageType = $this->module->framework->getSystemSetting('custom-login-page-type');
-        if ( $loginPageType === 'none' ) {
+        if ( $this->getLoginPageType() === 'none' ) {
             return false;
         }
 
         $userExists             = $this->module->userExists($this->username);
-        $showAttestationSetting = $site['showAttestation'];
-        $createUsers            = $this->module->framework->getSystemSetting('create-new-users-on-login');
-        $userAttested           = $this->userAttested();
+        $showAttestationSetting = $this->getAttestationSetting();
+        $createUsers            = $this->createUsersOnLogin();
+        $userAttested           = $this->isUserAttestationCurrent();
 
         // User is going to be created
         if (
             !$userExists &&
             $showAttestationSetting > 0 &&
-            $createUsers == 1 &&
+            $createUsers &&
             !$userAttested
         ) {
             return true;
@@ -111,6 +108,48 @@ class Attestation
         return false;
     }
 
+    private function getAttestationSetting() {
+        $site = $this->settings->getSettings($this->siteId);
+        return $site['showAttestation'];
+    }
+
+    private function getLoginPageType() {
+        return $this->module->framework->getSystemSetting('custom-login-page-type');
+    }
+
+    private function createUsersOnLogin() {
+        return $this->module->framework->getSystemSetting('create-new-users-on-login') == 1;
+    }
+
+    private function isLocalLogin() {
+        return $_GET[EntraIdAuthenticator::$AUTH_QUERY] === EntraIdAuthenticator::$LOCAL_AUTH;
+    }
+
+    private function userWasJustCreated() {
+        $userInfo = \User::getUserInfo($this->username);
+        $this->module->log('userinfo', [ 'userinfo' => json_encode($userInfo, JSON_PRETTY_PRINT) ]);
+        return empty($userInfo) || $userInfo['user_email'] == "" || ($userInfo['user_email'] != "" && $userInfo['email_verify_code'] != "");
+    }
+    
+    public function needsAttestationLocal() {
+        $attestationSetting = $this->getAttestationSetting();
+        if ( $this->getLoginPageType() === 'none' || $attestationSetting == 0 ) {
+            return false;
+        }
+
+        if ( !$this->everAttested() ) {
+            return true;
+        }
+
+        if ($attestationSetting == 2 && !$this->isUserAttestationCurrent()) {
+            return true;
+        }
+
+        return false;
+    }
+
+
+
     public function showAttestationPage(array $userdata, string $originUrl)
     {
         $logId = $this->module->framework->log('Entra ID REDCap Authenticator: Needs Attestation', [
@@ -119,9 +158,6 @@ class Attestation
         ]);
 
         $site = $this->settings->getSettings($this->siteId);
-
-        // TODO: THIS IS A WORKAROUND TO A BUG IN EM FRAMEWORK - REMOVE WHEN FIXED
-        require_once APP_PATH_DOCROOT . "ExternalModules/manager/templates/hooks/every_page_top.php";
 
         $attestationHtml         = \REDCap::filterHtml($site['attestationText']);
         $attestationCheckboxText = \REDCap::filterHtml($site['attestationCheckboxText']);
@@ -157,6 +193,11 @@ class Attestation
                     margin-bottom: 10px;
                 }
             </style>
+            <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+            <?php 
+                // TODO: THIS IS A WORKAROUND TO A BUG IN EM FRAMEWORK - REMOVE WHEN FIXED
+                require_once APP_PATH_DOCROOT . "ExternalModules/manager/templates/hooks/every_page_top.php";
+            ?>
         </head>
 
         <body>
@@ -225,7 +266,7 @@ class Attestation
         }
     }
 
-    private function userAttested()
+    private function isUserAttestationCurrent()
     {
         if ( empty($this->username) ) {
             return false;
@@ -253,6 +294,17 @@ class Attestation
             return false;
         }
 
+        return true;
+    }
+
+    private function everAttested() {
+        if ( empty($this->username) ) {
+            return false;
+        }
+        $attestationText = $this->module->framework->getSystemSetting('entraid-attestation-' . $this->username);
+        if ( empty($attestationText) ) {
+            return false;
+        }
         return true;
     }
 

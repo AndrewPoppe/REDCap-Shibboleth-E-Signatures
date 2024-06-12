@@ -12,9 +12,10 @@ class EntraIdSettings
 
     public function getSettings(string $siteId)
     {
-        if ( empty($siteId) ) {
+        if ( empty($siteId) || $siteId === $this->module::$LOCAL_AUTH) {
             return [
                 'authValue'               => $this->module::$LOCAL_AUTH,
+                'siteId'                  => $this->module::$LOCAL_AUTH,
                 'label'                   => 'Local',
                 'loginButtonLogo'         => '',
                 'adTenantId'              => '',
@@ -24,10 +25,10 @@ class EntraIdSettings
                 'redirectUrlSpa'          => '',
                 'logoutUrl'               => '',
                 'allowedGroups'           => '',
-                'showAttestation'         => '',
-                'attestationText'         => '',
-                'attestationCheckboxText' => '',
-                'attestationVersion'      => '',
+                'showAttestation'         => $this->module->getSystemSetting('entraid-attestation-default') ?? '',
+                'attestationText'         => $this->module->getSystemSetting('entraid-attestation-text-default') ?? '',
+                'attestationCheckboxText' => $this->module->getSystemSetting('entraid-attestation-checkbox-text-default') ?? '',
+                'attestationVersion'      => $this->module->getSystemSetting('entraid-attestation-version-default') ?? '',
             ];
         }
         $settings = $this->getAllSettings();
@@ -39,6 +40,11 @@ class EntraIdSettings
 
     public function getSettingsByAuthValue(string $authValue)
     {
+
+        if (empty($authValue) || $authValue === $this->module::$LOCAL_AUTH) {
+            return $this->getSettings($this->module::$LOCAL_AUTH);
+        }
+
         $settings = $this->getAllSettings();
         $sites    = array_filter($settings, function ($setting) use ($authValue) {
             return $setting['authValue'] === $authValue;
@@ -81,9 +87,9 @@ class EntraIdSettings
                 'logoutUrl'               => $logoutUrls[$i],
                 'allowedGroups'           => $allowedGroupss[$i],
                 'showAttestation'         => $showAttestation[$i],
-                'attestationText'         => $attestationText[$i],
-                'attestationCheckboxText' => $attestationCheckboxText[$i],
-                'attestationVersion'      => $attestationVersion[$i],
+                'attestationText'         => $attestationText[$i] ?? $this->module->getSystemSetting('entraid-attestation-text-default') ?? '',
+                'attestationCheckboxText' => $attestationCheckboxText[$i] ?? $this->module->getSystemSetting('entraid-attestation-checkbox-text-default') ?? '',
+                'attestationVersion'      => $attestationVersion[$i] ?? $this->module->getSystemSetting('entraid-attestation-version-default') ?? '',
             ];
         }
         return $settings;

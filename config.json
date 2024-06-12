@@ -116,6 +116,107 @@
             }
         },
         {
+            "key": "entraid-attestation-default",
+            "name": "<strong>Default User Attestation</strong>:<br>This setting forces the user to attest to terms of use by default before accessing the system. If set to 'On account creation', the user will be forced to attest to the terms of use when their account is created (<em>Note: this has no effect if the \"Create New Users on Login\" setting is not active</em>). If set to 'On every login (only if needed)', the user will be forced to attest to the terms of use when they log in each time the version of the attestation changes.<br>This can be overridden on a per-site basis",
+            "tt_name": "entraid_attestation_default",
+            "type": "radio",
+            "choices": [
+                {
+                    "value": 0,
+                    "name": "No Attestation",
+                    "tt_name": "no_attestation"
+                },
+                {
+                    "value": 1,
+                    "name": "On account creation",
+                    "tt_name": "attestation_at_creation"
+                },
+                {
+                    "value": 2,
+                    "name": "On every login (only if needed)",
+                    "tt_name": "attestation_every_login"
+                }
+            ],
+            "branchingLogic": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "complete"
+                    },
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "modified"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "entraid-attestation-text-default",
+            "name": "<strong>Default Attestation Text</strong>:<br>Enter the text to display on the default attestation page",
+            "tt_name": "entraid_attestation_text_default",
+            "type": "rich-text",
+            "branchingLogic": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "complete"
+                    },
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "modified"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "entraid-attestation-checkbox-text-default",
+            "name": "<strong>Default Attestation Checkbox Text</strong>:<br>Enter the text to display next to the checkbox on the default attestation page",
+            "tt_name": "entraid_attestation_checkbox_text_default",
+            "type": "text",
+            "branchingLogic": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "complete"
+                    },
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "modified"
+                    }
+                ]
+            }
+        },
+        {
+            "key": "entraid-attestation-version-default",
+            "name": "<strong>Default Attestation Version</strong>:<br>Enter the version number/label for the default attestation text. If you want users to re-attest to the terms of use, change this value",
+            "tt_name": "entraid_attestation_version_default",
+            "type": "text",
+            "branchingLogic": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "complete"
+                    },
+                    {
+                        "field": "custom-login-page-type",
+                        "op": "=",
+                        "value": "modified"
+                    }
+                ]
+            }
+        },
+        {
             "key": "entraid-greater-section",
             "name": "<div class='redcap-authenticator-descriptive p-2' style='background-color:#00356b; color:#f9f9f9; border-radius: 0.375rem; text-align: center;'><svg id=\"uuid-f8d4d392-7c12-4bd9-baff-66fbf7814b91\" data-name=\"Layer 1\" xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 18 18\">            <path d=\"m3.802,14.032c.388.242,1.033.511,1.715.511.621,0,1.198-.18,1.676-.487,0,0,.001,0,.002-.001l1.805-1.128v4.073c-.286,0-.574-.078-.824-.234l-4.374-2.734Z\" fill=\"#225086\"/>            <path d=\"m7.853,1.507L.353,9.967c-.579.654-.428,1.642.323,2.111,0,0,2.776,1.735,3.126,1.954.388.242,1.033.511,1.715.511.621,0,1.198-.18,1.676-.487,0,0,.001,0,.002-.001l1.805-1.128-4.364-2.728,4.365-4.924V1s0,0,0,0c-.424,0-.847.169-1.147.507Z\" fill=\"#6df\"/>            <polygon points=\"4.636 10.199 4.688 10.231 9 12.927 9.001 12.927 9.001 12.927 9.001 5.276 9 5.275 4.636 10.199\" fill=\"#cbf8ff\"/>            <path d=\"m17.324,12.078c.751-.469.902-1.457.323-2.111l-4.921-5.551c-.397-.185-.842-.291-1.313-.291-.925,0-1.752.399-2.302,1.026l-.109.123h0s4.364,4.924,4.364,4.924h0s0,0,0,0l-4.365,2.728v4.073c.287,0,.573-.078.823-.234l7.5-4.688Z\" fill=\"#074793\"/>            <path d=\"m9.001,1v4.275s.109-.123.109-.123c.55-.627,1.377-1.026,2.302-1.026.472,0,.916.107,1.313.291l-2.579-2.909c-.299-.338-.723-.507-1.146-.507Z\" fill=\"#0294e4\"/>            <polygon points=\"13.365 10.199 13.365 10.199 13.365 10.199 9.001 5.276 9.001 12.926 13.365 10.199\" fill=\"#96bcc2\"/>          </svg>&nbsp;<strong>Entra ID Details</strong><br>This section is used to configure the Entra ID connections for your sites.<script>document.querySelectorAll('.redcap-authenticator-descriptive').forEach(el => el.parentElement.style.width = '100%'); function updateLabels() {$('.sub_start').each((i,section) => {let label = $(section).nextAll('tr[field=\"entraid-label\"]').eq(0).find('input').val(); if (label === '') label = 'Entra ID Site';$(section).nextUntil('.sub_end').each((i, tr) => $(tr).find('span.entraid-label').text(label))})}; updateLabels();</script></div>",
             "tt_name": "entraid_greater_section",
