@@ -993,19 +993,57 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function addCustomLoginLinkScript()
     {
+        $siteId = $this->inferSiteId([]);
+        if (!empty($siteId) && $siteId !== self::$LOCAL_AUTH) {
+            $customLogin = true;
+            $settings = new EntraIdSettings($this);
+            $site = $settings->getSettings($siteId);
+            $logoImg = $site['loginButtonLogo'] ?
+                            '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                            '<span class="login-label">' . $site['label'] . '</span>';
+        }
         ?>
+            <style>
+                .login-logo,
+                .login-label {
+                    width: 312.5px;
+                    height: 53px;
+                    object-fit: contain;
+                    display: flex;
+                    justify-content: space-evenly;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
+
+                .login-label {
+                    font-weight: bold;
+                }
+            </style>
             <script>
                 document.addEventListener("DOMContentLoaded", function () {
                     const loginForm = document.querySelector('#rc-login-form form[name="form"]');
                     if (loginForm) {
+
+                        <?php if ($customLogin) { ?>
+                            // Add Logo / label
+                            const logoImg = $('<?= $logoImg ?>');
+                            loginForm.parentElement.prepend(logoImg.get(0));
+
+                            // Remove password reset link
+                            loginForm.querySelector('a').remove();
+                            document.getElementById('login_btn').parentElement.style.marginLeft = '140px';
+                        <?php } ?>
+
+
                         const link = document.createElement('a');
 
                         const url = new URL(window.location);
                         const p = url.searchParams;
                         p.delete('<?= self::$AUTH_QUERY ?>');
+                        p.delete('<?= self::$SITEID_QUERY ?>');
 
                         link.href = url.href;
-                        link.innerText = '<?= $this->framework->tt('login_2') ?>';
+                        link.innerText = '<?= $this->framework->tt($customLogin ? 'login_3' : 'login_2') ?>';
                         link.classList.add('text-primary', 'text-center');
                         link.style.display = 'block';
                         link.style.marginTop = '10px';
