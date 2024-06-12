@@ -337,7 +337,8 @@
         "convertTableUsersToEntraIdUsers",
         "convertEntraIdUsertoTableUser",
         "convertEntraIdUsersToTableUsers",
-        "getEntraIdUsers"
+        "getEntraIdUsers",
+        "handleAttestation"
     ],
     "no-auth-ajax-actions": [
         "handleAttestation"

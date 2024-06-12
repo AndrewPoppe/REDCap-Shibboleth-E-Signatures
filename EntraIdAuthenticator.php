@@ -76,6 +76,24 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
+            // TODO: CLEAN THIS UP
+            if ( defined('USERID') && $_GET['authtype'] === 'local' ) {
+                $userid = USERID;
+                $siteId = filter_input(INPUT_GET, 'sid', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+                if (empty($siteId)) {
+                    $url = $this->stripQueryParameter($this->curPageURL(), 'authtype');
+                    $url = $this->addQueryParameter($url, 'logout', '1');
+                    $this->redirectAfterHook($url);
+                    return;
+                }
+                $attestation = new Attestation($this, $userid, $siteId);
+                if ( $attestation->needsAttestation() ) {
+                    $attestation->showAttestationPage(['username' => $userid], $this->curPageURL());
+                    $this->exitAfterHook();
+                    return;
+                }
+            }
+
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $site              = $this->getUserType();
@@ -920,9 +938,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                                             $loginImg = $site['loginButtonLogo'] ?
                                                                 '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                                                                 '<span class="login-label">' . $site['label'] . '</span>';
+                                                            $redirect = $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
+                                                            $redirect = $this->addQueryParameter($redirect, 'sid', $site['siteId']);
                                                             ?>
                                                                     <li class="list-group-item list-group-item-action login-option"
-                                                                    onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
+                                                                    onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
                                                                     <?= $loginImg ?>
                                                                 </li>
                                                         <?php } ?>
