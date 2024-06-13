@@ -76,8 +76,8 @@ class EntraIdSettings
         for ( $i = 0; $i < $nSites; $i++ ) {
             $settings[] = [
                 'siteId'                  => $siteIds[$i],
-                'authValue'               => $authValues[$i],
-                'label'                   => $labels[$i],
+                'authValue'               => $this->module->framework->escape($authValues[$i]),
+                'label'                   => $this->module->framework->escape($labels[$i]),
                 'loginButtonLogo'         => $loginButtonLogos[$i],
                 'adTenantId'              => $adTenantIds[$i],
                 'clientId'                => $clientIds[$i],

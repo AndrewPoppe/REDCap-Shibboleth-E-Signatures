@@ -1006,7 +1006,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             <style>
                 .login-logo,
                 .login-label {
-                    width: 312.5px;
+                    max-width: 350px;
                     height: 53px;
                     object-fit: contain;
                     display: flex;
