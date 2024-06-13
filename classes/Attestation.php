@@ -161,7 +161,7 @@ class Attestation
 
         $attestationHtml         = \REDCap::filterHtml($site['attestationText']);
         $attestationCheckboxText = \REDCap::filterHtml($site['attestationCheckboxText']);
-        $cssPath                 = APP_PATH_WEBROOT_FULL . APP_PATH_CSS . 'style.css';
+        $cssPath                 = APP_PATH_CSS . 'style.css';
         $this->module->framework->initializeJavascriptModuleObject();
         $this->module->framework->tt_transferToJavascriptModuleObject();
         ?>
