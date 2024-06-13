@@ -108,30 +108,36 @@ class Attestation
         return false;
     }
 
-    private function getAttestationSetting() {
+    private function getAttestationSetting()
+    {
         $site = $this->settings->getSettings($this->siteId);
         return $site['showAttestation'];
     }
 
-    private function getLoginPageType() {
+    private function getLoginPageType()
+    {
         return $this->module->framework->getSystemSetting('custom-login-page-type');
     }
 
-    private function createUsersOnLogin() {
+    private function createUsersOnLogin()
+    {
         return $this->module->framework->getSystemSetting('create-new-users-on-login') == 1;
     }
 
-    private function isLocalLogin() {
+    private function isLocalLogin()
+    {
         return $_GET[EntraIdAuthenticator::$AUTH_QUERY] === EntraIdAuthenticator::$LOCAL_AUTH;
     }
 
-    private function userWasJustCreated() {
+    private function userWasJustCreated()
+    {
         $userInfo = \User::getUserInfo($this->username);
         $this->module->log('userinfo', [ 'userinfo' => json_encode($userInfo, JSON_PRETTY_PRINT) ]);
         return empty($userInfo) || $userInfo['user_email'] == "" || ($userInfo['user_email'] != "" && $userInfo['email_verify_code'] != "");
     }
-    
-    public function needsAttestationLocal() {
+
+    public function needsAttestationLocal()
+    {
         $attestationSetting = $this->getAttestationSetting();
         if ( $this->getLoginPageType() === 'none' || $attestationSetting == 0 ) {
             return false;
@@ -141,7 +147,7 @@ class Attestation
             return true;
         }
 
-        if ($attestationSetting == 2 && !$this->isUserAttestationCurrent()) {
+        if ( $attestationSetting == 2 && !$this->isUserAttestationCurrent() ) {
             return true;
         }
 
@@ -161,6 +167,8 @@ class Attestation
 
         $attestationHtml         = \REDCap::filterHtml($site['attestationText']);
         $attestationCheckboxText = \REDCap::filterHtml($site['attestationCheckboxText']);
+        $bsCssPath               = APP_PATH_WEBPACK . 'css/bootstrap.min.css';
+        $bsJsPath = APP_PATH_WEBPACK . 'js/bootstrap.min.js';
         $cssPath                 = APP_PATH_CSS . 'style.css';
         $this->module->framework->initializeJavascriptModuleObject();
         $this->module->framework->tt_transferToJavascriptModuleObject();
@@ -170,6 +178,11 @@ class Attestation
         <html lang="en">
 
         <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?= $this->module->framework->tt('user_attestation') ?></title>
+            <link href="<?= $bsCssPath ?>" rel="stylesheet">
+            <script src="<?= $bsJsPath ?>"></script>
             <link href="<?= $cssPath ?>" rel="stylesheet">
             <style>
                 body {
@@ -193,10 +206,11 @@ class Attestation
                     margin-bottom: 10px;
                 }
             </style>
-            <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
-            <?php 
-                // TODO: THIS IS A WORKAROUND TO A BUG IN EM FRAMEWORK - REMOVE WHEN FIXED
-                require_once APP_PATH_DOCROOT . "ExternalModules/manager/templates/hooks/every_page_top.php";
+            <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
+                integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+            <?php
+            // TODO: THIS IS A WORKAROUND TO A BUG IN EM FRAMEWORK - REMOVE WHEN FIXED
+            require_once APP_PATH_DOCROOT . "ExternalModules/manager/templates/hooks/every_page_top.php";
             ?>
         </head>
 
@@ -210,7 +224,7 @@ class Attestation
                     <label for="attestation-checkbox"><?= $attestationCheckboxText ?></label>
                 </div>
                 <div class="attestation-submit">
-                    <button id="attestation-submit-button" type="button"
+                    <button id="attestation-submit-button" type="button" class="btn btn-primaryrc btn-sm"
                         disabled><?= $this->module->framework->tt('submit') ?></button>
                 </div>
             </div>
@@ -282,7 +296,7 @@ class Attestation
 
         // Check that the site matches
         $attestationSite = $attestation['siteId'];
-        if ( $attestationSite !== $this->siteId) {
+        if ( $attestationSite !== $this->siteId ) {
             return false;
         }
 
@@ -297,7 +311,8 @@ class Attestation
         return true;
     }
 
-    private function everAttested() {
+    private function everAttested()
+    {
         if ( empty($this->username) ) {
             return false;
         }
