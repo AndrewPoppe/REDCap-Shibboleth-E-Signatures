@@ -808,7 +808,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function isLoggedIntoREDCap()
     {
-        return (defined('USERID') && USERID !== '') || $this->framework->isAuthenticated();// || isset($_SESSION['username']);
+        if (!(defined('USERID') && USERID !== '') || !$this->framework->isAuthenticated()) { // || isset($_SESSION['username']);
+            return false;
+        }
+        $username = $this->getUserId();
+        if ($this->userExists($username)) {
+            return true;
+        }
+        return false;
     }
 
     private function needsCustomLogin(string $page)
