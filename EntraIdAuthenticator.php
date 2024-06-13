@@ -1043,7 +1043,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                         p.delete('<?= self::$SITEID_QUERY ?>');
 
                         link.href = url.href;
-                        link.innerText = '<?= $this->framework->tt($customLogin ? 'login_3' : 'login_2') ?>';
+                        link.innerText = '<?= $this->framework->tt('login_3') ?>';
                         link.classList.add('text-primary', 'text-center');
                         link.style.display = 'block';
                         link.style.marginTop = '10px';
