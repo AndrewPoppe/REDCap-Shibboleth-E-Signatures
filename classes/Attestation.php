@@ -52,8 +52,8 @@ class Attestation
             }
             $version     = $site['attestationVersion'];
             $date = defined('NOW') ? NOW : date('Y-m-d H:i:s');
-            $attestationText         = $this->module->escape($site['attestationText']);
-            $attestationCheckboxText = $this->module->escape($site['attestationCheckboxText']);
+            $attestationText         = $site['attestationText'];
+            $attestationCheckboxText = $site['attestationCheckboxText'];
             $logId = $this->module->framework->log('Entra ID REDCap Authenticator: Attestation', [
                 'userid'                  => $this->username,
                 'siteId'                  => $this->siteId,

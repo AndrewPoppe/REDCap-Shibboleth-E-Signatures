@@ -121,10 +121,9 @@ a.attestation-link {
         if (selectedUserType === 'all') {
             searchTerm = '';
         } else if (selectedUserType === 'entraid') {
-            searchTerm = (d) => d !== 'false';
+            searchTerm = (d) => d !== '' && d !== 'false';
         } else if (selectedUserType === 'table') {
-            searchTerm = 'false';
-            searchOptions = {exact: true};
+            searchTerm = (d) => d === '' || d === 'false';
         }
         table.column(5).search(searchTerm, searchOptions).draw();
     }
@@ -151,15 +150,13 @@ a.attestation-link {
         }).then(() => {
             console.log('closed');
         });
-        console.log(row.attestationText);
-        console.log(row.attestationCheckboxText);
     }
     function formatAttestationData(label, version, date) {
         return `<strong>${label}</strong> - version ${version}<br>${new Date(date).toDateString()}`;
     }
     function createAttestationLink(row) {
         try {
-            return `<a class="attestation-link ${row.attestationCurrent ? 'text-success' : 'text-danger'}" onclick="getAttestationInfo('${row.username}')">${formatAttestationData(row.attestationSiteLabel, row.attestationVersion, row.attesationDate)}</a>`;
+            return `<a class="attestation-link ${row.attestationCurrent ? 'text-success' : 'text-danger'}" onclick="getAttestationInfo('${row.username}')"><i class="fa-solid ${row.attestationCurrent ? 'fa-check' : 'fa-x'}"></i></a>`;
         } catch (error) {
             return '';
         }
@@ -174,8 +171,7 @@ a.attestation-link {
             ajax: function (data, callback, settings) {
                 entraid.ajax('getEntraIdUsers')
                 .then(function (data) {
-                    console.log(JSON.parse(data));
-                    callback(JSON.parse(data));
+                    callback({data : data});
                 })
                 .catch(function (error) {
                     console.error(error);
@@ -184,6 +180,9 @@ a.attestation-link {
             },
             rowId: 'username',
             order: [1, 'asc'],
+            columnDefs: [
+                {className: "dt-center", targets: 6}
+            ],
             columns: [
                 { 
                     sortable: false,
@@ -192,6 +191,9 @@ a.attestation-link {
                 { 
                     title: "Username",
                     data: function (row, type, set, meta) {
+                        if (type !== 'display') {
+                            return row.username;
+                        }
                         return `<a class="text-primary link-underline-primary" target="_blank" rel="noopener noreferrer" href="${app_path_webroot_full}${app_path_webroot}ControlCenter/view_users.php?username=${row.username}">${row.username}</a>`;
                     }
                 },
@@ -200,33 +202,42 @@ a.attestation-link {
                 { 
                     title: "Email",
                     data: function (row, type, set, meta) {
+                        if (type !== 'display') {
+                            return row.user_email;
+                        }
                         return `<a class="text-danger-emphasis" href="mailto:${row.user_email}">${row.user_email}</a>`;
                     }
                 },
                 {
                     title: 'Entra ID User Type',
                     data: function (row, type, set, meta) {
+                        if (type === 'sort') {
+                            return row.label;
+                        }
 
                         if (type === 'filter') {
-                            return row.siteId;
+                            return row.entraid;
                         }
 
                         if (row.entraid === 'false' || row.entraid === null) {
                             return 'Table';
                         }
+                        if (type === 'display') {
+                            return `<strong>${row.label}</strong> (${row.authType})`;
+                        }
 
-                        return `<strong>${row.label}</strong> (${row.authType})`;
-
+                        return row.authType;
                     }
                 },
                 {
                     title: 'Attestation',
+                    type: 'string',
                     data: function (row, type, set, meta) {
-                        if (row.attestation === null) {
+                        if (row.attestationText === null) {
                             return null;
                         }
                         if (type === 'filter') {
-                            return row.attestation;
+                            return row.attestationCurrent;
                         }
 
                         return createAttestationLink(row);

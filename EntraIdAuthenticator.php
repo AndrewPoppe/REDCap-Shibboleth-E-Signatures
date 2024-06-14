@@ -60,7 +60,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
             if ( $action === 'getEntraIdUsers' ) {
                 $users = new Users($this);
-                return json_encode([ 'data' => $users->getAllUserData() ]);
+                return $users->getAllUserData();
             }
         } catch ( \Throwable $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error in AJAX', [ 'error' => $e->getMessage() ]);

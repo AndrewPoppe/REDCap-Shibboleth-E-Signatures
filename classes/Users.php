@@ -23,7 +23,11 @@ class Users
                     u.user_lastname,
                     u.user_email,
                     em.entraid,
-                    at.attestation
+                    at.attestationVersion,
+                    at.attestationSiteId,
+                    at.attesationDate,
+                    at.attestationText,
+                    at.attestationCheckboxText
                 FROM redcap_user_information u 
                 LEFT JOIN (
                     SELECT substring(`key`, 14) username, `value` entraid
@@ -33,7 +37,12 @@ class Users
                     ) em
                 ON u.username = em.username
                 LEFT JOIN (
-                    SELECT substring(`key`, 21) username, `value` attestation
+                    SELECT substring(`key`, 21) username, 
+                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.version')) attestationVersion,
+                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.siteId')) attestationSiteId,
+                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.date')) attesationDate,
+                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationText')) attestationText,
+                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationCheckboxText')) attestationCheckboxText
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
                     AND `key` like 'entraid-attestation-%'
@@ -47,12 +56,6 @@ class Users
                 $row['authType'] = $site['authValue'];
                 $row['label'] = $site['label'];
 
-                $attestation = json_decode($row['attestation'], true);
-                $row['attestationSiteId'] = $attestation['siteId'];
-                $row['attestationVersion'] = $attestation['version'];
-                $row['attesationDate'] = $attestation['date'];
-                $row['attestationText'] = html_entity_decode($attestation['attestationText']);
-                $row['attestationCheckboxText'] = html_entity_decode($attestation['attestationCheckboxText']);
                 $attestationSite = $entraidSettings[$row['attestationSiteId']] ?? $localSettings;
                 $row['attestationSiteLabel'] = $attestationSite['label'];
 
