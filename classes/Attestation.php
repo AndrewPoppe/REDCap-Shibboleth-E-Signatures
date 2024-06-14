@@ -51,23 +51,26 @@ class Attestation
                 return false;
             }
             $version     = $site['attestationVersion'];
-            $attestation = [
-                'siteId'  => $this->siteId,
-                'version' => $version,
-                'date'    => defined('NOW') ? NOW : date('Y-m-d H:i:s')
-            ];
-            $this->module->framework->setSystemSetting('entraid-attestation-' . $this->username, json_encode($attestation));
-
-            $attestationText         = $site['attestationText'];
-            $attestationCheckboxText = $site['attestationCheckboxText'];
-            $this->module->framework->log('Entra ID REDCap Authenticator: Attestation', [
+            $date = defined('NOW') ? NOW : date('Y-m-d H:i:s');
+            $attestationText         = $this->module->escape($site['attestationText']);
+            $attestationCheckboxText = $this->module->escape($site['attestationCheckboxText']);
+            $logId = $this->module->framework->log('Entra ID REDCap Authenticator: Attestation', [
                 'userid'                  => $this->username,
                 'siteId'                  => $this->siteId,
                 'version'                 => $version,
-                'date'                    => $attestation['date'],
-                'attestationText'         => $this->module->escape($attestationText),
-                'attestationCheckboxText' => $this->module->escape($attestationCheckboxText)
+                'date'                    => $date,
+                'attestationText'         => $attestationText,
+                'attestationCheckboxText' => $attestationCheckboxText
             ]);
+            $attestation = [
+                'siteId'  => $this->siteId,
+                'version' => $version,
+                'date'    => $date,
+                'logId'   => $logId,
+                'attestationText' => $attestationText,
+                'attestationCheckboxText' => $attestationCheckboxText
+            ];
+            $this->module->framework->setSystemSetting('entraid-attestation-' . $this->username, json_encode($attestation));
             return true;
         } catch ( \Throwable $e ) {
             $this->module->framework->log('Entra ID REDCap Authenticator: Error handling attestation', [ 'error' => $e->getMessage() ]);
@@ -132,7 +135,6 @@ class Attestation
     private function userWasJustCreated()
     {
         $userInfo = \User::getUserInfo($this->username);
-        $this->module->log('userinfo', [ 'userinfo' => json_encode($userInfo, JSON_PRETTY_PRINT) ]);
         return empty($userInfo) || $userInfo['user_email'] == "" || ($userInfo['user_email'] != "" && $userInfo['email_verify_code'] != "");
     }
 
@@ -165,8 +167,8 @@ class Attestation
 
         $site = $this->settings->getSettings($this->siteId);
 
-        $attestationHtml         = \REDCap::filterHtml($site['attestationText']);
-        $attestationCheckboxText = \REDCap::filterHtml($site['attestationCheckboxText']);
+        $attestationHtml         = $site['attestationText'];
+        $attestationCheckboxText = $site['attestationCheckboxText'];
         $bsCssPath               = APP_PATH_WEBPACK . 'css/bootstrap.min.css';
         $bsJsPath = APP_PATH_WEBPACK . 'js/bootstrap.min.js';
         $cssPath                 = APP_PATH_CSS . 'style.css';
@@ -292,6 +294,12 @@ class Attestation
         $attestation = json_decode($attestationText, true);
         if ( empty($attestation) || empty($attestation['siteId']) || empty($attestation['version']) ) {
             return false;
+        }
+
+        // If the user is LDAP, change the siteId to the LDAP siteId
+        $userSite = $this->module->getUserType($this->username);
+        if ( $userSite['authValue'] === 'local' && $userSite['siteId'] !== false ) {
+            $this->siteId = $userSite['siteId'];
         }
 
         // Check that the site matches

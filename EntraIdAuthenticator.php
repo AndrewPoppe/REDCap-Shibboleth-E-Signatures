@@ -23,44 +23,47 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
-
-        // No-auth
-        if ( $action === 'handleAttestation' ) {
-            $attestation = new Attestation($this, $payload['username'], $payload['siteId'], $payload['logId']);
-            return $attestation->handleAttestationAjax();
-        }
-
-        // Admins only
-        if ( !$this->framework->getUser()->isSuperUser() ) {
-            throw new \Exception($this->framework->tt('error_1'));
-        }
-        if ( $action === 'getUserType' ) {
-            return $this->getUserType($payload['username']);
-        }
-        if ( $action === 'convertTableUserToEntraIdUser' ) {
-            return $this->convertTableUserToEntraIdUser($payload['username'], $payload['siteId']);
-        }
-        if ( $action === 'convertTableUsersToEntraIdUsers' ) {
-            $users = $payload['usernames'];
-            $siteId = $payload['siteId'];
-            foreach ( $users as $user ) {
-                $this->convertTableUserToEntraIdUser($user, $siteId);
+        try {
+            // No-auth
+            if ( $action === 'handleAttestation' ) {
+                $attestation = new Attestation($this, $payload['username'], $payload['siteId'], $payload['logId']);
+                return $attestation->handleAttestationAjax();
             }
-            return;
-        }
-        if ( $action == 'convertEntraIdUsertoTableUser' ) {
-            return $this->convertEntraIdUsertoTableUser($payload['username']);
-        }
-        if ( $action === 'convertEntraIdUsersToTableUsers' ) {
-            $users = $payload['usernames'];
-            foreach ( $users as $user ) {
-                $this->convertEntraIdUsertoTableUser($user);
+
+            // Admins only
+            if ( !$this->framework->getUser()->isSuperUser() ) {
+                throw new \Exception($this->framework->tt('error_1'));
             }
-            return;
-        }
-        if ( $action === 'getEntraIdUsers' ) {
-            $users = new Users($this);
-            return json_encode(['data' => $users->getAllUserData()]);
+            if ( $action === 'getUserType' ) {
+                return $this->getUserType($payload['username']);
+            }
+            if ( $action === 'convertTableUserToEntraIdUser' ) {
+                return $this->convertTableUserToEntraIdUser($payload['username'], $payload['siteId']);
+            }
+            if ( $action === 'convertTableUsersToEntraIdUsers' ) {
+                $users  = $payload['usernames'];
+                $siteId = $payload['siteId'];
+                if ( count($users) === 1 ) {
+                    return $this->convertTableUserToEntraIdUser($users[0], $siteId);
+                }
+                return $this->convertTableUsersToEntraIdUsers($users, $siteId);
+            }
+            if ( $action == 'convertEntraIdUsertoTableUser' ) {
+                return $this->convertEntraIdUsertoTableUser($payload['username']);
+            }
+            if ( $action === 'convertEntraIdUsersToTableUsers' ) {
+                $users = $payload['usernames'];
+                if ( count($users) === 1 ) {
+                    return $this->convertEntraIdUsertoTableUser($users[0]);
+                }
+                return $this->convertEntraIdUserstoTableUsers($users);
+            }
+            if ( $action === 'getEntraIdUsers' ) {
+                $users = new Users($this);
+                return json_encode([ 'data' => $users->getAllUserData() ]);
+            }
+        } catch ( \Throwable $e ) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error in AJAX', [ 'error' => $e->getMessage() ]);
         }
     }
 
@@ -498,6 +501,65 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
+    private function convertTableUsersToEntraIdUsers(array $userids, string $siteId)
+    {
+        if ( empty($userids) ) {
+            return;
+        }
+        try {
+            $questionMarks = [];
+            $params        = [];
+            foreach ( $userids as $userid ) {
+                $questionMarks[] = '?';
+                $params[]        = $userid;
+            }
+            $SQL   = 'DELETE FROM redcap_auth WHERE username in (' . implode(',', $questionMarks) . ')';
+            $result = $this->framework->query($SQL, $params);
+            if ($result) {
+                foreach ($userids as $userid) {
+                    $this->setEntraIdUser($userid, $siteId);
+                }
+            }
+            return;
+        } catch ( \Exception $e ) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
+            return;
+        }
+    }
+
+    public function sendPasswordResetEmails() {
+        try {
+            $neededMessage    = 'password-reset-needed';
+            $completeMessage  = 'password-reset';
+            $limitSeconds     = 60;
+            $limitOccurrences = 150;
+
+            $getUsersSql = 'SELECT username_to_reset WHERE message = ?';
+            $getUsersQ   = $this->framework->queryLogs($getUsersSql, [ $neededMessage ]);
+            $userids     = [];
+            while ( $row = $getUsersQ->fetch_assoc() ) {
+                $userids[] = $row['username_to_reset'];
+            }
+            if ( empty($userids) ) {
+                return;
+            }
+
+            $limitReached = $this->throttle("message = ?", [ $completeMessage ], $limitSeconds, $limitOccurrences);
+            if ( !$limitReached ) {
+                foreach ( $userids as $userid ) {
+                    $result = \Authentication::resetPasswordSendEmail($userid);
+                    $this->setEntraIdUser($userid, false);
+                    if ( $result ) {
+                        $this->framework->log($completeMessage, [ 'username_to_reset' => $userid ]);
+                        $this->framework->removeLogs('message = ? AND username_to_reset = ? AND project_id IS NULL', [ $neededMessage, $userid ]);
+                    }
+                }
+            }
+        } catch ( \Exception $e ) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error sending password reset emails', [ 'error' => $e->getMessage() ]);
+        }
+    }
+
     private function convertEntraIdUsertoTableUser(string $userid)
     {
         if ( empty($userid) ) {
@@ -508,6 +570,30 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $query = $this->framework->query($SQL, [ $userid ]);
             \Authentication::resetPasswordSendEmail($userid);
             $this->setEntraIdUser($userid, false);
+            return;
+        } catch ( \Exception $e ) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
+            return;
+        }
+    }
+
+    private function convertEntraIdUserstoTableUsers(array $userids)
+    {
+        if ( empty($userids) ) {
+            return;
+        }
+        try {
+            $questionMarks = [];
+            $params        = [];
+            foreach ( $userids as $userid ) {
+                $questionMarks[] = '(?)';
+                $params[]        = $userid;
+            }
+            $SQL   = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
+            $result = $this->framework->query($SQL, $params);
+            foreach ($userids as $userid) {
+                $this->framework->log('password-reset-needed', [ 'username_to_reset' => $userid ]); 
+            }
             return;
         } catch ( \Exception $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
@@ -583,16 +669,21 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     {
         return !\Authentication::isTableUser($username) &&
         !empty($this->framework->getSystemSetting('entraid-user-' . $username)) &&
-        $this->framework->getSystemSetting('entraid-user-' . $username) !== false;
+        $this->framework->getSystemSetting('entraid-user-' . $username) !== "false";
     }
 
+    /**
+     * Summary of getUserType
+     * @param mixed $username
+     * @return array{siteId: string|false, authValue: string, authType: string, label: string} 
+     */
     public function getUserType($username = null) : array
     {
         if ( $username === null ) {
             $username = $this->getUserId();
         }
         $siteId = $this->framework->getSystemSetting('entraid-user-' . $username);
-        if ( $siteId ) {
+        if ( $siteId && $siteId !== 'false') {
             $site = (new EntraIdSettings($this))->getSettings($siteId);
             return [
                 'siteId'   => $siteId,
@@ -1201,7 +1292,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ($siteId) {
             return $siteId;
         }
-        return null;
+        return self::$LOCAL_AUTH;
     }
 
     private function verifySiteId($siteId) {

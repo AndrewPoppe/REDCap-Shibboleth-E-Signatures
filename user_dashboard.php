@@ -22,6 +22,9 @@ table.dataTable#users-table tbody tr.selected:hover>* {
 #pagecontainer {
     max-width: 100%;
 }
+a.attestation-link {
+    cursor: pointer;
+}
 </style>
 <div class="container">
     <div class="d-flex flex-row mb-3">
@@ -51,6 +54,7 @@ table.dataTable#users-table tbody tr.selected:hover>* {
                     <th>Last Name</th>
                     <th>Email</th>
                     <th>EntraID</th>
+                    <th>Attestation</th>
                 </tr>
             </thead>
             <tbody>
@@ -124,6 +128,42 @@ table.dataTable#users-table tbody tr.selected:hover>* {
         }
         table.column(5).search(searchTerm, searchOptions).draw();
     }
+    function decodeHtml(html) {
+        const txt = document.createElement("textarea");
+        txt.innerHTML = html;
+        return txt.value;
+    }
+    function getAttestationInfo(username) {
+        const table = $('#users-table').DataTable();
+        const row = table.row(`#${username}`).data();
+        Swal.fire({
+            title: 'Attestation',
+            html: `
+                <p><strong>${row.user_firstname} ${row.user_lastname}</strong> (${row.username})</p>
+                <p>${formatAttestationData(row.attestationSiteLabel, row.attestationVersion, row.attesationDate)}</p>
+                <div class="d-flex flex-column align-items-center">
+                <p>${row.attestationText}</p>
+                <p><input type="checkbox" id="cb" checked disabled><label class="ms-1" for="cb">${row.attestationCheckboxText}</label></p>
+                </div>
+            `,
+            width: '50%',
+            showConfirmButton: false
+        }).then(() => {
+            console.log('closed');
+        });
+        console.log(row.attestationText);
+        console.log(row.attestationCheckboxText);
+    }
+    function formatAttestationData(label, version, date) {
+        return `<strong>${label}</strong> - version ${version}<br>${new Date(date).toDateString()}`;
+    }
+    function createAttestationLink(row) {
+        try {
+            return `<a class="attestation-link ${row.attestationCurrent ? 'text-success' : 'text-danger'}" onclick="getAttestationInfo('${row.username}')">${formatAttestationData(row.attestationSiteLabel, row.attestationVersion, row.attesationDate)}</a>`;
+        } catch (error) {
+            return '';
+        }
+    }
     $(function() {
         $('#users-table').DataTable({
             processing: true,
@@ -142,6 +182,7 @@ table.dataTable#users-table tbody tr.selected:hover>* {
                     callback({ data: [] });
                 });
             },
+            rowId: 'username',
             order: [1, 'asc'],
             columns: [
                 { 
@@ -176,6 +217,19 @@ table.dataTable#users-table tbody tr.selected:hover>* {
 
                         return `<strong>${row.label}</strong> (${row.authType})`;
 
+                    }
+                },
+                {
+                    title: 'Attestation',
+                    data: function (row, type, set, meta) {
+                        if (row.attestation === null) {
+                            return null;
+                        }
+                        if (type === 'filter') {
+                            return row.attestation;
+                        }
+
+                        return createAttestationLink(row);
                     }
                 }
             ],

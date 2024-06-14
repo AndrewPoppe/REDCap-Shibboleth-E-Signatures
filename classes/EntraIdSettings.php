@@ -12,7 +12,7 @@ class EntraIdSettings
 
     public function getSettings(string $siteId)
     {
-        if ( empty($siteId) || $siteId === $this->module::$LOCAL_AUTH) {
+        if ( empty($siteId) || $siteId === $this->module::$LOCAL_AUTH ) {
             return [
                 'authValue'               => $this->module::$LOCAL_AUTH,
                 'siteId'                  => $this->module::$LOCAL_AUTH,
@@ -26,8 +26,8 @@ class EntraIdSettings
                 'logoutUrl'               => '',
                 'allowedGroups'           => '',
                 'showAttestation'         => $this->module->getSystemSetting('entraid-attestation-default') ?? '',
-                'attestationText'         => $this->module->getSystemSetting('entraid-attestation-text-default') ?? '',
-                'attestationCheckboxText' => $this->module->getSystemSetting('entraid-attestation-checkbox-text-default') ?? '',
+                'attestationText'         => \REDCap::filterHtml($this->module->getSystemSetting('entraid-attestation-text-default') ?? ''),
+                'attestationCheckboxText' => \REDCap::filterHtml($this->module->getSystemSetting('entraid-attestation-checkbox-text-default') ?? ''),
                 'attestationVersion'      => $this->module->getSystemSetting('entraid-attestation-version-default') ?? '',
             ];
         }
@@ -41,7 +41,7 @@ class EntraIdSettings
     public function getSettingsByAuthValue(string $authValue)
     {
 
-        if (empty($authValue) || $authValue === $this->module::$LOCAL_AUTH) {
+        if ( empty($authValue) || $authValue === $this->module::$LOCAL_AUTH ) {
             return $this->getSettings($this->module::$LOCAL_AUTH);
         }
 
@@ -87,12 +87,21 @@ class EntraIdSettings
                 'logoutUrl'               => $logoutUrls[$i],
                 'allowedGroups'           => $allowedGroupss[$i],
                 'showAttestation'         => $showAttestation[$i],
-                'attestationText'         => $attestationText[$i] ?? $this->module->getSystemSetting('entraid-attestation-text-default') ?? '',
-                'attestationCheckboxText' => $attestationCheckboxText[$i] ?? $this->module->getSystemSetting('entraid-attestation-checkbox-text-default') ?? '',
+                'attestationText'         => \REDCap::filterHtml($attestationText[$i] ?? $this->module->getSystemSetting('entraid-attestation-text-default') ?? ''),
+                'attestationCheckboxText' => \REDCap::filterHtml($attestationCheckboxText[$i] ?? $this->module->getSystemSetting('entraid-attestation-checkbox-text-default') ?? ''),
                 'attestationVersion'      => $attestationVersion[$i] ?? $this->module->getSystemSetting('entraid-attestation-version-default') ?? '',
             ];
         }
         return $settings;
+    }
+
+    public function getAllSettingsWithSiteIdIndex()
+    {
+        $settings = $this->getAllSettings();
+        return array_reduce($settings, function ($acc, $setting) {
+            $acc[$setting['siteId']] = $setting;
+            return $acc;
+        }, []);
     }
 
     public function getAuthValues()

@@ -422,6 +422,15 @@
             ]
         }
     ],
+    "crons": [
+        {
+            "cron_name": "entraid_authenticator_send_password_reset_emails",
+            "cron_description": "This cron job sends password reset emails to users who have been converted to table-based users",
+            "method": "sendPasswordResetEmails",
+            "cron_frequency": "60",
+            "cron_max_run_time": "60"
+        }
+    ],
     "links": {
         "control-center": [
             {

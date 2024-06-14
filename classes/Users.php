@@ -15,7 +15,8 @@ class Users
     {
         try {
             $settings = new EntraIdSettings($this->module);
-            $entraidSettings = $settings->getAllSettings();
+            $entraidSettings = $settings->getAllSettingsWithSiteIdIndex();
+            $localSettings = $settings->getSettings($this->module::$LOCAL_AUTH);
             $sql = "SELECT 
                     u.username, 
                     u.user_firstname,
@@ -41,13 +42,24 @@ class Users
             $result = $this->module->framework->query($sql, [$this->external_module_id, $this->external_module_id]);
             $users = [];
             while ($row = $result->fetch_assoc()) {
-                $row['siteId'] = $row['entraid'];
-                $site = array_filter($entraidSettings, function ($setting) use ($row) {
-                    return $setting['siteId'] === $row['siteId'];
-                });
-                $site = reset($site);
+                $row['siteId'] = $row['entraid'] === 'false' ? $this->module::$LOCAL_AUTH : $row['entraid'];
+                $site = $entraidSettings[$row['siteId']] ?? $localSettings;
                 $row['authType'] = $site['authValue'];
                 $row['label'] = $site['label'];
+
+                $attestation = json_decode($row['attestation'], true);
+                $row['attestationSiteId'] = $attestation['siteId'];
+                $row['attestationVersion'] = $attestation['version'];
+                $row['attesationDate'] = $attestation['date'];
+                $row['attestationText'] = html_entity_decode($attestation['attestationText']);
+                $row['attestationCheckboxText'] = html_entity_decode($attestation['attestationCheckboxText']);
+                $attestationSite = $entraidSettings[$row['attestationSiteId']] ?? $localSettings;
+                $row['attestationSiteLabel'] = $attestationSite['label'];
+
+                $AttestationSiteMatches    = $site['siteId'] === $row['attestationSiteId'];
+                $AttestationVersionMatches = $site['attestationVersion'] === $row['attestationVersion'];
+                $row['attestationCurrent'] = $AttestationSiteMatches && $AttestationVersionMatches;
+
                 $users[] = $row;
             }
             return $users;
