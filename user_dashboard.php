@@ -194,7 +194,7 @@ a.attestation-link {
                         if (type !== 'display') {
                             return row.username;
                         }
-                        return `<a class="text-primary link-underline-primary" target="_blank" rel="noopener noreferrer" href="${app_path_webroot_full}${app_path_webroot}ControlCenter/view_users.php?username=${row.username}">${row.username}</a>`;
+                        return `<a class="text-primary link-underline-primary" target="_blank" rel="noopener noreferrer" href="${app_path_webroot_full}redcap_v${redcap_version}/ControlCenter/view_users.php?username=${row.username}">${row.username}</a>`;
                     }
                 },
                 { data: "user_firstname" },
