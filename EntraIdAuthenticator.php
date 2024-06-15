@@ -575,6 +575,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( empty($userid) ) {
             return;
         }
+        if ( !$this->isEntraIdUser($userid) ) {
+            return false;
+        }
         try {
             $SQL   = "INSERT INTO redcap_auth (username) VALUES (?)";
             $query = $this->framework->query($SQL, [ $userid ]);
@@ -593,16 +596,26 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         }
         try {
+            $questionMarks0 = [];
             $questionMarks = [];
             $params        = [];
             foreach ( $userids as $userid ) {
+                $questionMarks0[] = '?';
                 $questionMarks[] = '(?)';
                 $params[]        = $userid;
             }
+
+            $testSQL = 'SELECT count(*) n FROM redcap_auth WHERE username IN (' . implode(',', $questionMarks0) . ')';
+            $testQ   = $this->framework->query($testSQL, $params);
+            $testRow = $testQ->fetch_assoc();
+            if ( $testRow['n'] > 0 ) {
+                return false;
+            }
+
             $SQL   = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
             $result = $this->framework->query($SQL, $params);
             foreach ($userids as $userid) {
-                $this->framework->log('password-reset-needed', [ 'username_to_reset' => $userid ]); 
+                $this->framework->log('password-reset-needed', [ 'username' => $userid, 'username_to_reset' => $userid ]); 
             }
             return;
         } catch ( \Exception $e ) {

@@ -10,8 +10,8 @@ $settings = new EntraIdSettings($module);
 $siteInfo = $settings->getSiteInfo();
 
 ?>
-<link rel="stylesheet" href="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.css" integrity="sha384-lluZ5q447IVGiQSlbck8r3dVX5tqlfcHYtv+dU3I8XHFdrkk8BaL4TmtN5eH30AC" crossorigin="anonymous">
-<script src="https://cdn.datatables.net/v/dt/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.js" integrity="sha384-7Ta/pBTlGc9JmZ3QFnmf31bK6w0HQ53a+Wzy5LkwMYUGxSriueF1p267aoTRyaG7" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.css" integrity="sha384-Kl+nHXZlEvX/qZYURIuAbttiMXh5UC2GaM/0u5PWXFlqG9LuN5q+l/Kv+JL1xBUv" crossorigin="anonymous">
+<script src="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.js" integrity="sha384-6FYRBUT5sgq0ukI+z8ugPi+AElK708COtObOEl4tUQsA1kgH2b3hmw6x33f5/BOa" crossorigin="anonymous"></script>
 <style>
 table.dataTable#users-table tbody tr.selected>*,
 table.dataTable#users-table tbody tr.selected:hover>* {
@@ -25,6 +25,9 @@ table.dataTable#users-table tbody tr.selected:hover>* {
 a.attestation-link {
     cursor: pointer;
 }
+.pagination .page-link {
+    font-size: inherit;
+}
 </style>
 <div class="container">
     <div class="d-flex flex-row mb-3">
@@ -35,17 +38,25 @@ a.attestation-link {
         <p><?= $module->framework->tt('dashboard_1') ?></p>
     </div>
     <div class="border border-secondary-subtle p-3 rounded-2">
-        <div class="d-flex flex-row mb-3">
+        <div>
             <button id="entraButton" class="btn btn-info mr-2" onclick="convertToEntra()" disabled>Convert to Entra ID</button>
             <button id="tableButton" class="btn btn-warning" onclick="convertToTable()" disabled>Convert to Table</button>
             <select id="userTypeSelect" class="form-select ml-auto" style="width: 200px;">
-                <option disabled selected value>Filter by User Type</option>
+                <option disabled selected value>User Type</option>
                 <option value="all">All Users</option>
                 <option value="entraid">EntraID Users</option>
                 <option value="table">Table Users</option>
             </select>
+            <select id="attestationStatusSelect" class="form-select ml-2" style="width: 200px;">
+                <option disabled selected value>Attestation Status</option>
+                <option value="all">All Users</option>
+                <option value="current">Up-to-date Attestations</option>
+                <option value="out-of-date">Out-of-date Attestations</option>
+                <option value="none">No Attestation</option>
+                <option value="invalid">Out-of-date or No Attestation</option>
+            </select>
         </div>
-        <table id="users-table" class="hover stripe row-border" style="width:100%">
+        <table id="users-table" class="table table-striped hover" style="width:100%">
             <thead>
                 <tr>
                     <th></th>
@@ -107,8 +118,24 @@ a.attestation-link {
                 let siteId = result.value;
                 entraid.ajax('convertEntraIdUsersToTableUsers', {
                     usernames: usernames
-                }).then(() => {
-                    location.reload();
+                }).then((result) => {
+                    if (result === false) {
+                        Swal.fire({
+                            title: entraid.tt('convert_10'),
+                            icon: "error"
+                        });
+                        return;
+                    }
+                    if (usernames.length > 1) {
+                        Swal.fire({
+                            title: entraid.tt('convert_9'),
+                            icon: "success",
+                            showConfirmButton: false
+                        })
+                        .then(() => {
+                            location.reload();
+                        });
+                    }
                 });
             }
         });
@@ -127,10 +154,23 @@ a.attestation-link {
         }
         table.column(5).search(searchTerm, searchOptions).draw();
     }
-    function decodeHtml(html) {
-        const txt = document.createElement("textarea");
-        txt.innerHTML = html;
-        return txt.value;
+    function filterAttestationStatus() {
+        const table = $('#users-table').DataTable();
+        const selectedStatus = $('#attestationStatusSelect').val();
+        let searchTerm = selectedStatus;
+        let searchOptions = {};
+        if (selectedStatus === 'all') {
+            searchTerm = '';
+        } else if (selectedStatus === 'current') {
+            searchTerm = 'true';
+        } else if (selectedStatus === 'out-of-date') {
+            searchTerm = 'false';
+        } else if (selectedStatus === 'none') {
+            searchTerm = (d) => d === '';
+        } else if (selectedStatus === 'invalid') {
+            searchTerm = (d) => d === 'false' || d === '';
+        }
+        table.column(6).search(searchTerm, searchOptions).draw();
     }
     function getAttestationInfo(username) {
         const table = $('#users-table').DataTable();
@@ -139,7 +179,7 @@ a.attestation-link {
             title: 'Attestation',
             html: `
                 <p><strong>${row.user_firstname} ${row.user_lastname}</strong> (${row.username})</p>
-                <p>${formatAttestationData(row.attestationSiteLabel, row.attestationVersion, row.attesationDate)}</p>
+                <p>${formatAttestationData(row.attestationSiteLabel, row.attestationVersion, row.attestationDate)}</p>
                 <div class="d-flex flex-column align-items-center">
                 <p>${row.attestationText}</p>
                 <p><input type="checkbox" id="cb" checked disabled><label class="ms-1" for="cb">${row.attestationCheckboxText}</label></p>
@@ -162,7 +202,7 @@ a.attestation-link {
         }
     }
     $(function() {
-        $('#users-table').DataTable({
+        var table = $('#users-table').DataTable({
             processing: true,
             select: {
                 style: 'multi',
@@ -171,12 +211,73 @@ a.attestation-link {
             ajax: function (data, callback, settings) {
                 entraid.ajax('getEntraIdUsers')
                 .then(function (data) {
+                    console.log(data);
                     callback({data : data});
                 })
                 .catch(function (error) {
                     console.error(error);
                     callback({ data: [] });
                 });
+            },
+            layout: {
+                top: [
+                    {buttons: [{
+                        extend: 'excelHtml5',
+                        text: 'Export to Excel',
+                        className: 'btn btn-success me-2',
+                        exportOptions: {
+                            format: {
+                                body: function (html, row, column, node) {
+                                    if (column === 6) {
+                                        const data = table.row(row).data();
+                                        const attestationData = {
+                                            label: data.attestationSiteLabel,
+                                            version: data.attestationVersion,
+                                            date: data.attestationDate,
+                                            current: data.attestationCurrent
+                                        };
+                                        return JSON.stringify(attestationData);
+                                    }
+                                    return DataTable.util.stripHtml(html);
+                                }
+                            },
+                            customizeData: function (data) {
+                                console.log(data);
+                                data.headerStructure[0].push({
+                                    colspan: 1,
+                                    rowspan: 1,
+                                    title: 'Attestation Version'
+                                },
+                                {
+                                    colspan: 1,
+                                    rowspan: 1,
+                                    title: 'Attestation Date'
+                                },
+                                {
+                                    colspan: 1,
+                                    rowspan: 1,
+                                    title: 'Attestation Current'
+                                });
+                                data.headerStructure[0].shift();
+                                data.body = data.body.map(row => {
+                                    const attestationData = JSON.parse(row[6]);
+                                    row[6] = attestationData.label;
+                                    row[7] = attestationData.version;
+                                    row[8] = attestationData.date;
+                                    row[9] = attestationData.current ? 'Yes' : 'No';
+                                    row.shift();
+                                    return row;
+                                });
+                            }
+                        },
+                        filename: 'EntraID_Users_' + new Date().toISOString().slice(0, 10),
+                        title: null
+                    }]},
+                    document.getElementById('entraButton'),
+                    document.getElementById('tableButton'),
+                    document.getElementById('userTypeSelect'),
+                    document.getElementById('attestationStatusSelect')                    
+                ],
             },
             rowId: 'username',
             order: [1, 'asc'],
@@ -223,6 +324,9 @@ a.attestation-link {
                             return 'Table';
                         }
                         if (type === 'display') {
+                            if (row.passwordResetNeeded) {
+                                return `<span class="text-danger">${entraid.tt('convert_11')}</span>`;
+                            }
                             return `<strong>${row.label}</strong> (${row.authType})`;
                         }
 
@@ -263,7 +367,15 @@ a.attestation-link {
                 $('#userTypeSelect').on('change', function () {
                     filterUserType();
                 });
+                $('#attestationStatusSelect').on('change', function () {
+                    filterAttestationStatus();
+                });
             }
+        });
+        $('.dt-buttons').parent().addClass('d-flex flex-row align-items-center justify-content-start');
+        $('.dt-buttons').parent().parent().removeClass('mt-2');
+        table.on('draw', function () {
+            $('.dt-buttons').parent().addClass('d-flex flex-row align-items-center justify-content-start');
         });
     });
 </script>
