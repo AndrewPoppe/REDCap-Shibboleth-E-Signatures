@@ -70,30 +70,40 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function redcap_every_page_before_render($project_id = null)
     {
         try {
+
+            // Check if we're in a page that needs to be handled
             $page = defined('PAGE') ? PAGE : null;            
             if ( empty($page) ) {                
                 return;
-            }            
-            if ($this->resettingPassword($page)) {                
+            }
+            
+            // Don't do anything for SYSTEM user
+            if (defined('USERID') && USERID === 'SYSTEM') {                
                 return;
             }            
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {                
-                return;
-            }            
+
+            // Handle logout
             if ( isset($_GET['logout']) && $_GET['logout'] ) {                
                 \Authentication::checkLogout();
                 return;
-            }            
-            if (defined('USERID') && USERID === 'SYSTEM') {                
-                return;
-            }
-
+            }     
+            
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $site              = $this->getUserType();
                 $authType          = $site['authType'];
                 $esignatureHandler = new ESignatureHandler($this);
                 $esignatureHandler->handleRequest($_POST, $authType);
+                return;
+            }       
+            
+            // No need to do anything for posts otherwise (assuming we're not in the login function)
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$this->inLoginFunction()) {
+                return;
+            }            
+            
+            // Don't do anything if we're resetting a password
+            if ($this->resettingPassword($page)) {                
                 return;
             }
 
