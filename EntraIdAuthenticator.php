@@ -143,6 +143,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 $this->handleEntraIdAuth($authType, $this->curPageURL());
             }
 
+            // If not logged in, Auth Type is not set, but Site ID query is still defined, remove it from URL and redirect
+            if ( empty($_GET[self::$AUTH_QUERY]) && isset($_GET[self::$SITEID_QUERY]) ) {
+                $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$SITEID_QUERY);
+                $this->redirectAfterHook($cleanUrl);
+                return;
+            }
+
             // Inject the custom login page 
             if ( $this->needsCustomLogin($page) ) {
                 $this->showCustomLoginPage($this->curPageURL());
@@ -897,27 +904,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         } catch ( \Exception $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error setting user creation timestamp', [ 'error' => $e->getMessage() ]);
         }
-    }
-
-    /**
-     * Just until my minimum RC version is >= 13.10.1
-     * @param mixed $url
-     * @param mixed $forceJS
-     * @return void
-     */
-    public function redirectAfterHook($url, $forceJS = false)
-    {
-        // If contents already output, use javascript to redirect instead
-        if ( headers_sent() || $forceJS ) {
-            $url = \ExternalModules\ExternalModules::escape($url);
-            echo "<script type=\"text/javascript\">window.location.href=\"$url\";</script>";
-        }
-        // Redirect using PHP
-        else {
-            header("Location: $url");
-        }
-
-        \ExternalModules\ExternalModules::exitAfterHook();
     }
 
     private function isLoggedIntoREDCap()

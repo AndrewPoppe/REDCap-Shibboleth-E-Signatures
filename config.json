@@ -459,9 +459,9 @@
     ],
     "enable-no-auth-logging": true,
     "enable-every-page-hooks-on-system-pages": true,
-    "framework-version": 14,
+    "framework-version": 15,
     "compatibility": {
-        "redcap-version-min": "13.7.0",
+        "redcap-version-min": "14.0.31",
         "redcap-version-max": "",
         "php-version-min": "7.4.00",
         "php-version-max": "8.3.99"
