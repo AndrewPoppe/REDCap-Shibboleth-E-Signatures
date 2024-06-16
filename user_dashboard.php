@@ -10,8 +10,8 @@ $settings = new EntraIdSettings($module);
 $siteInfo = $settings->getSiteInfo();
 
 ?>
-<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.css" integrity="sha384-Kl+nHXZlEvX/qZYURIuAbttiMXh5UC2GaM/0u5PWXFlqG9LuN5q+l/Kv+JL1xBUv" crossorigin="anonymous">
-<script src="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/sl-2.0.3/datatables.min.js" integrity="sha384-6FYRBUT5sgq0ukI+z8ugPi+AElK708COtObOEl4tUQsA1kgH2b3hmw6x33f5/BOa" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/r-3.0.2/sl-2.0.3/datatables.min.css" integrity="sha384-BcFALZmZqajgruYOHgCJFXQrZiknIJ+5UTpaRmRX6DGJwquZv9Rz/GbGJxg8Mu61" crossorigin="anonymous">
+<script src="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/r-3.0.2/sl-2.0.3/datatables.min.js" integrity="sha384-HqqVqMvdcfldcjRlY1GXixx0JH1KO5ZIjILCfx6oWel0uff8b+NkPJ9ZQZUXqbcM" crossorigin="anonymous"></script>
 <style>
 table.dataTable#users-table tbody tr.selected>*,
 table.dataTable#users-table tbody tr.selected:hover>* {
@@ -29,7 +29,7 @@ a.attestation-link {
     font-size: inherit;
 }
 </style>
-<div class="container">
+<div class="">
     <div class="d-flex flex-row mb-3">
             <img class="mr-2" src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>" alt="EntraID Logo" class="img-fluid" style="width: 64px;">
             <h1 class="align-self-center"><?= $module->framework->tt('entraid_users') ?></h1>
@@ -39,24 +39,24 @@ a.attestation-link {
     </div>
     <div class="border border-secondary-subtle p-3 rounded-2">
         <div>
-            <button id="entraButton" class="btn btn-info mr-2" onclick="convertToEntra()" disabled>Convert to Entra ID</button>
-            <button id="tableButton" class="btn btn-warning" onclick="convertToTable()" disabled>Convert to Table</button>
-            <select id="userTypeSelect" class="form-select ml-auto" style="width: 200px;">
-                <option disabled selected value>User Type</option>
-                <option value="all">All Users</option>
-                <option value="entraid">EntraID Users</option>
-                <option value="table">Table Users</option>
-            </select>
-            <select id="attestationStatusSelect" class="form-select ml-2" style="width: 200px;">
-                <option disabled selected value>Attestation Status</option>
-                <option value="all">All Users</option>
-                <option value="current">Up-to-date Attestations</option>
-                <option value="out-of-date">Out-of-date Attestations</option>
-                <option value="none">No Attestation</option>
-                <option value="invalid">Out-of-date or No Attestation</option>
-            </select>
+            <div id="selectContainer" class="d-flex flex-row ml-xl-auto mt-2 mt-xl-0">
+                <select id="userTypeSelect" class="form-select" style="width: 200px;">
+                    <option disabled selected value>User Type</option>
+                    <option value="all">All Users</option>
+                    <option value="entraid">EntraID Users</option>
+                    <option value="table">Table Users</option>
+                </select>
+                <select id="attestationStatusSelect" class="form-select ml-2" style="width: 200px;">
+                    <option disabled selected value>Attestation Status</option>
+                    <option value="all">All Users</option>
+                    <option value="current">Up-to-date Attestations</option>
+                    <option value="out-of-date">Out-of-date Attestations</option>
+                    <option value="none">No Attestation</option>
+                    <option value="invalid">Out-of-date or No Attestation</option>
+                </select>
+            </div>
         </div>
-        <table id="users-table" class="table table-striped hover" style="width:100%">
+        <table id="users-table" class="table table-striped hover w-100" style="">
             <thead>
                 <tr>
                     <th></th>
@@ -135,6 +135,8 @@ a.attestation-link {
                         .then(() => {
                             location.reload();
                         });
+                    } else {
+                        location.reload();
                     }
                 });
             }
@@ -187,8 +189,6 @@ a.attestation-link {
             `,
             width: '50%',
             showConfirmButton: false
-        }).then(() => {
-            console.log('closed');
         });
     }
     function formatAttestationData(label, version, date) {
@@ -204,6 +204,7 @@ a.attestation-link {
     $(function() {
         var table = $('#users-table').DataTable({
             processing: true,
+            scrollX: true,
             select: {
                 style: 'multi',
                 selector: 'td:first-child'
@@ -211,7 +212,6 @@ a.attestation-link {
             ajax: function (data, callback, settings) {
                 entraid.ajax('getEntraIdUsers')
                 .then(function (data) {
-                    console.log(data);
                     callback({data : data});
                 })
                 .catch(function (error) {
@@ -223,8 +223,8 @@ a.attestation-link {
                 top: [
                     {buttons: [{
                         extend: 'excelHtml5',
-                        text: 'Export to Excel',
-                        className: 'btn btn-success me-2',
+                        text: '<i class="fa-solid fa-file-excel"></i> Export',
+                        className: 'btn btn-success me-2 nowrap',
                         exportOptions: {
                             format: {
                                 body: function (html, row, column, node) {
@@ -242,7 +242,6 @@ a.attestation-link {
                                 }
                             },
                             customizeData: function (data) {
-                                console.log(data);
                                 data.headerStructure[0].push({
                                     colspan: 1,
                                     rowspan: 1,
@@ -272,11 +271,28 @@ a.attestation-link {
                         },
                         filename: 'EntraID_Users_' + new Date().toISOString().slice(0, 10),
                         title: null
+                    },{
+                        // <button id="entraButton" class="btn btn-info mr-2 nowrap" onclick="convertToEntra()" disabled title="Convert table users to Entra ID users"><div class="d-flex flex-row justify-content-evenly align-items-center"><img src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>">&nbsp;<span>Convert</span></div></button>
+            
+                        text: '<div class="d-flex flex-row justify-content-evenly align-items-center"><img src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>">&nbsp;<span>Convert</span></div>',
+                        className: 'btn btn-info mr-2 nowrap',
+                        action: convertToEntra,
+                        init: function (api, node, config) {
+                            $(node).attr('title', 'Convert table users to Entra ID users');
+                            $(node).attr('id', 'entraButton');
+                            $(node).attr('disabled', true);
+                        }            
+                    },{
+                        text: '<i class="fa-solid fa-table-list"></i>&nbsp;Convert',
+                        className: 'btn btn-warning nowrap',
+                        action: convertToTable,
+                        init: function (api, node, config) {
+                            $(node).attr('title', 'Convert Entra ID users to table users');
+                            $(node).attr('id', 'tableButton');
+                            $(node).attr('disabled', true);
+                        }            
                     }]},
-                    document.getElementById('entraButton'),
-                    document.getElementById('tableButton'),
-                    document.getElementById('userTypeSelect'),
-                    document.getElementById('attestationStatusSelect')                    
+                    document.getElementById('selectContainer')                
                 ],
             },
             rowId: 'username',
@@ -287,7 +303,8 @@ a.attestation-link {
             columns: [
                 { 
                     sortable: false,
-                    render: DataTable.render.select()
+                    render: DataTable.render.select(),
+                    responsivePriority: 1
                 },
                 { 
                     title: "Username",
@@ -296,10 +313,11 @@ a.attestation-link {
                             return row.username;
                         }
                         return `<a class="text-primary link-underline-primary" target="_blank" rel="noopener noreferrer" href="${app_path_webroot_full}redcap_v${redcap_version}/ControlCenter/view_users.php?username=${row.username}">${row.username}</a>`;
-                    }
+                    },
+                    responsivePriority: 1
                 },
-                { data: "user_firstname" },
-                { data: "user_lastname" },
+                { data: "user_firstname", responsivePriority: 2 },
+                { data: "user_lastname", responsivePriority: 3 },
                 { 
                     title: "Email",
                     data: function (row, type, set, meta) {
@@ -307,7 +325,8 @@ a.attestation-link {
                             return row.user_email;
                         }
                         return `<a class="text-danger-emphasis" href="mailto:${row.user_email}">${row.user_email}</a>`;
-                    }
+                    },
+                    responsivePriority: 3
                 },
                 {
                     title: 'Entra ID User Type',
@@ -331,7 +350,8 @@ a.attestation-link {
                         }
 
                         return row.authType;
-                    }
+                    },
+                    responsivePriority: 1
                 },
                 {
                     title: 'Attestation',
@@ -345,7 +365,8 @@ a.attestation-link {
                         }
 
                         return createAttestationLink(row);
-                    }
+                    },
+                    responsivePriority: 2
                 }
             ],
             initComplete: function () {
@@ -372,10 +393,11 @@ a.attestation-link {
                 });
             }
         });
-        $('.dt-buttons').parent().addClass('d-flex flex-row align-items-center justify-content-start');
+        $('.dt-buttons').removeClass('btn-group flex-wrap').addClass('nowrap');
+        $('.dt-buttons').parent().addClass('d-flex flex-xl-row flex-column align-items-center justify-content-start');
         $('.dt-buttons').parent().parent().removeClass('mt-2');
         table.on('draw', function () {
-            $('.dt-buttons').parent().addClass('d-flex flex-row align-items-center justify-content-start');
+            $('.dt-buttons').parent().addClass('d-flex flex-xl-row flex-column align-items-center justify-content-start');
         });
     });
 </script>
