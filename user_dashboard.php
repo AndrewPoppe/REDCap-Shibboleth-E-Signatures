@@ -39,14 +39,14 @@ a.attestation-link {
     </div>
     <div class="border border-secondary-subtle p-3 rounded-2">
         <div>
-            <div id="selectContainer" class="d-flex flex-row ml-xl-auto mt-2 mt-xl-0">
-                <select id="userTypeSelect" class="form-select" style="width: 200px;">
+            <div id="selectContainer" class="d-flex flex-column flex-sm-row ml-xl-auto mt-2 mt-xl-0">
+                <select id="userTypeSelect" class="form-select form-select-sm" style="width: 200px;">
                     <option disabled selected value>User Type</option>
                     <option value="all">All Users</option>
                     <option value="entraid">EntraID Users</option>
                     <option value="table">Table Users</option>
                 </select>
-                <select id="attestationStatusSelect" class="form-select ml-2" style="width: 200px;">
+                <select id="attestationStatusSelect" class="form-select form-select-sm ml-0 ml-sm-2 mt-1 mt-sm-0" style="width: 200px;">
                     <option disabled selected value>Attestation Status</option>
                     <option value="all">All Users</option>
                     <option value="current">Up-to-date Attestations</option>
@@ -224,7 +224,7 @@ a.attestation-link {
                     {buttons: [{
                         extend: 'excelHtml5',
                         text: '<i class="fa-solid fa-file-excel"></i> Export',
-                        className: 'btn btn-success me-2 nowrap',
+                        className: 'btn btn-sm btn-success me-2 nowrap',
                         exportOptions: {
                             format: {
                                 body: function (html, row, column, node) {
@@ -272,10 +272,8 @@ a.attestation-link {
                         filename: 'EntraID_Users_' + new Date().toISOString().slice(0, 10),
                         title: null
                     },{
-                        // <button id="entraButton" class="btn btn-info mr-2 nowrap" onclick="convertToEntra()" disabled title="Convert table users to Entra ID users"><div class="d-flex flex-row justify-content-evenly align-items-center"><img src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>">&nbsp;<span>Convert</span></div></button>
-            
                         text: '<div class="d-flex flex-row justify-content-evenly align-items-center"><img src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>">&nbsp;<span>Convert</span></div>',
-                        className: 'btn btn-info mr-2 nowrap',
+                        className: 'btn btn-sm btn-info mr-2 nowrap',
                         action: convertToEntra,
                         init: function (api, node, config) {
                             $(node).attr('title', 'Convert table users to Entra ID users');
@@ -284,7 +282,7 @@ a.attestation-link {
                         }            
                     },{
                         text: '<i class="fa-solid fa-table-list"></i>&nbsp;Convert',
-                        className: 'btn btn-warning nowrap',
+                        className: 'btn btn-sm btn-warning nowrap',
                         action: convertToTable,
                         init: function (api, node, config) {
                             $(node).attr('title', 'Convert Entra ID users to table users');
