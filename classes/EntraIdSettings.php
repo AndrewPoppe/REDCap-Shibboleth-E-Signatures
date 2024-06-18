@@ -49,7 +49,7 @@ class EntraIdSettings
         $sites    = array_filter($settings, function ($setting) use ($authValue) {
             return $setting['authValue'] === $authValue;
         });
-        return $sites[0] ?? [];
+        return reset($sites) ?? [];
     }
 
     public function getAllSettings()
