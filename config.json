@@ -1,6 +1,6 @@
 {
     "name": "Entra ID Authenticator",
-    "tt_name": "module_name",
+    "tt_namew": "module_name",
     "namespace": "YaleREDCap\\EntraIdAuthenticator",
     "description": "This External Module enables SSO with multiple Entra ID tenants.",
     "tt_description": "module_description",
@@ -15,37 +15,44 @@
         {
             "key": "general-section",
             "name": "general_section",
-            "tt_name": "general_section",
+            "tt_name": true,
             "type": "descriptive"
+        },
+        {
+            "key": "entraid-ticket-url",
+            "name": "entraid_ticket_url",
+            "tt_name": true,
+            "type": "text",
+            "required": true
         },
         {
             "key": "custom-login-page-type",
             "name": "custom_login_page_type",
-            "tt_name": "custom_login_page_type",
+            "tt_name": true,
             "type": "radio",
             "required": true,
             "choices": [
                 {
                     "value": "complete",
-                    "name": "Complete Custom Page",
-                    "tt_name": "complete_custom_page"
+                    "name": "complete_custom_page",
+                    "tt_name": true
                 },
                 {
                     "value": "modified",
-                    "name": "Modified Page",
-                    "tt_name": "modified_page"
+                    "name": "modified_page",
+                    "tt_name": true
                 },
                 {
                     "value": "none",
-                    "name": "SSO Only",
-                    "tt_name": "page_type_none"
+                    "name": "page_type_none",
+                    "tt_name": true
                 }
             ]
         },
         {
             "key": "custom-login-page-background-image",
             "name": "custom_login_page_background_image",
-            "tt_name": "custom_login_page_background_image",
+            "tt_name": true,
             "type": "file",
             "required": true,
             "branchingLogic": {
@@ -56,7 +63,7 @@
         {
             "key": "custom-login-page-background-image-copyright-text",
             "name": "custom_login_page_background_image_copyright_text",
-            "tt_name": "custom_login_page_background_image_copyright_text",
+            "tt_name": true,
             "type": "text",
             "branchingLogic": {
                 "field": "custom-login-page-type",
@@ -66,7 +73,7 @@
         {
             "key": "custom-login-page-background-image-copyright-link",
             "name": "custom_login_page_background_image_copyright_link",
-            "tt_name": "custom_login_page_background_image_copyright_link",
+            "tt_name": true,
             "type": "text",
             "branchingLogic": {
                 "field": "custom-login-page-type",
@@ -76,7 +83,7 @@
         {
             "key": "create-new-users-on-login",
             "name": "create_new_users_on_login",
-            "tt_name": "create_new_users_on_login",
+            "tt_name": true,
             "type": "checkbox",
             "branchingLogic": {
                 "type": "or",
@@ -97,7 +104,7 @@
         {
             "key": "convert-table-user-to-entraid-user",
             "name": "convert_table_user_to_entraid_user",
-            "tt_name": "convert_table_user_to_entraid_user",
+            "tt_name": true,
             "type": "checkbox",
             "branchingLogic": {
                 "type": "or",
@@ -118,23 +125,23 @@
         {
             "key": "entraid-attestation-default",
             "name": "entraid_attestation_default",
-            "tt_name": "entraid_attestation_default",
+            "tt_name": true,
             "type": "radio",
             "choices": [
                 {
                     "value": 0,
-                    "name": "No Attestation",
-                    "tt_name": "no_attestation"
+                    "name": "no_attestation",
+                    "tt_name": true
                 },
                 {
                     "value": 1,
-                    "name": "On account creation",
-                    "tt_name": "attestation_at_creation"
+                    "name": "attestation_at_creation",
+                    "tt_name": true
                 },
                 {
                     "value": 2,
-                    "name": "On every login (only if needed)",
-                    "tt_name": "attestation_every_login"
+                    "name": "attestation_every_login",
+                    "tt_name": true
                 }
             ],
             "branchingLogic": {
@@ -156,7 +163,7 @@
         {
             "key": "entraid-attestation-text-default",
             "name": "entraid_attestation_text_default",
-            "tt_name": "entraid_attestation_text_default",
+            "tt_name": true,
             "type": "rich-text",
             "branchingLogic": {
                 "type": "or",
@@ -177,7 +184,7 @@
         {
             "key": "entraid-attestation-checkbox-text-default",
             "name": "entraid_attestation_checkbox_text_default",
-            "tt_name": "entraid_attestation_checkbox_text_default",
+            "tt_name": true,
             "type": "text",
             "branchingLogic": {
                 "type": "or",
@@ -198,7 +205,7 @@
         {
             "key": "entraid-attestation-version-default",
             "name": "entraid_attestation_version_default",
-            "tt_name": "entraid_attestation_version_default",
+            "tt_name": true,
             "type": "text",
             "branchingLogic": {
                 "type": "or",
@@ -219,20 +226,20 @@
         {
             "key": "entraid-greater-section",
             "name": "entraid_greater_section",
-            "tt_name": "entraid_greater_section",
+            "tt_name": true,
             "type": "descriptive"
         },
         {
             "key": "entraid-site",
             "name": "entraid_site",
-            "tt_name": "entraid_site",
+            "tt_name": true,
             "type": "sub_settings",
             "repeatable": true,
             "sub_settings": [
                 {
                     "key": "entraid-section",
                     "name": "entraid_section",
-                    "tt_name": "entraid_section",
+                    "tt_name": true,
                     "type": "descriptive"
                 },
                 {
@@ -243,21 +250,21 @@
                 {
                     "key": "entraid-label",
                     "name": "entraid_label",
-                    "tt_name": "entraid_label",
+                    "tt_name": true,
                     "type": "text",
                     "required": true
                 },
                 {
                     "key": "entraid-auth-value",
                     "name": "entraid_auth_value",
-                    "tt_name": "entraid_auth_value",
+                    "tt_name": true,
                     "type": "text",
                     "required": true
                 },
                 {
                     "key": "entraid-login-button-logo",
                     "name": "entraid_login_button_logo",
-                    "tt_name": "entraid_login_button_logo",
+                    "tt_name": true,
                     "type": "file",
                     "branchingLogic": {
                         "type": "or",
@@ -278,66 +285,66 @@
                 {
                     "key": "entraid-ad-tenant-id",
                     "name": "entraid_ad_tenant_id",
-                    "tt_name": "entraid_ad_tenant_id",
+                    "tt_name": true,
                     "type": "text"
                 },
                 {
                     "key": "entraid-client-id",
                     "name": "entraid_client_id",
-                    "tt_name": "entraid_client_id",
+                    "tt_name": true,
                     "type": "text"
                 },
                 {
                     "key": "entraid-client-secret",
                     "name": "entraid_client_secret",
-                    "tt_name": "entraid_client_secret",
+                    "tt_name": true,
                     "type": "password"
                 },
                 {
                     "key": "entraid-redirect-url",
                     "name": "entraid_redirect_url",
-                    "tt_name": "entraid_redirect_url",
+                    "tt_name": true,
                     "type": "text"
                 },
                 {
                     "key": "entraid-redirect-url-spa",
                     "name": "entraid_redirect_url_spa",
-                    "tt_name": "entraid_redirect_url_spa",
+                    "tt_name": true,
                     "type": "text"
                 },
                 {
                     "key": "entraid-logout-url",
                     "name": "entraid_logout_url",
-                    "tt_name": "entraid_logout_url",
+                    "tt_name": true,
                     "type": "text"
                 },
                 {
                     "key": "entraid-allowed-groups",
                     "name": "entraid_allowed_groups",
-                    "tt_name": "entraid_allowed_groups",
+                    "tt_name": true,
                     "type": "text",
                     "repeatable": true
                 },
                 {
                     "key": "entraid-attestation",
                     "name": "entraid_attestation",
-                    "tt_name": "entraid_attestation",
+                    "tt_name": true,
                     "type": "radio",
                     "choices": [
                         {
                             "value": 0,
-                            "name": "No Attestation",
-                            "tt_name": "no_attestation"
+                            "name": "no_attestation",
+                            "tt_name": true
                         },
                         {
                             "value": 1,
-                            "name": "On account creation",
-                            "tt_name": "attestation_at_creation"
+                            "name": "attestation_at_creation",
+                            "tt_name": true
                         },
                         {
                             "value": 2,
-                            "name": "On every login (only if needed)",
-                            "tt_name": "attestation_every_login"
+                            "name": "attestation_every_login",
+                            "tt_name": true
                         }
                     ],
                     "branchingLogic": {
@@ -359,7 +366,7 @@
                 {
                     "key": "entraid-attestation-text",
                     "name": "entraid_attestation_text",
-                    "tt_name": "entraid_attestation_text",
+                    "tt_name": true,
                     "type": "rich-text",
                     "branchingLogic": {
                         "type": "or",
@@ -380,7 +387,7 @@
                 {
                     "key": "entraid-attestation-checkbox-text",
                     "name": "entraid_attestation_checkbox_text",
-                    "tt_name": "entraid_attestation_checkbox_text",
+                    "tt_name": true,
                     "type": "text",
                     "branchingLogic": {
                         "type": "or",
@@ -401,7 +408,7 @@
                 {
                     "key": "entraid-attestation-version",
                     "name": "entraid_attestation_version",
-                    "tt_name": "entraid_attestation_version",
+                    "tt_name": true,
                     "type": "text",
                     "branchingLogic": {
                         "type": "or",

@@ -70,6 +70,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function redcap_every_page_before_render($project_id = null)
     {
         try {
+            global $userid;
 
             // Check if we're in a page that needs to be handled
             $page = defined('PAGE') ? PAGE : null;            
@@ -109,20 +110,21 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Already logged in to REDCap
             if ( $this->isLoggedIntoREDCap() ) {
-                $userid = $this->getUserId();
-                $userType = $this->getUserType($userid);
+                $username = $this->getUserId();
+                $userType = $this->getUserType($username);
                 if ( $this->doingLocalLogin() || $userType['authValue'] === self::$LOCAL_AUTH ) {
                     // Local/LDAP user just logged in - Check if attestation is needed
                     $siteId = $this->inferSiteId($userType);
                     if ( isset($_GET[self::$SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1) {
-                        $this->setEntraIdUser($userid, $siteId);
+                        $this->setEntraIdUser($username, $siteId);
                     }
-                    $attestation = new Attestation($this, $userid, $siteId);
+                    $attestation = new Attestation($this, $username, $siteId);
                     if ( $attestation->needsAttestationLocal() ) {
-                        $attestation->showAttestationPage(['username' => $userid], $this->curPageURL());
+                        $attestation->showAttestationPage(['username' => $username], $this->curPageURL());
                         $this->exitAfterHook();
                         return;
                     }
+
                     // Otherwise just redirect to the page without the auth query
                     if ( isset($_GET[self::$AUTH_QUERY]) ) {
                         $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$AUTH_QUERY);
@@ -130,11 +132,23 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                         $this->redirectAfterHook($cleanUrl);
                     }
                 }
-                if ( !$this->checkAllowlist($userid) ) {
-                    $this->showNoUserAccessPage($userid);
+                if ( !$this->checkAllowlist($username) ) {
+                    $this->showNoUserAccessPage($username);
                     $this->framework->exitAfterHook();
                 }
                 return;
+            }
+
+            $username = $this->getUserId();
+            if (!$this->isLoggedIntoREDCap() && isset($username) && $username !== 'SYSTEM' && $this->inAuthenticateFunction()) {
+                // Check if user does not have an email address or email has not been verified
+                if ( !$this->userHasVerifiedEmail($username) ) {
+                    // This sets the $userid global, which is used in the email update page 
+                    $userid = $username;
+                    $this->showEmailUpdatePage();
+                    $this->exitAfterHook();
+                    return;
+                }
             }
 
             // Only authenticate if we're asked to
@@ -197,20 +211,20 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function loginEntraIDUser(array $userdata, string $siteId, string $originUrl)
     {
-        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang;
+        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang, $userid;
         try {
-            $userid = $userdata['username'];
-            if ( $userid === false || empty($userid) ) {
+            $username = $userdata['username'];
+            if ( $username === false || empty($username) ) {
                 return false;
             }
 
             // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
-            if ( !$this->userExists($userid) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
+            if ( !$this->userExists($username) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
                 exit($this->framework->tt('error_2'));
             }
 
             // Force custom attestation page if needed
-            $attestation = new Attestation($this, $userid, $siteId);
+            $attestation = new Attestation($this, $username, $siteId);
             if ($attestation->needsAttestation()) {
                 $attestation->showAttestationPage($userdata, $originUrl);
                 return false;
@@ -218,44 +232,46 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Successful authentication
             $this->framework->log('Entra ID REDCap Authenticator: Auth Succeeded', [
-                "EntraID Username" => $userid
+                "EntraID Username" => $username
             ]);
 
             // Trigger login
-            \Authentication::autoLogin($userid);
+            \Authentication::autoLogin($username);
             $_SESSION['entraid_id'] = $userdata['id'];
 
             // Update last login timestamp
-            \Authentication::setUserLastLoginTimestamp($userid);
+            \Authentication::setUserLastLoginTimestamp($username);
 
             // Log the login
-            \Logging::logPageView("LOGIN_SUCCESS", $userid);
+            \Logging::logPageView("LOGIN_SUCCESS", $username);
 
             // Handle account-related things.
             // If the user does not exist, create them.
-            if ( !$this->userExists($userid) ) {
-                if (
-                    isset($userdata['user_firstname']) &&
-                    isset($userdata['user_lastname']) &&
-                    isset($userdata['user_email'])
-                ) {
-                    $this->setUserDetails($userid, $userdata);
-                }
-                $this->setEntraIdUser($userid, $siteId);
+            if ( !$this->userExists($username) ) {
+                $this->createUser($username, $userdata);
+                $this->setEntraIdUser($username, $siteId);
             }
+
+            // If user does not have an email address or email has not been verified, show update screen
+            if ( !$this->userHasVerifiedEmail($username) ) {
+                $userid = $username;
+                $this->showEmailUpdatePage();
+                return false;
+            }
+
             // If user is a table-based user, convert to Entra ID user
-            elseif ( \Authentication::isTableUser($userid) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
-                $this->convertTableUserToEntraIdUser($userid, $siteId);
+            elseif ( \Authentication::isTableUser($username) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
+                $this->convertTableUserToEntraIdUser($username, $siteId);
             }
             // otherwise just make sure they are logged as an Entra ID user
-            elseif ( !\Authentication::isTableUser($userid) ) {
-                $this->setEntraIdUser($userid, $siteId);
+            elseif ( !\Authentication::isTableUser($username) ) {
+                $this->setEntraIdUser($username, $siteId);
             }
 
             // 2. If user allowlist is not enabled, all Entra ID users are allowed.
             // Otherwise, if not in allowlist, then give them an error page.
-            if ( !$this->checkAllowlist($userid) ) {
-                $this->showNoUserAccessPage($userid);
+            if ( !$this->checkAllowlist($username) ) {
+                $this->showNoUserAccessPage($username);
                 return false;
             }
             return true;
@@ -502,15 +518,15 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
     }
 
-    private function convertTableUserToEntraIdUser(string $userid, string $siteId)
+    private function convertTableUserToEntraIdUser(string $username, string $siteId)
     {
-        if ( empty($userid) ) {
+        if ( empty($username) ) {
             return;
         }
         try {
             $SQL   = 'DELETE FROM redcap_auth WHERE username = ?';
-            $query = $this->framework->query($SQL, [ $userid ]);
-            $this->setEntraIdUser($userid, $siteId);
+            $query = $this->framework->query($SQL, [ $username ]);
+            $this->setEntraIdUser($username, $siteId);
             return;
         } catch ( \Exception $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
@@ -518,23 +534,23 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function convertTableUsersToEntraIdUsers(array $userids, string $siteId)
+    private function convertTableUsersToEntraIdUsers(array $usernames, string $siteId)
     {
-        if ( empty($userids) ) {
+        if ( empty($usernames) ) {
             return;
         }
         try {
             $questionMarks = [];
             $params        = [];
-            foreach ( $userids as $userid ) {
+            foreach ( $usernames as $username ) {
                 $questionMarks[] = '?';
-                $params[]        = $userid;
+                $params[]        = $username;
             }
             $SQL   = 'DELETE FROM redcap_auth WHERE username in (' . implode(',', $questionMarks) . ')';
             $result = $this->framework->query($SQL, $params);
             if ($result) {
-                foreach ($userids as $userid) {
-                    $this->setEntraIdUser($userid, $siteId);
+                foreach ($usernames as $username) {
+                    $this->setEntraIdUser($username, $siteId);
                 }
             }
             return;
@@ -553,22 +569,22 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             $getUsersSql = 'SELECT username_to_reset WHERE message = ?';
             $getUsersQ   = $this->framework->queryLogs($getUsersSql, [ $neededMessage ]);
-            $userids     = [];
+            $usernames     = [];
             while ( $row = $getUsersQ->fetch_assoc() ) {
-                $userids[] = $row['username_to_reset'];
+                $usernames[] = $row['username_to_reset'];
             }
-            if ( empty($userids) ) {
+            if ( empty($usernames) ) {
                 return;
             }
 
             $limitReached = $this->throttle("message = ?", [ $completeMessage ], $limitSeconds, $limitOccurrences);
             if ( !$limitReached ) {
-                foreach ( $userids as $userid ) {
-                    $result = \Authentication::resetPasswordSendEmail($userid);
-                    $this->setEntraIdUser($userid, false);
+                foreach ( $usernames as $username ) {
+                    $result = \Authentication::resetPasswordSendEmail($username);
+                    $this->setEntraIdUser($username, false);
                     if ( $result ) {
-                        $this->framework->log($completeMessage, [ 'username_to_reset' => $userid ]);
-                        $this->framework->removeLogs('message = ? AND username_to_reset = ? AND project_id IS NULL', [ $neededMessage, $userid ]);
+                        $this->framework->log($completeMessage, [ 'username_to_reset' => $username ]);
+                        $this->framework->removeLogs('message = ? AND username_to_reset = ? AND project_id IS NULL', [ $neededMessage, $username ]);
                     }
                 }
             }
@@ -577,19 +593,19 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function convertEntraIdUsertoTableUser(string $userid)
+    private function convertEntraIdUsertoTableUser(string $username)
     {
-        if ( empty($userid) ) {
+        if ( empty($username) ) {
             return;
         }
-        if ( !$this->isEntraIdUser($userid) ) {
+        if ( !$this->isEntraIdUser($username) ) {
             return false;
         }
         try {
             $SQL   = "INSERT INTO redcap_auth (username) VALUES (?)";
-            $query = $this->framework->query($SQL, [ $userid ]);
-            \Authentication::resetPasswordSendEmail($userid);
-            $this->setEntraIdUser($userid, false);
+            $query = $this->framework->query($SQL, [ $username ]);
+            \Authentication::resetPasswordSendEmail($username);
+            $this->setEntraIdUser($username, false);
             return;
         } catch ( \Exception $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
@@ -597,19 +613,19 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function convertEntraIdUserstoTableUsers(array $userids)
+    private function convertEntraIdUserstoTableUsers(array $usernames)
     {
-        if ( empty($userids) ) {
+        if ( empty($usernames) ) {
             return;
         }
         try {
             $questionMarks0 = [];
             $questionMarks = [];
             $params        = [];
-            foreach ( $userids as $userid ) {
+            foreach ( $usernames as $username ) {
                 $questionMarks0[] = '?';
                 $questionMarks[] = '(?)';
-                $params[]        = $userid;
+                $params[]        = $username;
             }
 
             $testSQL = 'SELECT count(*) n FROM redcap_auth WHERE username IN (' . implode(',', $questionMarks0) . ')';
@@ -621,8 +637,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             $SQL   = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
             $result = $this->framework->query($SQL, $params);
-            foreach ($userids as $userid) {
-                $this->framework->log('password-reset-needed', [ 'username' => $userid, 'username_to_reset' => $userid ]); 
+            foreach ($usernames as $username) {
+                $this->framework->log('password-reset-needed', [ 'username' => $username, 'username_to_reset' => $username ]); 
             }
             return;
         } catch ( \Exception $e ) {
@@ -632,13 +648,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     }
 
     /**
-     * @param string $userid
+     * @param string $username
      * @return bool
      */
-    private function inUserAllowlist(string $userid)
+    private function inUserAllowlist(string $username)
     {
         $SQL = "SELECT 1 FROM redcap_user_allowlist WHERE username = ?";
-        $q   = $this->framework->query($SQL, [ $userid ]);
+        $q   = $this->framework->query($SQL, [ $username ]);
         return $q->fetch_assoc() !== null;
     }
 
@@ -651,27 +667,27 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         $authenticator->logout();
     }
 
-    private function setUserDetails($userid, $details)
+    private function setUserDetails($username, $details)
     {
-        if ( $this->userExists($userid) ) {
-            $this->updateUserDetails($userid, $details);
+        if ( $this->userExists($username) ) {
+            $this->updateUserDetails($username, $details);
         } else {
-            $this->insertUserDetails($userid, $details);
+            $this->insertUserDetails($username, $details);
         }
     }
 
-    public function userExists($userid)
+    public function userExists($username)
     {
         $SQL = 'SELECT 1 FROM redcap_user_information WHERE username = ?';
-        $q   = $this->framework->query($SQL, [ $userid ]);
+        $q   = $this->framework->query($SQL, [ $username ]);
         return $q->fetch_assoc() !== null;
     }
 
-    private function updateUserDetails($userid, $details)
+    private function updateUserDetails($username, $details)
     {
         try {
             $SQL    = 'UPDATE redcap_user_information SET user_firstname = ?, user_lastname = ?, user_email = ? WHERE username = ?';
-            $PARAMS = [ $details['user_firstname'], $details['user_lastname'], $details['user_email'], $userid ];
+            $PARAMS = [ $details['user_firstname'], $details['user_lastname'], $details['user_email'], $username ];
             $query  = $this->createQuery();
             $query->add($SQL, $PARAMS);
             $query->execute();
@@ -681,11 +697,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function insertUserDetails($userid, $details)
+    private function insertUserDetails($username, $details)
     {
         try {
             $SQL    = 'INSERT INTO redcap_user_information (username, user_firstname, user_lastname, user_email, user_creation) VALUES (?, ?, ?, ?, ?)';
-            $PARAMS = [ $userid, $details['user_firstname'], $details['user_lastname'], $details['user_email'], NOW ];
+            $PARAMS = [ $username, $details['user_firstname'], $details['user_lastname'], $details['user_email'], NOW ];
             $query  = $this->createQuery();
             $query->add($SQL, $PARAMS);
             $query->execute();
@@ -746,9 +762,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         ];
     }
 
-    public function setEntraIdUser($userid, $value)
+    public function setEntraIdUser($username, $value)
     {
-        $this->framework->setSystemSetting('entraid-user-' . $userid, $value);
+        $this->framework->setSystemSetting('entraid-user-' . $username, $value);
     }
 
     private function addEntraIdInfoToBrowseUsersTable($page)
@@ -768,8 +784,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
         parse_str($_SERVER['QUERY_STRING'], $query);
         if ( isset($query['username']) ) {
-            $userid   = $query['username'];
-            $site = $this->getUserType($userid);
+            $username   = $query['username'];
+            $site = $this->getUserType($username);
         }
 
         ?>
@@ -864,16 +880,16 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     );
                 }
 
-                <?php if ( isset($userid) ) { ?>
+                <?php if ( isset($username) ) { ?>
                     window.requestAnimationFrame(() => {
                         addTableRow('<?= json_encode($site) ?>')
                     });
                 <?php } ?>
 
                 $(document).ready(function () {
-                    <?php if ( isset($userid) ) { ?>
+                    <?php if ( isset($username) ) { ?>
                         if (!$('#userTypeRow').length) {
-                            view_user('<?= $userid ?>');
+                            view_user('<?= $username ?>');
                         }
 
                     <?php } ?>
@@ -896,11 +912,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         })) > 0;
     }
 
-    private function setUserCreationTimestamp($userid)
+    private function setUserCreationTimestamp($username)
     {
         try {
             $SQL = "UPDATE redcap_user_information SET user_creation = ? WHERE username = ?";
-            $this->framework->query($SQL, [ NOW, $userid ]);
+            $this->framework->query($SQL, [ NOW, $username ]);
         } catch ( \Exception $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error setting user creation timestamp', [ 'error' => $e->getMessage() ]);
         }
@@ -1163,7 +1179,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <?php
     }
 
-    private function showNoUserAccessPage($userid) 
+    private function showNoUserAccessPage($username) 
     {
         global $homepage_contact, $homepage_contact_email, $lang;
         session_unset();
@@ -1197,7 +1213,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         </style>
         <div class='container'>
             <div class='red' style='margin:40px 0 20px;padding:20px;'>
-                <?= $lang['config_functions_78'] ?>"<b><?=$userid?></b>"<?= $lang['period'] ?>
+                <?= $lang['config_functions_78'] ?>"<b><?=$username?></b>"<?= $lang['period'] ?>
                 <?= $lang['config_functions_79'] ?> <a href='mailto:$homepage_contact_email'><?= $homepage_contact ?></a><?= $lang['period'] ?>
             </div>
             <button onclick="window.location.href='<?= APP_PATH_WEBROOT_FULL ?>index.php?logout=1'"><?= $this->framework->tt('error_5') ?></button>
@@ -1206,10 +1222,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <?php
     }
 
-    private function checkAllowlist($userid) 
+    private function checkAllowlist($username) 
     {
         global $enable_user_allowlist;
-        return !$enable_user_allowlist || \Authentication::isTableUser($userid) || $this->inUserAllowlist($userid) || $userid === 'SYSTEM';
+        return !$enable_user_allowlist || \Authentication::isTableUser($username) || $this->inUserAllowlist($username) || $username === 'SYSTEM';
     }
 
     private function generateSiteId() 
@@ -1325,5 +1341,40 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    private function createUser($username, $userdata) {
+        try {
+            if (
+                isset($userdata['user_firstname']) &&
+                isset($userdata['user_lastname']) &&
+                isset($userdata['user_email'])
+            ) {
+                $this->setUserDetails($username, $userdata);
+                return true;
+            }
+            return false;
+        } catch (\Throwable $e) {
+            $this->framework->log('Entra ID REDCap Authenticator: Error creating user', [ 'error' => $e->getMessage() ]);
+            return false;
+        }
+    }
+
+    private function userHasVerifiedEmail($username) {
+        $userInfo = \User::getUserInfo($username);
+        return !(empty($userInfo) || $userInfo['user_email'] == "" || ($userInfo['user_email'] != "" && $userInfo['email_verify_code'] != ""));
+    }
+
+    private function showEmailUpdatePage() {
+        global $lang, $userid;
+
+        $ticketLink = $this->getTicketLink();
+        $lang['user_02'] .= '<br><br>' . $this->framework->tt('email_update_1', [ $ticketLink, 'Open Support Ticket' ]);
+
+        include APP_PATH_DOCROOT . 'Profile/user_info.php';        
+    }
+
+    private function getTicketLink() {
+        return $this->framework->getSystemSetting('entraid-ticket-url');
     }
 }
