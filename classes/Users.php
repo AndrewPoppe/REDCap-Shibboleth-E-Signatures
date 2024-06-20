@@ -34,16 +34,16 @@ class Users
                     SELECT substring(`key`, 14) username, `value` entraid
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
-                    AND `key` like '".$this->module::$USER_ATTESTATION_SETTING_PREFIX."%'
+                    AND `key` like '".$this->module::$USER_TYPE_SETTING_PREFIX."%'
                     ) em
                 ON u.username = em.username
                 LEFT JOIN (
                     SELECT substring(`key`, 21) username, 
-                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.version')) attestationVersion,
-                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.siteId')) attestationSiteId,
-                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.date')) attestationDate,
-                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationText')) attestationText,
-                        JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationCheckboxText')) attestationCheckboxText
+                        IF(JSON_VALID(`value`), JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.version')), NULL) attestationVersion,
+                        IF(JSON_VALID(`value`), JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.siteId')), NULL) attestationSiteId,
+                        IF(JSON_VALID(`value`), JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.date')), NULL) attestationDate,
+                        IF(JSON_VALID(`value`), JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationText')), NULL) attestationText,
+                        IF(JSON_VALID(`value`), JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationCheckboxText')), NULL) attestationCheckboxText
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
                     AND `key` like '".$this->module::$USER_ATTESTATION_SETTING_PREFIX."%'
@@ -85,7 +85,7 @@ class Users
         if (!(SUPER_USER || ACCOUNT_MANAGER)) {
             return;
         }
-        if (empty($username) || !$module->userExists($username)) {
+        if (empty($username) || !$this->module->userExists($username)) {
             return;
         }
         if (ACCOUNT_MANAGER && $this->module->framework->getUser($username)->isSuperUser()) {

@@ -16,12 +16,12 @@ require_once 'classes/Users.php';
 class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
-    static $AUTH_QUERY = 'authtype';
-    static $SITEID_QUERY = 'sid';
-    static $LOCAL_AUTH = 'local';
-    static $ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
-    static $USER_TYPE_SETTING_PREFIX = 'entraid-user-';
-    static $USER_ATTESTATION_SETTING_PREFIX = 'entraid-attestation-';
+    public static $AUTH_QUERY = 'authtype';
+    public static $SITEID_QUERY = 'sid';
+    public static $LOCAL_AUTH = 'local';
+    public static $ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
+    public static $USER_TYPE_SETTING_PREFIX = 'entraid-user-';
+    public static $USER_ATTESTATION_SETTING_PREFIX = 'entraid-attestation-';
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
@@ -92,7 +92,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     $Users = new Users($this);
                     $Users->deleteUser($username);
                 } catch (\Throwable $e) {
-                    $this->framework->log('Entra ID REDCap Authenticator: Error deleting user', ['user to delete' => $this->framework->escape($username)]);
+                    $this->framework->log('Entra ID REDCap Authenticator: Error deleting user', ['user to delete' => $this->framework->escape($username), 'error' => $e->getMessage()]);
                 }
                 return;
             }
@@ -728,8 +728,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function isEntraIdUser($username)
     {
         return !\Authentication::isTableUser($username) &&
-        !empty($this->framework->getSystemSetting(self::$USER_ATTESTATION_SETTING_PREFIX . $username)) &&
-        $this->framework->getSystemSetting(self::$USER_ATTESTATION_SETTING_PREFIX . $username) !== "false";
+        !empty($this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username)) &&
+        $this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username) !== "false";
     }
 
     /**
@@ -742,7 +742,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $username === null ) {
             $username = $this->getUserId();
         }
-        $siteId = $this->framework->getSystemSetting(self::$USER_ATTESTATION_SETTING_PREFIX . $username);
+        $siteId = $this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username);
         if ( $siteId && $siteId !== 'false') {
             $site = (new EntraIdSettings($this))->getSettings($siteId);
             return [
@@ -778,7 +778,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     public function setEntraIdUser($username, $value)
     {
-        $this->framework->setSystemSetting(self::$USER_ATTESTATION_SETTING_PREFIX . $username, $value);
+        $this->framework->setSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username, $value);
     }
 
     private function addEntraIdInfoToBrowseUsersTable($page)
