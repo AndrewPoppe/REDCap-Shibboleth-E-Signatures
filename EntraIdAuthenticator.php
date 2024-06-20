@@ -1383,7 +1383,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         global $lang, $userid;
 
         $ticketLink = $this->getTicketLink();
-        $lang['user_02'] .= '<br><br>' . $this->framework->tt('email_update_1', [ $ticketLink, 'Open Support Ticket' ]);
+        $lang['user_02'] .= '<br><br>' . $this->framework->tt('email_update_1', [ $ticketLink, 'Open Support Ticket' ]) . '<br><em>' .  $this->framework->tt('email_update_2') . '</em>';
 
         include APP_PATH_DOCROOT . 'Profile/user_info.php';        
     }
