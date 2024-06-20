@@ -34,7 +34,7 @@ class Users
                     SELECT substring(`key`, 14) username, `value` entraid
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
-                    AND `key` like 'entraid-user-%'
+                    AND `key` like '".$this->module::$USER_ATTESTATION_SETTING_PREFIX."%'
                     ) em
                 ON u.username = em.username
                 LEFT JOIN (
@@ -46,7 +46,7 @@ class Users
                         JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationCheckboxText')) attestationCheckboxText
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
-                    AND `key` like 'entraid-attestation-%'
+                    AND `key` like '".$this->module::$USER_ATTESTATION_SETTING_PREFIX."%'
                     ) at
                 ON u.username = at.username
                 LEFT JOIN redcap_user_information i
@@ -79,5 +79,27 @@ class Users
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    public function deleteUser($username) {
+        if (!(SUPER_USER || ACCOUNT_MANAGER)) {
+            return;
+        }
+        if (empty($username) || !$module->userExists($username)) {
+            return;
+        }
+        if (ACCOUNT_MANAGER && $this->module->framework->getUser($username)->isSuperUser()) {
+            return;
+        }
+        $SQL = "DELETE FROM redcap_external_module_settings
+                WHERE external_module_id = ?
+                AND project_id IS NULL
+                AND `key` IN (?, ?)";
+        $params = [
+            $this->external_module_id, 
+            $this->module::$USER_TYPE_SETTING_PREFIX . $username, 
+            $this->module::$USER_ATTESTATION_SETTING_PREFIX . $username
+        ];
+        return $this->module->framework->query($SQL, $params);
     }
 }

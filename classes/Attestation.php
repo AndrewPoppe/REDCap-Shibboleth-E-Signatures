@@ -70,7 +70,7 @@ class Attestation
                 'attestationText' => $attestationText,
                 'attestationCheckboxText' => $attestationCheckboxText
             ];
-            $this->module->framework->setSystemSetting('entraid-attestation-' . $this->username, json_encode($attestation));
+            $this->module->framework->setSystemSetting($this->module::$USER_ATTESTATION_SETTING_PREFIX . $this->username, json_encode($attestation));
             return true;
         } catch ( \Throwable $e ) {
             $this->module->framework->log('Entra ID REDCap Authenticator: Error handling attestation', [ 'error' => $e->getMessage() ]);
@@ -287,7 +287,7 @@ class Attestation
         if ( empty($this->username) ) {
             return false;
         }
-        $attestationText = $this->module->framework->getSystemSetting('entraid-attestation-' . $this->username);
+        $attestationText = $this->module->framework->getSystemSetting($this->module::$USER_ATTESTATION_SETTING_PREFIX . $this->username);
         if ( empty($attestationText) ) {
             return false;
         }
@@ -324,7 +324,7 @@ class Attestation
         if ( empty($this->username) ) {
             return false;
         }
-        $attestationText = $this->module->framework->getSystemSetting('entraid-attestation-' . $this->username);
+        $attestationText = $this->module->framework->getSystemSetting($this->module::$USER_ATTESTATION_SETTING_PREFIX . $this->username);
         if ( empty($attestationText) ) {
             return false;
         }
