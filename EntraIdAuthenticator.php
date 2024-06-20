@@ -165,7 +165,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 }
             }
 
-            // Only authenticate if we're asked to 
+            // Only authenticate if we're asked to
             if ( isset($_GET[self::$AUTH_QUERY]) && !$this->doingLocalLogin() ) {
                 $authType = filter_input(INPUT_GET, self::$AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
                 $this->handleEntraIdAuth($authType, $this->curPageURL());
