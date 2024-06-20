@@ -34,7 +34,7 @@ class Users
                     SELECT substring(`key`, 14) username, `value` entraid
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
-                    AND `key` like '".$this->module::$USER_TYPE_SETTING_PREFIX."%'
+                    AND `key` LIKE '".$this->module::$USER_TYPE_SETTING_PREFIX."%'
                     ) em
                 ON u.username = em.username
                 LEFT JOIN (
@@ -46,7 +46,7 @@ class Users
                         IF(JSON_VALID(`value`), JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationCheckboxText')), NULL) attestationCheckboxText
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
-                    AND `key` like '".$this->module::$USER_ATTESTATION_SETTING_PREFIX."%'
+                    AND `key` LIKE '".$this->module::$USER_ATTESTATION_SETTING_PREFIX."%'
                     ) at
                 ON u.username = at.username
                 LEFT JOIN redcap_user_information i
@@ -101,5 +101,28 @@ class Users
             $this->module::$USER_ATTESTATION_SETTING_PREFIX . $username
         ];
         return $this->module->framework->query($SQL, $params);
+    }
+
+    public function getUsers(string $siteId) {
+        try {
+            $users = [];
+            if ( empty($siteId) ) {
+                return $users;
+            }
+            $SQL    = "SELECT SUBSTRING(`key`, 14) username 
+                    FROM redcap_external_module_settings 
+                    WHERE external_module_id = ?
+                    AND `key` LIKE '" . $this->module::$USER_TYPE_SETTING_PREFIX . "%'
+                    AND `value` = ?";
+            $params = [ $this->external_module_id, $siteId ];
+            $result = $this->module->framework->query($SQL, $params);
+            while ( $row = $result->fetch_assoc() ) {
+                $users[] = $row['username'];
+            }
+            return $users;
+        } catch (\Throwable $e) {
+            $this->module->framework->log('Error getting users', [ 'siteId'=> $this->module->framework->escape($siteId), 'error' => $e->getMessage() ]);
+            return;
+        }
     }
 }

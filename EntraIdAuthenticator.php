@@ -75,50 +75,50 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             global $userid;
 
             // Check if we're in a page that needs to be handled
-            $page = defined('PAGE') ? PAGE : null;            
-            if ( empty($page) ) {                
+            $page = defined('PAGE') ? PAGE : null;
+            if ( empty($page) ) {
                 return;
             }
-            
+
             // Don't do anything for SYSTEM user
-            if (defined('USERID') && USERID === 'SYSTEM') {                
+            if ( defined('USERID') && USERID === 'SYSTEM' ) {
                 return;
             }
-            
+
             // If a user is being deleted, also delete their relevant module settings
-            if ($page === 'ControlCenter/delete_user.php') {
+            if ( $page === 'ControlCenter/delete_user.php' ) {
                 try {
                     $username = trim($_POST['username']);
-                    $Users = new Users($this);
+                    $Users    = new Users($this);
                     $Users->deleteUser($username);
-                } catch (\Throwable $e) {
-                    $this->framework->log('Entra ID REDCap Authenticator: Error deleting user', ['user to delete' => $this->framework->escape($username), 'error' => $e->getMessage()]);
+                } catch ( \Throwable $e ) {
+                    $this->framework->log('Entra ID REDCap Authenticator: Error deleting user', [ 'user to delete' => $this->framework->escape($username), 'error' => $e->getMessage() ]);
                 }
                 return;
             }
 
             // Handle logout
-            if ( isset($_GET['logout']) && $_GET['logout'] ) {                
+            if ( isset($_GET['logout']) && $_GET['logout'] ) {
                 \Authentication::checkLogout();
                 return;
-            }     
-            
+            }
+
             // Handle E-Signature form action
-            if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
                 $site              = $this->getUserType();
                 $authType          = $site['authType'];
                 $esignatureHandler = new ESignatureHandler($this);
                 $esignatureHandler->handleRequest($_POST, $authType);
                 return;
-            }       
-            
+            }
+
             // No need to do anything for posts otherwise (assuming we're not in the login function)
-            if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$this->inLoginFunction()) {
+            if ( $_SERVER['REQUEST_METHOD'] === 'POST' && !$this->inLoginFunction() ) {
                 return;
-            }            
-            
+            }
+
             // Don't do anything if we're resetting a password
-            if ($this->resettingPassword($page)) {                
+            if ( $this->resettingPassword($page) ) {
                 return;
             }
 
@@ -129,12 +129,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 if ( $this->doingLocalLogin() || $userType['authValue'] === self::$LOCAL_AUTH ) {
                     // Local/LDAP user just logged in - Check if attestation is needed
                     $siteId = $this->inferSiteId($userType);
-                    if ( isset($_GET[self::$SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1) {
+                    if ( isset($_GET[self::$SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
                         $this->setEntraIdUser($username, $siteId);
                     }
                     $attestation = new Attestation($this, $username, $siteId);
                     if ( $attestation->needsAttestationLocal() ) {
-                        $attestation->showAttestationPage(['username' => $username], $this->curPageURL());
+                        $attestation->showAttestationPage([ 'username' => $username ], $this->curPageURL());
                         $this->exitAfterHook();
                         return;
                     }
@@ -154,7 +154,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             $username = $this->getUserId();
-            if (!$this->isLoggedIntoREDCap() && isset($username) && $username !== 'SYSTEM' && $this->inAuthenticateFunction()) {
+            if ( !$this->isLoggedIntoREDCap() && isset($username) && $username !== 'SYSTEM' && $this->inAuthenticateFunction() ) {
                 // Check if user does not have an email address or email has not been verified
                 if ( !$this->userHasVerifiedEmail($username) ) {
                     // This sets the $userid global, which is used in the email update page 
@@ -210,8 +210,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         try {
             $session_id = session_id();
             \Session::savecookie(self::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
-            $settings = new EntraIdSettings($this);
-            $site    = $settings->getSettingsByAuthValue($authType);
+            $settings      = new EntraIdSettings($this);
+            $site          = $settings->getSettingsByAuthValue($authType);
             $authenticator = new Authenticator($this, $site['siteId'], $session_id);
             $authenticator->authenticate(false, $url);
             return true;
@@ -239,7 +239,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Force custom attestation page if needed
             $attestation = new Attestation($this, $username, $siteId);
-            if ($attestation->needsAttestation()) {
+            if ( $attestation->needsAttestation() ) {
                 $attestation->showAttestationPage($userdata, $originUrl);
                 return false;
             }
@@ -314,7 +314,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function redcap_data_entry_form()
     {
         $username = $this->getUserId();
-        if ( !$this->isEntraIdUser($username) || 
+        if (
+            !$this->isEntraIdUser($username) ||
             $this->framework->getSystemSetting('custom-login-page-type') === 'none' ||
             $this->getUserType($username)['authType'] === self::$LOCAL_AUTH
         ) {
@@ -476,7 +477,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                 <div id="my_page_footer" class="text-secondary mt-4">
                                     <?= \REDCap::getCopyright() ?>
                                     <br>
-                                    <span><a href="<?= $backgroundImgLink ?>" tabindex="-1" target="_blank" rel="noopener noreferrer"><?= $backgroundImgText ?></a>
+                                    <span><a href="<?= $backgroundImgLink ?>" tabindex="-1" target="_blank"
+                                            rel="noopener noreferrer"><?= $backgroundImgText ?></a>
                                     </span>
                                 </div>
                             </div>
@@ -560,10 +562,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 $questionMarks[] = '?';
                 $params[]        = $username;
             }
-            $SQL   = 'DELETE FROM redcap_auth WHERE username in (' . implode(',', $questionMarks) . ')';
+            $SQL    = 'DELETE FROM redcap_auth WHERE username in (' . implode(',', $questionMarks) . ')';
             $result = $this->framework->query($SQL, $params);
-            if ($result) {
-                foreach ($usernames as $username) {
+            if ( $result ) {
+                foreach ( $usernames as $username ) {
                     $this->setEntraIdUser($username, $siteId);
                 }
             }
@@ -574,7 +576,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    public function sendPasswordResetEmails() {
+    public function sendPasswordResetEmails()
+    {
         try {
             $neededMessage    = 'password-reset-needed';
             $completeMessage  = 'password-reset';
@@ -583,7 +586,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             $getUsersSql = 'SELECT username_to_reset WHERE message = ?';
             $getUsersQ   = $this->framework->queryLogs($getUsersSql, [ $neededMessage ]);
-            $usernames     = [];
+            $usernames   = [];
             while ( $row = $getUsersQ->fetch_assoc() ) {
                 $usernames[] = $row['username_to_reset'];
             }
@@ -634,12 +637,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
         try {
             $questionMarks0 = [];
-            $questionMarks = [];
-            $params        = [];
+            $questionMarks  = [];
+            $params         = [];
             foreach ( $usernames as $username ) {
                 $questionMarks0[] = '?';
-                $questionMarks[] = '(?)';
-                $params[]        = $username;
+                $questionMarks[]  = '(?)';
+                $params[]         = $username;
             }
 
             $testSQL = 'SELECT count(*) n FROM redcap_auth WHERE username IN (' . implode(',', $questionMarks0) . ')';
@@ -649,10 +652,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 return false;
             }
 
-            $SQL   = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
+            $SQL    = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
             $result = $this->framework->query($SQL, $params);
-            foreach ($usernames as $username) {
-                $this->framework->log('password-reset-needed', [ 'username' => $username, 'username_to_reset' => $username ]); 
+            foreach ( $usernames as $username ) {
+                $this->framework->log('password-reset-needed', [ 'username' => $username, 'username_to_reset' => $username ]);
             }
             return;
         } catch ( \Exception $e ) {
@@ -728,8 +731,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function isEntraIdUser($username)
     {
         return !\Authentication::isTableUser($username) &&
-        !empty($this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username)) &&
-        $this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username) !== "false";
+            !empty($this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username)) &&
+            $this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username) !== "false";
     }
 
     /**
@@ -743,36 +746,36 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $username = $this->getUserId();
         }
         $siteId = $this->framework->getSystemSetting(self::$USER_TYPE_SETTING_PREFIX . $username);
-        if ( $siteId && $siteId !== 'false') {
+        if ( $siteId && $siteId !== 'false' ) {
             $site = (new EntraIdSettings($this))->getSettings($siteId);
             return [
-                'siteId'   => $siteId,
+                'siteId'    => $siteId,
                 'authValue' => $site['authValue'],
-                'authType' => $site['authValue'],
-                'label'    => $site['label']
+                'authType'  => $site['authValue'],
+                'label'     => $site['label']
             ];
         }
         if ( \Authentication::isTableUser($username) ) {
             return [
-                'siteId'   => false,
+                'siteId'    => false,
                 'authValue' => 'local',
-                'authType' => 'table',
-                'label'    => 'Table User'
+                'authType'  => 'table',
+                'label'     => 'Table User'
             ];
         }
         if ( $this->inUserAllowlist($username) ) {
             return [
-                'siteId'   => false,
+                'siteId'    => false,
                 'authValue' => 'local',
-                'authType' => 'allowlist',
-                'label'    => 'Allowlisted User'
+                'authType'  => 'allowlist',
+                'label'     => 'Allowlisted User'
             ];
         }
         return [
-            'siteId'   => false,
+            'siteId'    => false,
             'authValue' => 'local',
-            'authType' => 'unknown',
-            'label'    => 'Unknown'
+            'authType'  => 'unknown',
+            'label'     => 'Unknown'
         ];
     }
 
@@ -787,7 +790,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             return;
         }
 
-        $settings  = new EntraIdSettings($this);
+        $settings = new EntraIdSettings($this);
         $sites    = $settings->getAllSettings() ?? [];
         $siteData = [];
         foreach ( $sites as $site ) {
@@ -798,14 +801,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
         parse_str($_SERVER['QUERY_STRING'], $query);
         if ( isset($query['username']) ) {
-            $username   = $query['username'];
-            $site = $this->getUserType($username);
+            $username = $query['username'];
+            $site     = $this->getUserType($username);
         }
 
         ?>
             <script>
                 var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
-                var sites = JSON.parse('<?= json_encode( $siteData ) ?>');
+                var sites = JSON.parse('<?= json_encode($siteData) ?>');
 
                 function convertTableUserToEntraIdUser() {
                     const username = $('#user_search').val();
@@ -861,7 +864,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                 userText =
                                     `<strong><?= $this->framework->tt('user_types_2') ?></strong> <input type="button" style="font-size:11px" onclick="convertTableUserToEntraIdUser()" value="Convert to Entra ID User">`;
                                 break;
-                            }
+                        }
                     } else {
                         userText = `<strong>${site['label']}</strong> (${site['authType']}) <input type="button" style="font-size:11px" onclick="convertEntraIdUsertoTableUser()" value="<?= $this->framework->tt('convert_4') ?>">`;
                     }
@@ -919,7 +922,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         })) > 0;
     }
 
-    private function inAuthenticateFunction() 
+    private function inAuthenticateFunction()
     {
         return sizeof(array_filter(debug_backtrace(), function ($value) {
             return $value['function'] == 'authenticate';
@@ -938,11 +941,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function isLoggedIntoREDCap()
     {
-        if (!(defined('USERID') && USERID !== '') || !$this->framework->isAuthenticated()) { // || isset($_SESSION['username']);
+        if ( !(defined('USERID') && USERID !== '') || !$this->framework->isAuthenticated() ) { // || isset($_SESSION['username']);
             return false;
         }
         $username = $this->getUserId();
-        if ($this->userExists($username)) {
+        if ( $this->userExists($username) ) {
             return true;
         }
         return false;
@@ -975,8 +978,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function resettingPassword(string $page)
     {
-        return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') || 
-            $page == 'Authentication/password_recovery.php' || 
+        return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') ||
+            $page == 'Authentication/password_recovery.php' ||
             $page == 'Authentication/password_reset.php' ||
             $page == 'Profile/user_info_action.php';
     }
@@ -984,7 +987,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     private function addReplaceLogoutLinkScript()
     {
         try {
-            if (!$this->isLoggedIntoREDCap()) {
+            if ( !$this->isLoggedIntoREDCap() ) {
                 return;
             }
             $username = $this->getUserId();
@@ -1086,44 +1089,44 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             <?php
 
             global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email, $homepage_contact_url;
-            $contactLinkHref = trim($homepage_contact_url) == '' ? 'mailto:'.$homepage_contact_email : trim($homepage_contact_url);
-            $contactLink = '<a style=\"font-size:13px;text-decoration:underline;\" href=\"'.$contactLinkHref.'\">'.$homepage_contact.'</a>';
+            $contactLinkHref = trim($homepage_contact_url) == '' ? 'mailto:' . $homepage_contact_email : trim($homepage_contact_url);
+            $contactLink     = '<a style=\"font-size:13px;text-decoration:underline;\" href=\"' . $contactLinkHref . '\">' . $homepage_contact . '</a>';
             ?>
             <script>
                 document.addEventListener("DOMContentLoaded", function () {
                     $(`<p style='font-size:13px;'><?= $this->framework->tt('contact_1') . $contactLink ?></p>
-                            <div class="container text-center">
-                                <div class="row align-items-center">
-                                    <div class="col">
-                                        <div class="card" id="login-card">
-                                            <div class="card-body rounded-0">
-                                                <div class="card align-self-center text-center mb-2 login-options rounded-0">
-                                                    <ul class="list-group list-group-flush">
-                                                        <?php foreach ( $entraIdSettings as $site ) {
-                                                            $loginImg = $site['loginButtonLogo'] ?
-                                                                '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
-                                                                '<span class="login-label">' . $site['label'] . '</span>';
-                                                            $redirect = $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
-                                                            $redirect = $this->addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
-                                                            ?>
-                                                                    <li class="list-group-item list-group-item-action login-option"
-                                                                    onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
-                                                                    <?= $loginImg ?>
-                                                                </li>
-                                                        <?php } ?>
-                                                    </ul>
+                                            <div class="container text-center">
+                                                <div class="row align-items-center">
+                                                    <div class="col">
+                                                        <div class="card" id="login-card">
+                                                            <div class="card-body rounded-0">
+                                                                <div class="card align-self-center text-center mb-2 login-options rounded-0">
+                                                                    <ul class="list-group list-group-flush">
+                                                                        <?php foreach ( $entraIdSettings as $site ) {
+                                                                            $loginImg = $site['loginButtonLogo'] ?
+                                                                                '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                                                                                '<span class="login-label">' . $site['label'] . '</span>';
+                                                                            $redirect = $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
+                                                                            $redirect = $this->addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
+                                                                            ?>
+                                                                                            <li class="list-group-item list-group-item-action login-option"
+                                                                                            onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
+                                                                                            <?= $loginImg ?>
+                                                                                        </li>
+                                                                        <?php } ?>
+                                                                    </ul>
+                                                                </div>
+                                                                <hr>
+                                                                <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
+                                                                    class="text-primary">
+                                                                    <?= $this->framework->tt('login_1') ?>
+                                                                </a>
+                                                            </div>
                                                 </div>
-                                                <hr>
-                                                <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
-                                                    class="text-primary">
-                                                    <?= $this->framework->tt('login_1') ?>
-                                                </a>
                                             </div>
-                                </div>
-                            </div>
-                        </div>
-                            </div>`).insertBefore('#rc-login-form');
-                    });
+                                        </div>
+                                            </div>`).insertBefore('#rc-login-form');
+                });
             </script>
             <?php
     }
@@ -1131,13 +1134,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     private function addCustomLoginLinkScript()
     {
         $siteId = $this->inferSiteId([]);
-        if (!empty($siteId) && $siteId !== self::$LOCAL_AUTH) {
+        if ( !empty($siteId) && $siteId !== self::$LOCAL_AUTH ) {
             $customLogin = true;
-            $settings = new EntraIdSettings($this);
-            $site = $settings->getSettings($siteId);
-            $logoImg = $site['loginButtonLogo'] ?
-                            '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
-                            '<span class="login-label">' . $site['label'] . '</span>';
+            $settings    = new EntraIdSettings($this);
+            $site        = $settings->getSettings($siteId);
+            $logoImg     = $site['loginButtonLogo'] ?
+                '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                '<span class="login-label">' . $site['label'] . '</span>';
         }
         ?>
             <style>
@@ -1161,7 +1164,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     const loginForm = document.querySelector('#rc-login-form form[name="form"]');
                     if (loginForm) {
 
-                        <?php if ($customLogin) { ?>
+                        <?php if ( $customLogin ) { ?>
                             // Add Logo / label
                             const logoImg = $('<?= $logoImg ?>');
                             loginForm.parentElement.prepend(logoImg.get(0));
@@ -1190,100 +1193,87 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     }
                 });
             </script>
-        <?php
+            <?php
     }
 
-    private function showNoUserAccessPage($username) 
+    private function showNoUserAccessPage($username)
     {
         global $homepage_contact, $homepage_contact_email, $lang;
         session_unset();
         session_destroy();
         ?>
-        <style>
-            body {
-                font: normal 13px "Open Sans",Helvetica,Arial, Helvetica, sans-serif;
-            }
-            .container {
-                width: 100%;
-                height: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
-            .red {
-                padding: 6px;
-                border: 1px solid red;
-                color: #800000;
-                max-width: 1100px;
-                background-color: #FFE1E1;
-            }
-            #footer {
-                color: #888;
-                font-size: 11px;
-                text-align: center;
-                margin: 0;
-                padding: 15px 0 5px;
-            }
-        </style>
-        <div class='container'>
-            <div class='red' style='margin:40px 0 20px;padding:20px;'>
-                <?= $lang['config_functions_78'] ?>"<b><?=$username?></b>"<?= $lang['period'] ?>
-                <?= $lang['config_functions_79'] ?> <a href='mailto:$homepage_contact_email'><?= $homepage_contact ?></a><?= $lang['period'] ?>
+            <style>
+                body {
+                    font: normal 13px "Open Sans", Helvetica, Arial, Helvetica, sans-serif;
+                }
+
+                .container {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+
+                .red {
+                    padding: 6px;
+                    border: 1px solid red;
+                    color: #800000;
+                    max-width: 1100px;
+                    background-color: #FFE1E1;
+                }
+
+                #footer {
+                    color: #888;
+                    font-size: 11px;
+                    text-align: center;
+                    margin: 0;
+                    padding: 15px 0 5px;
+                }
+            </style>
+            <div class='container'>
+                <div class='red' style='margin:40px 0 20px;padding:20px;'>
+                    <?= $lang['config_functions_78'] ?>"<b><?= $username ?></b>"<?= $lang['period'] ?>
+                    <?= $lang['config_functions_79'] ?> <a
+                        href='mailto:$homepage_contact_email'><?= $homepage_contact ?></a><?= $lang['period'] ?>
+                </div>
+                <button
+                    onclick="window.location.href='<?= APP_PATH_WEBROOT_FULL ?>index.php?logout=1'"><?= $this->framework->tt('error_5') ?></button>
+                <div id="footer"><?= \REDCap::getCopyright() ?></div>
             </div>
-            <button onclick="window.location.href='<?= APP_PATH_WEBROOT_FULL ?>index.php?logout=1'"><?= $this->framework->tt('error_5') ?></button>
-            <div id="footer"><?= \REDCap::getCopyright() ?></div>
-        </div>
-        <?php
+            <?php
     }
 
-    private function checkAllowlist($username) 
+    private function checkAllowlist($username)
     {
         global $enable_user_allowlist;
         return !$enable_user_allowlist || \Authentication::isTableUser($username) || $this->inUserAllowlist($username) || $username === 'SYSTEM';
     }
 
-    private function generateSiteId() 
+    private function generateSiteId()
     {
         return bin2hex(random_bytes(16));
     }
 
-    public function redcap_module_configuration_settings($project_id, $settings) 
+    public function redcap_module_save_configuration($project_id)
     {
-        try {
-            foreach ( $settings as $index => $setting ) {
-                if ( $setting['key'] === 'entraid-site' ) {
-                    $subsettings                      = $settings[$index]['sub_settings'];
-                    $subsettings_filtered             = array_filter($subsettings, function ($subsetting) {
-                        return $subsetting['key'] !== 'entraid-site-id';
-                    });                    
-                    $settings[$index]['sub_settings'] = array_values($subsettings_filtered);
-                }
-            }
-            return $settings;
-        } catch (\Throwable $e) {
-            $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
-        }
-    }
-
-    public function redcap_module_save_configuration($project_id) 
-    {
-        if (!empty($project_id)){
+        if ( !empty($project_id) ) {
             return;
         }
 
         // Handle Site IDs
-        $sites = $this->getSystemSetting('entraid-site');
+        $sites   = $this->getSystemSetting('entraid-site');
         $siteIds = $this->getSystemSetting('entraid-site-id');
 
-        foreach ($sites as $index => $site) {
-            if (empty($siteIds)) {
+        foreach ( $sites as $index => $site ) {
+            if ( empty($siteIds) ) {
                 $siteIds = [];
             }
-            if (empty($siteIds[$index])) {
+            if ( empty($siteIds[$index]) ) {
                 $siteIds[$index] = $this->generateSiteId();
             }
         }
-        
+
         $this->setSystemSetting('entraid-site-id', $siteIds);
 
         // Handle Site Attestation Versioning
@@ -1291,73 +1281,77 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         Attestation::saveAttestationVersions($siteIds, $this);
     }
 
-    public function redcap_module_link_check_display($project_id, $link) 
+    public function redcap_module_link_check_display($project_id, $link)
     {
-        if (!is_null($project_id)) {
+        if ( !is_null($project_id) ) {
             return null;
         }
 
         $loginType = $this->framework->getSystemSetting('custom-login-page-type');
-        if ($loginType === 'none') {
+        if ( $loginType === 'none' ) {
             return null;
         }
 
         return $link;
-        
+
     }
 
     private function getSiteIdFromAuthValue($authValue = '') : string
     {
         try {
             $settings = new EntraIdSettings($this);
-            $site = $settings->getSettingsByAuthValue($authValue ?? '');
+            $site     = $settings->getSettingsByAuthValue($authValue ?? '');
             return $site['siteId'] ?? '';
-        } catch (\Throwable $e) {
+        } catch ( \Throwable $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
             return '';
         }
     }
 
-    private function inferSiteId(array $userType = []) {
+    private function inferSiteId(array $userType = [])
+    {
         $siteId = filter_input(INPUT_GET, self::$SITEID_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-        if ($this->verifySiteId($siteId)) {
+        if ( $this->verifySiteId($siteId) ) {
             return $siteId;
         }
         $siteId = $this->getSiteIdFromAuthValue($_GET[self::$AUTH_QUERY]);
-        if ($this->verifySiteId($siteId)) {
+        if ( $this->verifySiteId($siteId) ) {
             return $siteId;
         }
         $siteId = $userType['siteId'];
-        if ($siteId) {
+        if ( $siteId ) {
             return $siteId;
         }
         return self::$LOCAL_AUTH;
     }
 
-    private function verifySiteId($siteId) {
-        if (empty($siteId)) {
+    private function verifySiteId($siteId)
+    {
+        if ( empty($siteId) ) {
             return false;
         }
         $settings = new EntraIdSettings($this);
-        $site = $settings->getSettings($siteId);
+        $site     = $settings->getSettings($siteId);
         return $site['siteId'] === $siteId;
     }
 
-    public function getUserId() {
+    public function getUserId()
+    {
         try {
-            if (isset($_SESSION['username'])) {
+            if ( isset($_SESSION['username']) ) {
                 return $_SESSION['username'];
-            } elseif (defined('USERID') && USERID !== '') {
+            } elseif ( defined('USERID') && USERID !== '' ) {
                 return USERID;
             } else {
                 return $this->framework->getUser()->getUsername();
             }
-        } catch (\Throwable $e) {
+        } catch ( \Throwable $e ) {
             return null;
         }
     }
 
-    private function createUser($username, $userdata) {
+    private function createUser($username, $userdata)
+    {
         try {
             if (
                 isset($userdata['user_firstname']) &&
@@ -1368,27 +1362,55 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 return true;
             }
             return false;
-        } catch (\Throwable $e) {
+        } catch ( \Throwable $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error creating user', [ 'error' => $e->getMessage() ]);
             return false;
         }
     }
 
-    private function userHasVerifiedEmail($username) {
+    private function userHasVerifiedEmail($username)
+    {
         $userInfo = \User::getUserInfo($username);
         return !(empty($userInfo) || $userInfo['user_email'] == "" || ($userInfo['user_email'] != "" && $userInfo['email_verify_code'] != ""));
     }
 
-    private function showEmailUpdatePage() {
+    private function showEmailUpdatePage()
+    {
         global $lang, $userid;
 
-        $ticketLink = $this->getTicketLink();
-        $lang['user_02'] .= '<br><br>' . $this->framework->tt('email_update_1', [ $ticketLink, 'Open Support Ticket' ]) . '<br><em>' .  $this->framework->tt('email_update_2') . '</em>';
+        $ticketLink      = $this->getTicketLink();
+        $lang['user_02'] .= '<br><br>' . $this->framework->tt('email_update_1', [ $ticketLink, 'Open Support Ticket' ]) . '<br><em>' . $this->framework->tt('email_update_2') . '</em>';
 
-        include APP_PATH_DOCROOT . 'Profile/user_info.php';        
+        include APP_PATH_DOCROOT . 'Profile/user_info.php';
     }
 
-    private function getTicketLink() {
+    private function getTicketLink()
+    {
         return $this->framework->getSystemSetting('entraid-ticket-url');
+    }
+
+    public function validateSettings($settings)
+    {
+        if ( !$this->checkSites($settings) ) {
+            return 'One or more sites you are trying to delete have users assigned to them. Please remove those users from a site before deleting it.';
+        }
+    }
+
+    private function checkSites(array $settings)
+    {
+        $sites         = $this->framework->getSystemSetting('entraid-site-id') ?? [];
+        $proposedSites = $settings['entraid-site-id'];
+        $removed       = array_diff($sites, $proposedSites);
+
+        if ( !empty($removed) ) {
+            $Users = new Users($this);
+            foreach ( $removed as $removedSiteId ) {
+                $users = $Users->getUsers($removedSiteId);
+                if ( !empty($users) ) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }
