@@ -9,7 +9,19 @@ $module->framework->tt_transferToJavascriptModuleObject();
 $settings = new EntraIdSettings($module);
 $siteInfo = $settings->getSiteInfo();
 
+$columns = [
+    '', // Save for checkboxes
+    'Username',
+    'First Name',
+    'Last Name',
+    'Email',
+    'Suspended',
+    'EntraID',
+    'Attestation'
+];
 ?>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/r-3.0.2/sl-2.0.3/datatables.min.css" integrity="sha384-BcFALZmZqajgruYOHgCJFXQrZiknIJ+5UTpaRmRX6DGJwquZv9Rz/GbGJxg8Mu61" crossorigin="anonymous">
 <script src="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/r-3.0.2/sl-2.0.3/datatables.min.js" integrity="sha384-HqqVqMvdcfldcjRlY1GXixx0JH1KO5ZIjILCfx6oWel0uff8b+NkPJ9ZQZUXqbcM" crossorigin="anonymous"></script>
 <style>
@@ -29,9 +41,9 @@ a.attestation-link {
     font-size: inherit;
 }
 </style>
-<div class="">
+<div class="" style="">
     <div class="d-flex flex-row mb-3">
-            <img class="mr-2" src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>" alt="EntraID Logo" class="img-fluid" style="width: 64px;">
+            <img class="me-2" src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>" alt="EntraID Logo" class="img-fluid" style="width: 64px;">
             <h1 class="align-self-center"><?= $module->framework->tt('entraid_users') ?></h1>
     </div>
     <div class="mb-2">
@@ -39,14 +51,20 @@ a.attestation-link {
     </div>
     <div class="border border-secondary-subtle p-3 rounded-2">
         <div>
-            <div id="selectContainer" class="d-flex flex-column flex-sm-row ml-xl-auto mt-2 mt-xl-0">
-                <select id="userTypeSelect" class="form-select form-select-sm" style="width: 200px;">
+            <div id="selectContainer" class="d-flex flex-column flex-lg-row ms-0 ms-xxl-auto mt-2 mt-xxl-0">
+                <select id="suspendedSelect" class="form-select form-select-sm  mt-1 mt-lg-0">
+                    <option disabled selected value>Suspension Status</option>
+                    <option value="all">All Users</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="not-suspended">Not Suspended</option>
+                </select>
+                <select id="userTypeSelect" class="form-select form-select-sm ms-0 ms-lg-2 mt-1 mt-lg-0">
                     <option disabled selected value>User Type</option>
                     <option value="all">All Users</option>
                     <option value="entraid">EntraID Users</option>
                     <option value="table">Table Users</option>
                 </select>
-                <select id="attestationStatusSelect" class="form-select form-select-sm ml-0 ml-sm-2 mt-1 mt-sm-0" style="width: 200px;">
+                <select id="attestationStatusSelect" class="form-select form-select-sm ms-0 ms-lg-2 mt-1 mt-lg-0">
                     <option disabled selected value>Attestation Status</option>
                     <option value="all">All Users</option>
                     <option value="current">Up-to-date Attestations</option>
@@ -59,13 +77,9 @@ a.attestation-link {
         <table id="users-table" class="table table-striped hover w-100" style="">
             <thead>
                 <tr>
-                    <th></th>
-                    <th>Username</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>EntraID</th>
-                    <th>Attestation</th>
+                    <?php foreach ($columns as $column) { ?> 
+                    <th><?=$column?></th>
+                    <?php } ?>
                 </tr>
             </thead>
             <tbody>
@@ -74,7 +88,11 @@ a.attestation-link {
     </div>
 </div>
 <script>
-    const entraid = <?=$module->framework->getJavascriptModuleObjectName()?>;
+    var entraid = <?=$module->framework->getJavascriptModuleObjectName()?>;
+    entraid.columns = JSON.parse('<?= json_encode($columns) ?>');
+    function getColumnIndex(columnLabel) {
+        return entraid.columns.findIndex(val => val === columnLabel);
+    }
     function updateButtons() {
         const table = $('#users-table').DataTable();
         const selectedRows = table.rows({ selected: true }).count();
@@ -154,7 +172,8 @@ a.attestation-link {
         } else if (selectedUserType === 'table') {
             searchTerm = (d) => d === '' || d === 'false';
         }
-        table.column(5).search(searchTerm, searchOptions).draw();
+        const columnIndex = getColumnIndex("EntraID");
+        table.column(columnIndex).search(searchTerm, searchOptions).draw();
     }
     function filterAttestationStatus() {
         const table = $('#users-table').DataTable();
@@ -172,7 +191,23 @@ a.attestation-link {
         } else if (selectedStatus === 'invalid') {
             searchTerm = (d) => d === 'false' || d === '';
         }
-        table.column(6).search(searchTerm, searchOptions).draw();
+        const columnIndex = getColumnIndex("Attestation");
+        table.column(columnIndex).search(searchTerm, searchOptions).draw();
+    }
+    function filterSuspensionStatus() {
+        const table = $('#users-table').DataTable();
+        const selectedSuspensionStatus = $('#suspendedSelect').val();
+        let searchTerm = selectedSuspensionStatus;
+        let searchOptions = {};
+        if (selectedSuspensionStatus === 'all') {
+            searchTerm = '';
+        } else if (selectedSuspensionStatus === 'suspended') {
+            searchTerm = (d) => d !== '';
+        } else if (selectedSuspensionStatus === 'not-suspended') {
+            searchTerm = (d) => d === '';
+        }
+        const columnIndex = getColumnIndex("Suspended");
+        table.column(columnIndex).search(searchTerm, searchOptions).draw();
     }
     function getAttestationInfo(username) {
         const table = $('#users-table').DataTable();
@@ -228,7 +263,7 @@ a.attestation-link {
                         exportOptions: {
                             format: {
                                 body: function (html, row, column, node) {
-                                    if (column === 6) {
+                                    if (column === getColumnIndex('Attestation')) {
                                         const data = table.row(row).data();
                                         const attestationData = {
                                             label: data.attestationSiteLabel,
@@ -259,11 +294,12 @@ a.attestation-link {
                                 });
                                 data.headerStructure[0].shift();
                                 data.body = data.body.map(row => {
-                                    const attestationData = JSON.parse(row[6]);
-                                    row[6] = attestationData.label;
-                                    row[7] = attestationData.version;
-                                    row[8] = attestationData.date;
-                                    row[9] = attestationData.current ? 'Yes' : 'No';
+                                    const attestationColumn = getColumnIndex('Attestation');
+                                    const attestationData = JSON.parse(row[attestationColumn]);
+                                    row[attestationColumn] = attestationData.label;
+                                    row[attestationColumn + 1] = attestationData.version;
+                                    row[attestationColumn + 2] = attestationData.date;
+                                    row[attestationColumn + 3] = attestationData.current ? 'Yes' : 'No';
                                     row.shift();
                                     return row;
                                 });
@@ -273,7 +309,7 @@ a.attestation-link {
                         title: null
                     },{
                         text: '<div class="d-flex flex-row justify-content-evenly align-items-center"><img src="<?=$module->framework->getUrl('assets/images/entraid-logo.svg')?>">&nbsp;<span>Convert</span></div>',
-                        className: 'btn btn-sm btn-info mr-2 nowrap',
+                        className: 'btn btn-sm btn-info me-2 nowrap',
                         action: convertToEntra,
                         init: function (api, node, config) {
                             $(node).attr('title', 'Convert table users to Entra ID users');
@@ -296,7 +332,7 @@ a.attestation-link {
             rowId: 'username',
             order: [1, 'asc'],
             columnDefs: [
-                {className: "dt-center", targets: 6}
+                {className: "dt-center", targets: getColumnIndex('Attestation')}
             ],
             columns: [
                 { 
@@ -325,6 +361,11 @@ a.attestation-link {
                         return `<a class="text-danger-emphasis" href="mailto:${row.user_email}">${row.user_email}</a>`;
                     },
                     responsivePriority: 3
+                },
+                {
+                    title: 'Suspended',
+                    data: 'user_suspended_time',
+                    type: 'date'
                 },
                 {
                     title: 'Entra ID User Type',
@@ -389,13 +430,16 @@ a.attestation-link {
                 $('#attestationStatusSelect').on('change', function () {
                     filterAttestationStatus();
                 });
+                $('#suspendedSelect').on('change', function () {
+                    filterSuspensionStatus();
+                });
             }
         });
-        $('.dt-buttons').removeClass('btn-group flex-wrap').addClass('nowrap');
-        $('.dt-buttons').parent().addClass('d-flex flex-xl-row flex-column align-items-center justify-content-start');
+        $('.dt-buttons').removeClass('btn-group flex-wrap').addClass('nowrap me-xxl-3');
+        $('.dt-buttons').parent().addClass('d-flex flex-column flex-xxl-row align-items-center justify-content-start');
         $('.dt-buttons').parent().parent().removeClass('mt-2');
         table.on('draw', function () {
-            $('.dt-buttons').parent().addClass('d-flex flex-xl-row flex-column align-items-center justify-content-start');
+            $('.dt-buttons').parent().addClass('d-flex flex-column flex-xxl-row align-items-center justify-content-start');
         });
     });
 </script>

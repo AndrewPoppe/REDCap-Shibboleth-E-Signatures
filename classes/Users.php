@@ -16,12 +16,13 @@ class Users
         try {
             $settings = new EntraIdSettings($this->module);
             $entraidSettings = $settings->getAllSettingsWithSiteIdIndex();
-            $localSettings = $settings->getSettings($this->module::$LOCAL_AUTH);
+            $localSettings = $settings->getSettings(EntraIdAuthenticator::$LOCAL_AUTH);
             $sql = "SELECT 
                     u.username, 
                     u.user_firstname,
                     u.user_lastname,
                     u.user_email,
+                    u.user_suspended_time,
                     em.entraid,
                     at.attestationVersion,
                     at.attestationSiteId,
@@ -34,7 +35,7 @@ class Users
                     SELECT substring(`key`, 14) username, `value` entraid
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
-                    AND `key` LIKE '".$this->module::$USER_TYPE_SETTING_PREFIX."%'
+                    AND `key` LIKE '".EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX."%'
                     ) em
                 ON u.username = em.username
                 LEFT JOIN (
@@ -46,7 +47,7 @@ class Users
                         IF(JSON_VALID(`value`), JSON_UNQUOTE(JSON_EXTRACT(`value`, '$.attestationCheckboxText')), NULL) attestationCheckboxText
                     FROM redcap_external_module_settings
                     WHERE external_module_id = ?
-                    AND `key` LIKE '".$this->module::$USER_ATTESTATION_SETTING_PREFIX."%'
+                    AND `key` LIKE '".EntraIdAuthenticator::$USER_ATTESTATION_SETTING_PREFIX."%'
                     ) at
                 ON u.username = at.username
                 LEFT JOIN redcap_user_information i
@@ -61,7 +62,7 @@ class Users
             $result = $this->module->framework->query($sql, [$this->external_module_id, $this->external_module_id, $this->external_module_id]);
             $users = [];
             while ($row = $result->fetch_assoc()) {
-                $row['siteId'] = $row['entraid'] === 'false' ? $this->module::$LOCAL_AUTH : $row['entraid'];
+                $row['siteId'] = $row['entraid'] === 'false' ? EntraIdAuthenticator::$LOCAL_AUTH : $row['entraid'];
                 $site = $entraidSettings[$row['siteId']] ?? $localSettings;
                 $row['authType'] = $site['authValue'];
                 $row['label'] = $site['label'];
@@ -97,8 +98,8 @@ class Users
                 AND `key` IN (?, ?)";
         $params = [
             $this->external_module_id, 
-            $this->module::$USER_TYPE_SETTING_PREFIX . $username, 
-            $this->module::$USER_ATTESTATION_SETTING_PREFIX . $username
+            EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX . $username, 
+            EntraIdAuthenticator::$USER_ATTESTATION_SETTING_PREFIX . $username
         ];
         return $this->module->framework->query($SQL, $params);
     }
@@ -112,7 +113,7 @@ class Users
             $SQL    = "SELECT SUBSTRING(`key`, 14) username 
                     FROM redcap_external_module_settings 
                     WHERE external_module_id = ?
-                    AND `key` LIKE '" . $this->module::$USER_TYPE_SETTING_PREFIX . "%'
+                    AND `key` LIKE '" . EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX . "%'
                     AND `value` = ?";
             $params = [ $this->external_module_id, $siteId ];
             $result = $this->module->framework->query($SQL, $params);

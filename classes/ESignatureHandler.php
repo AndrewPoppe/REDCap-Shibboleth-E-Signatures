@@ -16,7 +16,7 @@ class ESignatureHandler
             return;
         }
 
-        if ( $authType === $this->module::$LOCAL_AUTH ) {
+        if ( $authType === EntraIdAuthenticator::$LOCAL_AUTH ) {
             return;
         }
 
