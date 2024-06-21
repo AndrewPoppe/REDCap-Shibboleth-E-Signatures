@@ -20,8 +20,6 @@ $columns = [
     'Attestation'
 ];
 ?>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/r-3.0.2/sl-2.0.3/datatables.min.css" integrity="sha384-BcFALZmZqajgruYOHgCJFXQrZiknIJ+5UTpaRmRX6DGJwquZv9Rz/GbGJxg8Mu61" crossorigin="anonymous">
 <script src="https://cdn.datatables.net/v/bs5/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-html5-3.0.2/r-3.0.2/sl-2.0.3/datatables.min.js" integrity="sha384-HqqVqMvdcfldcjRlY1GXixx0JH1KO5ZIjILCfx6oWel0uff8b+NkPJ9ZQZUXqbcM" crossorigin="anonymous"></script>
 <style>
@@ -51,7 +49,7 @@ a.attestation-link {
     </div>
     <div class="border border-secondary-subtle p-3 rounded-2">
         <div>
-            <div id="selectContainer" class="d-flex flex-column flex-lg-row ms-0 ms-xxl-auto mt-2 mt-xxl-0">
+            <div id="selectContainer" class="d-flex flex-column flex-lg-row ms-0 ms-xxl-auto mt-xxl-0" style="margin-top:0.5rem;">
                 <select id="suspendedSelect" class="form-select form-select-sm  mt-1 mt-lg-0">
                     <option disabled selected value>Suspension Status</option>
                     <option value="all">All Users</option>
