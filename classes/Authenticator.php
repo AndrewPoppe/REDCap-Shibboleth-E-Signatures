@@ -232,7 +232,7 @@ class Authenticator
 
             // 2. If user allowlist is not enabled, all Entra ID users are allowed.
             // Otherwise, if not in allowlist, then give them an error page.
-            if ( !$this->module->checkAllowlist($username) ) {
+            if ( !$users->checkAllowlist($username) ) {
                 $this->module->showNoUserAccessPage($username);
                 return false;
             }

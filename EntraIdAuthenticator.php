@@ -153,7 +153,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                         $this->redirectAfterHook($cleanUrl);
                     }
                 }
-                if ( !$this->checkAllowlist($username) ) {
+                if ( !$users->checkAllowlist($username) ) {
                     $this->showNoUserAccessPage($username);
                     $this->framework->exitAfterHook();
                 }
@@ -291,10 +291,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
     }
 
-
-
-
-
+    
+    /**
+     * This is a CRON method
+     * Sends password reset emails in a queued fashion
+     * @return void
+     */
     public function sendPasswordResetEmails()
     {
         try {
@@ -476,17 +478,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         })) > 0;
     }
 
-    //TODO: Users class?
-    private function setUserCreationTimestamp($username)
-    {
-        try {
-            $SQL = "UPDATE redcap_user_information SET user_creation = ? WHERE username = ?";
-            $this->framework->query($SQL, [ NOW, $username ]);
-        } catch ( \Exception $e ) {
-            $this->framework->log('Entra ID REDCap Authenticator: Error setting user creation timestamp', [ 'error' => $e->getMessage() ]);
-        }
-    }
-
     private function isLoggedIntoREDCap()
     {
         if ( !(defined('USERID') && USERID !== '') || !$this->framework->isAuthenticated() ) { // || isset($_SESSION['username']);
@@ -635,37 +626,37 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <script>
             document.addEventListener("DOMContentLoaded", function () {
                 $(`<p style='font-size:13px;'><?= $this->framework->tt('contact_1') . $contactLink ?></p>
-                                                    <div class="container text-center">
-                                                        <div class="row align-items-center">
-                                                            <div class="col">
-                                                                <div class="card" id="login-card">
-                                                                    <div class="card-body rounded-0">
-                                                                        <div class="card align-self-center text-center mb-2 login-options rounded-0">
-                                                                            <ul class="list-group list-group-flush">
-                                                                                <?php foreach ( $entraIdSettings as $site ) {
-                                                                                    $loginImg = $site['loginButtonLogo'] ?
-                                                                                        '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
-                                                                                        '<span class="login-label">' . $site['label'] . '</span>';
-                                                                                    $redirect = $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
-                                                                                    $redirect = $this->addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
-                                                                                    ?>
-                                                                                                        <li class="list-group-item list-group-item-action login-option"
-                                                                                                        onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
-                                                                                                        <?= $loginImg ?>
-                                                                                                    </li>
-                                                                                <?php } ?>
-                                                                            </ul>
-                                                                        </div>
-                                                                        <hr>
-                                                                        <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
-                                                                            class="text-primary">
-                                                                            <?= $this->framework->tt('login_1') ?>
-                                                                        </a>
-                                                                    </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                    </div>`).insertBefore('#rc-login-form');
+                    <div class="container text-center">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="card" id="login-card">
+                                    <div class="card-body rounded-0">
+                                        <div class="card align-self-center text-center mb-2 login-options rounded-0">
+                                            <ul class="list-group list-group-flush">
+                                                <?php foreach ( $entraIdSettings as $site ) {
+                                                    $loginImg = $site['loginButtonLogo'] ?
+                                                        '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                                                        '<span class="login-label">' . $site['label'] . '</span>';
+                                                    $redirect = $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
+                                                    $redirect = $this->addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
+                                                    ?>
+                                                        <li class="list-group-item list-group-item-action login-option"
+                                                        onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
+                                                        <?= $loginImg ?>
+                                                    </li>
+                                                <?php } ?>
+                                            </ul>
+                                        </div>
+                                        <hr>
+                                        <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
+                                            class="text-primary">
+                                            <?= $this->framework->tt('login_1') ?>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`).insertBefore('#rc-login-form');
             });
         </script>
         <?php
@@ -782,14 +773,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             <div id="footer"><?= \REDCap::getCopyright() ?></div>
         </div>
         <?php
-    }
-
-    //TODO: Users class?
-    public function checkAllowlist($username)
-    {
-        global $enable_user_allowlist;
-        $users = new Users($this);
-        return !$enable_user_allowlist || \Authentication::isTableUser($username) || $users->inUserAllowlist($username) || $username === 'SYSTEM';
     }
 
     private function generateSiteId()

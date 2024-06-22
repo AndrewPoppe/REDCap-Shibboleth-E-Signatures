@@ -347,9 +347,14 @@ class Users
         ];
     }
 
-    //TODO: Users class?
     public function setEntraIdUser($username, $value)
     {
         $this->module->framework->setSystemSetting(EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX . $username, $value);
+    }
+
+    public function checkAllowlist($username)
+    {
+        global $enable_user_allowlist;
+        return !$enable_user_allowlist || \Authentication::isTableUser($username) || $this->inUserAllowlist($username) || $username === 'SYSTEM';
     }
 }
