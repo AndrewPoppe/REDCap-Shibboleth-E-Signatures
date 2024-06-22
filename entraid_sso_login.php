@@ -8,7 +8,6 @@ session_id($_COOKIE[EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE]);
 session_start();
 
 [$session_id, $siteId, $originUrl] = explode('EIASEP', $_GET["state"]);
-
 $authenticator = new Authenticator($module, $siteId);
 
 $authData = $authenticator->getAuthData($session_id, $_GET["code"]);
@@ -22,7 +21,7 @@ if (!$authenticator->checkGroupMembership($userData)) {
     exit($module->framework->tt('error_4'));
 }
 
-$result = $module->loginEntraIDUser($userData, $siteId, $originUrl);
+$result = $authenticator->loginEntraIDUser($userData, $originUrl);
 if ( $result ) {
 
     \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE);

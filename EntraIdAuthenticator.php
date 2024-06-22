@@ -98,7 +98,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // Handle logout
-            if ( isset($_GET['logout']) && $_GET['logout'] ) {
+            if ( isset($_GET['logout']) ) {
                 \Authentication::checkLogout();
                 return;
             }
@@ -168,7 +168,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             // Only authenticate if we're asked to
             if ( isset($_GET[self::$AUTH_QUERY]) && !$this->doingLocalLogin() ) {
                 $authType = filter_input(INPUT_GET, self::$AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-                $this->handleEntraIdAuth($authType, $this->curPageURL());
+                $authenticator = new Authenticator($this, "");
+                $authenticator->handleEntraIdAuth($authType, $this->curPageURL());
             }
 
             // If not logged in, Auth Type is not set, but Site ID query is still defined, remove it from URL and redirect
@@ -196,98 +197,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
         }
 
-    }
-
-    public function handleEntraIDAuth($authType, $url)
-    {
-        try {
-            $session_id = session_id();
-            \Session::savecookie(self::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
-            $settings      = new EntraIdSettings($this);
-            $site          = $settings->getSettingsByAuthValue($authType);
-            $authenticator = new Authenticator($this, $site['siteId'], $session_id);
-            $authenticator->authenticate(false, $url);
-            return true;
-        } catch ( \Throwable $e ) {
-            $this->framework->log('Entra ID REDCap Authenticator: Error 1', [ 'error' => $e->getMessage() ]);
-            session_unset();
-            session_destroy();
-            return false;
-        }
-    }
-
-    public function loginEntraIDUser(array $userdata, string $siteId, string $originUrl)
-    {
-        global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang, $userid;
-        try {
-            $username = $userdata['username'];
-            if ( $username === false || empty($username) ) {
-                return false;
-            }
-
-            // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
-            if ( !$this->userExists($username) && !$this->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
-                exit($this->framework->tt('error_2'));
-            }
-
-            // Force custom attestation page if needed
-            $attestation = new Attestation($this, $username, $siteId);
-            if ( $attestation->needsAttestation() ) {
-                $attestation->showAttestationPage($userdata, $originUrl);
-                return false;
-            }
-
-            // Successful authentication
-            $this->framework->log('Entra ID REDCap Authenticator: Auth Succeeded', [
-                "EntraID Username" => $username
-            ]);
-
-            // Trigger login
-            \Authentication::autoLogin($username);
-            $_SESSION['entraid_id'] = $userdata['id'];
-
-            // Update last login timestamp
-            \Authentication::setUserLastLoginTimestamp($username);
-
-            // Log the login
-            \Logging::logPageView("LOGIN_SUCCESS", $username);
-
-            // Handle account-related things.
-            // If the user does not exist, create them.
-            if ( !$this->userExists($username) ) {
-                $this->createUser($username, $userdata);
-                $this->setEntraIdUser($username, $siteId);
-            }
-
-            // If user does not have an email address or email has not been verified, show update screen
-            if ( !$this->userHasVerifiedEmail($username) ) {
-                $userid = $username;
-                $this->showEmailUpdatePage();
-                return false;
-            }
-
-            // If user is a table-based user, convert to Entra ID user
-            elseif ( \Authentication::isTableUser($username) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
-                $this->convertTableUserToEntraIdUser($username, $siteId);
-            }
-            // otherwise just make sure they are logged as an Entra ID user
-            elseif ( !\Authentication::isTableUser($username) ) {
-                $this->setEntraIdUser($username, $siteId);
-            }
-
-            // 2. If user allowlist is not enabled, all Entra ID users are allowed.
-            // Otherwise, if not in allowlist, then give them an error page.
-            if ( !$this->checkAllowlist($username) ) {
-                $this->showNoUserAccessPage($username);
-                return false;
-            }
-            return true;
-        } catch ( \Throwable $e ) {
-            $this->framework->log('Entra ID REDCap Authenticator: Error 2', [ 'error' => $e->getMessage() ]);
-            session_unset();
-            session_destroy();
-            return false;
-        }
     }
 
     public function redcap_every_page_top($project_id)
@@ -374,7 +283,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
     }
 
-    private function convertTableUserToEntraIdUser(string $username, string $siteId)
+    public function convertTableUserToEntraIdUser(string $username, string $siteId)
     {
         if ( empty($username) ) {
             return;
@@ -518,9 +427,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function handleLogout()
     {
         $site = $this->getUserType();
+        $authenticator = new Authenticator($this, $site['siteId']);
         session_unset();
         session_destroy();
-        $authenticator = new Authenticator($this, $site['siteId']);
         $authenticator->logout();
     }
 
@@ -1026,7 +935,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             <?php
     }
 
-    private function showNoUserAccessPage($username)
+    public function showNoUserAccessPage($username)
     {
         global $homepage_contact, $homepage_contact_email, $lang;
         session_unset();
@@ -1074,7 +983,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             <?php
     }
 
-    private function checkAllowlist($username)
+    public function checkAllowlist($username)
     {
         global $enable_user_allowlist;
         return !$enable_user_allowlist || \Authentication::isTableUser($username) || $this->inUserAllowlist($username) || $username === 'SYSTEM';
@@ -1180,7 +1089,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function createUser($username, $userdata)
+    public function createUser($username, $userdata)
     {
         try {
             if (
@@ -1198,13 +1107,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         }
     }
 
-    private function userHasVerifiedEmail($username)
+    public function userHasVerifiedEmail($username)
     {
         $userInfo = \User::getUserInfo($username);
         return !(empty($userInfo) || $userInfo['user_email'] == "" || ($userInfo['user_email'] != "" && $userInfo['email_verify_code'] != ""));
     }
 
-    private function showEmailUpdatePage()
+    public function showEmailUpdatePage()
     {
         global $lang, $userid;
 
