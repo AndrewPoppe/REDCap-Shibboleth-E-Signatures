@@ -32,7 +32,7 @@ class ESignatureHandler
                 'username'     => $username,
                 'realUsername' => $realUsername
             ]);
-            $this->module->exitAfterHook();
+            $this->module->framework->exitAfterHook();
             return;
         }
 
@@ -43,7 +43,8 @@ class ESignatureHandler
 
     public function addEsignatureScript()
     {
-        $site          = $this->module->getUserType();
+        $users         = new Users($this->module);
+        $site          = $users->getUserType();
         $authenticator = new Authenticator($this->module, $site['siteId']);
         ?>
         <script src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js" integrity="sha384-hhkHFODse2T75wPL7oJ0RZ+0CgRa74LNPhgx6wO6DMNEhU3/fSbTZdVzxsgyUelp" crossorigin="anonymous"></script>

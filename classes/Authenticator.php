@@ -180,7 +180,8 @@ class Authenticator
             }
 
             // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
-            if ( !$this->module->userExists($username) && !$this->module->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
+            $users = new Users($this->module);
+            if ( !$users->userExists($username) && !$this->module->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
                 exit($this->module->framework->tt('error_2'));
             }
 
@@ -208,9 +209,9 @@ class Authenticator
 
             // Handle account-related things.
             // If the user does not exist, create them.
-            if ( !$this->module->userExists($username) ) {
-                $this->module->createUser($username, $userdata);
-                $this->module->setEntraIdUser($username, $this->siteId);
+            if ( !$users->userExists($username) ) {
+                $users->createUser($username, $userdata);
+                $users->setEntraIdUser($username, $this->siteId);
             }
 
             // If user does not have an email address or email has not been verified, show update screen
@@ -222,11 +223,11 @@ class Authenticator
 
             // If user is a table-based user, convert to Entra ID user
             elseif ( \Authentication::isTableUser($username) && $this->module->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
-                $this->module->convertTableUserToEntraIdUser($username, $this->siteId);
+                $users->convertTableUserToEntraIdUser($username, $this->siteId);
             }
             // otherwise just make sure they are logged as an Entra ID user
             elseif ( !\Authentication::isTableUser($username) ) {
-                $this->module->setEntraIdUser($username, $this->siteId);
+                $users->setEntraIdUser($username, $this->siteId);
             }
 
             // 2. If user allowlist is not enabled, all Entra ID users are allowed.
@@ -242,6 +243,17 @@ class Authenticator
             session_destroy();
             return false;
         }
+    }
+
+    public function handleLogout()
+    {
+        $users                 = new Users($this->module);
+        $site                  = $users->getUserType();
+        $this->entraIdSettings = $this->settings->getSettings($site['siteId']);
+        $this->setSiteAttributes();
+        session_unset();
+        session_destroy();
+        $this->logout();
     }
 
     public function logout()

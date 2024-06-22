@@ -83,8 +83,8 @@ class Attestation
         if ( $this->getLoginPageType() === 'none' ) {
             return false;
         }
-
-        $userExists             = $this->module->userExists($this->username);
+        $users                  = new Users($this->module);
+        $userExists             = $users->userExists($this->username);
         $showAttestationSetting = $this->getAttestationSetting();
         $createUsers            = $this->createUsersOnLogin();
         $userAttested           = $this->isUserAttestationCurrent();
@@ -208,12 +208,6 @@ class Attestation
                     margin-bottom: 10px;
                 }
             </style>
-            <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
-                integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
-            <?php
-            // TODO: THIS IS A WORKAROUND TO A BUG IN EM FRAMEWORK - REMOVE WHEN FIXED
-            require_once APP_PATH_DOCROOT . "ExternalModules/manager/templates/hooks/every_page_top.php";
-            ?>
         </head>
 
         <body>
@@ -297,7 +291,8 @@ class Attestation
         }
 
         // If the user is LDAP, change the siteId to the LDAP siteId
-        $userSite = $this->module->getUserType($this->username);
+        $users    = new Users($this->module);
+        $userSite = $users->getUserType($this->username);
         if ( $userSite['authValue'] === 'local' && $userSite['siteId'] !== false ) {
             $this->siteId = $userSite['siteId'];
         }

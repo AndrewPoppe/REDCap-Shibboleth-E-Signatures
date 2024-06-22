@@ -86,7 +86,7 @@ class Users
         if (!(SUPER_USER || ACCOUNT_MANAGER)) {
             return;
         }
-        if (empty($username) || !$this->module->userExists($username)) {
+        if (empty($username) || !$this->userExists($username)) {
             return;
         }
         if (ACCOUNT_MANAGER && $this->module->framework->getUser($username)->isSuperUser()) {
@@ -125,5 +125,231 @@ class Users
             $this->module->framework->log('Error getting users', [ 'siteId'=> $this->module->framework->escape($siteId), 'error' => $e->getMessage() ]);
             return;
         }
+    }
+
+    public function convertTableUserToEntraIdUser(string $username, string $siteId)
+    {
+        if ( empty($username) ) {
+            return;
+        }
+        try {
+            $SQL   = 'DELETE FROM redcap_auth WHERE username = ?';
+            $query = $this->module->framework->query($SQL, [ $username ]);
+            $this->setEntraIdUser($username, $siteId);
+            return;
+        } catch ( \Exception $e ) {
+            $this->module->framework->log('Entra ID REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
+            return;
+        }
+    }
+
+    public function convertTableUsersToEntraIdUsers(array $usernames, string $siteId)
+    {
+        if ( empty($usernames) ) {
+            return;
+        }
+        try {
+            $questionMarks = [];
+            $params        = [];
+            foreach ( $usernames as $username ) {
+                $questionMarks[] = '?';
+                $params[]        = $username;
+            }
+            $SQL    = 'DELETE FROM redcap_auth WHERE username in (' . implode(',', $questionMarks) . ')';
+            $result = $this->module->framework->query($SQL, $params);
+            if ( $result ) {
+                foreach ( $usernames as $username ) {
+                    $this->setEntraIdUser($username, $siteId);
+                }
+            }
+            return;
+        } catch ( \Exception $e ) {
+            $this->module->framework->log('Entra ID REDCap Authenticator: Error converting table user to YALE user', [ 'error' => $e->getMessage() ]);
+            return;
+        }
+    }
+
+    public function convertEntraIdUsertoTableUser(string $username)
+    {
+        if ( empty($username) ) {
+            return;
+        }
+        if ( !$this->isEntraIdUser($username) ) {
+            return false;
+        }
+        try {
+            $SQL   = "INSERT INTO redcap_auth (username) VALUES (?)";
+            $query = $this->module->framework->query($SQL, [ $username ]);
+            \Authentication::resetPasswordSendEmail($username);
+            $this->setEntraIdUser($username, false);
+            return;
+        } catch ( \Exception $e ) {
+            $this->module->framework->log('Entra ID REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
+            return;
+        }
+    }
+
+    public function convertEntraIdUserstoTableUsers(array $usernames)
+    {
+        if ( empty($usernames) ) {
+            return;
+        }
+        try {
+            $questionMarks0 = [];
+            $questionMarks  = [];
+            $params         = [];
+            foreach ( $usernames as $username ) {
+                $questionMarks0[] = '?';
+                $questionMarks[]  = '(?)';
+                $params[]         = $username;
+            }
+
+            $testSQL = 'SELECT count(*) n FROM redcap_auth WHERE username IN (' . implode(',', $questionMarks0) . ')';
+            $testQ   = $this->module->framework->query($testSQL, $params);
+            $testRow = $testQ->fetch_assoc();
+            if ( $testRow['n'] > 0 ) {
+                return false;
+            }
+
+            $SQL    = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
+            $result = $this->module->framework->query($SQL, $params);
+            foreach ( $usernames as $username ) {
+                $this->module->framework->log('password-reset-needed', [ 'username' => $username, 'username_to_reset' => $username ]);
+            }
+            return;
+        } catch ( \Exception $e ) {
+            $this->module->framework->log('Entra ID REDCap Authenticator: Error converting YALE user to table user', [ 'error' => $e->getMessage() ]);
+            return;
+        }
+    }
+
+    public function createUser($username, $userdata)
+    {
+        try {
+            if (
+                isset($userdata['user_firstname']) &&
+                isset($userdata['user_lastname']) &&
+                isset($userdata['user_email'])
+            ) {
+                $this->setUserDetails($username, $userdata);
+                return true;
+            }
+            return false;
+        } catch ( \Throwable $e ) {
+            $this->module->framework->log('Entra ID REDCap Authenticator: Error creating user', [ 'error' => $e->getMessage() ]);
+            return false;
+        }
+    }
+
+    /**
+     * @param string $username
+     * @return bool
+     */
+    public function inUserAllowlist(string $username)
+    {
+        $SQL = "SELECT 1 FROM redcap_user_allowlist WHERE username = ?";
+        $q   = $this->module->framework->query($SQL, [ $username ]);
+        return $q->fetch_assoc() !== null;
+    }
+
+    private function setUserDetails($username, $details)
+    {
+        if ( $this->userExists($username) ) {
+            $this->updateUserDetails($username, $details);
+        } else {
+            $this->insertUserDetails($username, $details);
+        }
+    }
+
+    public function userExists($username)
+    {
+        $SQL = 'SELECT 1 FROM redcap_user_information WHERE username = ?';
+        $q   = $this->module->framework->query($SQL, [ $username ]);
+        return $q->fetch_assoc() !== null;
+    }
+
+    private function updateUserDetails($username, $details)
+    {
+        try {
+            $SQL    = 'UPDATE redcap_user_information SET user_firstname = ?, user_lastname = ?, user_email = ? WHERE username = ?';
+            $PARAMS = [ $details['user_firstname'], $details['user_lastname'], $details['user_email'], $username ];
+            $query  = $this->module->framework->createQuery();
+            $query->add($SQL, $PARAMS);
+            $query->execute();
+            return $query->affected_rows;
+        } catch ( \Exception $e ) {
+            $this->module->framework->log('Yale Authenticator: Error updating user details', [ 'error' => $e->getMessage() ]);
+        }
+    }
+
+    private function insertUserDetails($username, $details)
+    {
+        try {
+            $SQL    = 'INSERT INTO redcap_user_information (username, user_firstname, user_lastname, user_email, user_creation) VALUES (?, ?, ?, ?, ?)';
+            $PARAMS = [ $username, $details['user_firstname'], $details['user_lastname'], $details['user_email'], NOW ];
+            $query  = $this->module->framework->createQuery();
+            $query->add($SQL, $PARAMS);
+            $query->execute();
+            return $query->affected_rows;
+        } catch ( \Exception $e ) {
+            $this->module->framework->log('Yale Authenticator: Error inserting user details', [ 'error' => $e->getMessage() ]);
+        }
+    }
+
+    public function isEntraIdUser($username)
+    {
+        return !\Authentication::isTableUser($username) &&
+            !empty($this->module->framework->getSystemSetting(EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX . $username)) &&
+            $this->module->framework->getSystemSetting(EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX . $username) !== "false";
+    }
+
+    /**
+     * Summary of getUserType
+     * @param mixed $username
+     * @return array{siteId: string|false, authValue: string, authType: string, label: string} 
+     */
+    public function getUserType($username = null) : array
+    {
+        if ( $username === null ) {
+            $username = $this->module->getUserId();
+        }
+        $siteId = $this->module->framework->getSystemSetting(EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX . $username);
+        if ( $siteId && $siteId !== 'false' ) {
+            $site = (new EntraIdSettings($this->module))->getSettings($siteId);
+            return [
+                'siteId'    => $siteId,
+                'authValue' => $site['authValue'],
+                'authType'  => $site['authValue'],
+                'label'     => $site['label']
+            ];
+        }
+        if ( \Authentication::isTableUser($username) ) {
+            return [
+                'siteId'    => false,
+                'authValue' => 'local',
+                'authType'  => 'table',
+                'label'     => 'Table User'
+            ];
+        }
+        if ( $this->inUserAllowlist($username) ) {
+            return [
+                'siteId'    => false,
+                'authValue' => 'local',
+                'authType'  => 'allowlist',
+                'label'     => 'Allowlisted User'
+            ];
+        }
+        return [
+            'siteId'    => false,
+            'authValue' => 'local',
+            'authType'  => 'unknown',
+            'label'     => 'Unknown'
+        ];
+    }
+
+    //TODO: Users class?
+    public function setEntraIdUser($username, $value)
+    {
+        $this->module->framework->setSystemSetting(EntraIdAuthenticator::$USER_TYPE_SETTING_PREFIX . $username, $value);
     }
 }

@@ -4,4 +4,5 @@ namespace YaleREDCap\EntraIdAuthenticator;
 
 /** @var EntraIdAuthenticator $module */
 
-$module->handleLogout();
+$authenticator = new Authenticator($module, '');
+$authenticator->handleLogout();
