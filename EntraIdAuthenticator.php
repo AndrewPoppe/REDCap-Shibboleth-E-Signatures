@@ -178,14 +178,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
-            // Inject the custom login page 
-            if ( $this->needsCustomLogin($page) ) {
-                $this->showCustomLoginPage($this->curPageURL());
-                $this->exitAfterHook();
-                return;
-            }
-
-            // Or overwrite the login page
+            // Modify the login page
             if ( $this->needsModifiedLogin($page) ) {
                 $this->modifyLoginPage($this->curPageURL());
                 return;
@@ -334,159 +327,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         $contents = $file[2];
 
         return 'data:' . $file[0] . ';base64,' . base64_encode($contents);
-    }
-
-    private function showCustomLoginPage(string $redirect)
-    {
-        $settings          = new EntraIdSettings($this);
-        $entraIdSettings   = $settings->getAllSettings();
-        $backgroundUrl     = $this->getEdocFileContents($this->framework->getSystemSetting('custom-login-page-background-image')) ?? $this->framework->getUrl('assets/images/New_Haven_1.jpg');
-        $backgroundImgText = $this->framework->getSystemSetting('custom-login-page-background-image-copyright-text');
-        $backgroundImgLink = empty($this->framework->getSystemSetting('custom-login-page-background-image-copyright-text')) ? '' : $this->framework->getSystemSetting('custom-login-page-background-image-copyright-link');
-        ?>
-        <!DOCTYPE html>
-        <html lang="en">
-
-        <head>
-            <link rel="preload" href="<?= $backgroundUrl ?>" as="image">
-        </head>
-        <?php
-        $objHtmlPage = new \HtmlPage();
-        $objHtmlPage->PrintHeader(false);
-        ?>
-        <style>
-            #rc-login-form {
-                display: none;
-            }
-
-            .login-option {
-                cursor: pointer;
-                border-radius: 0 !important;
-                height: 70px;
-            }
-
-            .login-option:hover {
-                background-color: #dddddd !important;
-            }
-
-            #login-card {
-                border-radius: 0;
-                position: absolute;
-                width: 502px;
-                height: auto;
-                margin: 0 auto;
-                top: 125px;
-                left: 50%;
-                margin-left: -250px;
-            }
-
-            #container,
-            #pagecontainer {
-                background-color: transparent !important;
-            }
-
-            body {
-                background-repeat: no-repeat !important;
-                background-attachment: fixed !important;
-                background-size: cover !important;
-            }
-
-            .login-options {
-                left: 50%;
-                margin-left: -37.5%;
-                width: 75%;
-                border-radius: 0 !important;
-            }
-
-            .login-logo,
-            .login-label {
-                width: 100%;
-                height: 100%;
-                object-fit: contain;
-                display: flex;
-                justify-content: space-evenly;
-                align-items: center;
-            }
-
-            .login-label {
-                font-weight: bold;
-            }
-
-            div#working {
-                top: 50% !important;
-            }
-
-            #my_page_footer a {
-                text-decoration: none;
-                color: inherit;
-            }
-
-            body {
-                background-image: url('<?= $backgroundUrl ?>');
-            }
-        </style>
-
-        <body>
-            <?php
-
-            global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email;
-
-            // Show custom login text (optional)
-            if ( trim($login_custom_text) != "" ) {
-                print "<div style='border:1px solid #ccc;background-color:#f5f5f5;margin:15px 10px 15px 0;padding:10px;'>" . nl2br(decode_filter_tags($login_custom_text)) . "</div>";
-            }
-
-            // Show custom homepage announcement text (optional)
-            if ( trim($homepage_announcement) != "" && $homepage_announcement_login == '1' ) {
-                print \RCView::div(array( 'style' => 'margin-bottom:10px;' ), nl2br(decode_filter_tags($homepage_announcement)));
-                $hide_homepage_announcement = true; // Set this so that it's not displayed elsewhere on the page
-            }
-            ?>
-            <div class="container text-center">
-                <div class="row align-items-center">
-                    <div class="col">
-                        <div class="card" id="login-card">
-                            <img src="<?= APP_PATH_IMAGES . 'redcap-logo-large.png' ?>" class="w-50 m-4 align-self-center">
-                            <?php if ( trim($login_logo) ) { ?>
-                                <img src="<?= $login_logo ?>" class="w-50 align-self-center m-3"
-                                    title="<?= js_escape2(strip_tags(label_decode($institution))) ?>"
-                                    alt="<?= js_escape2(strip_tags(label_decode($institution))) ?>">
-                            <?php } ?>
-                            <h4>
-                                <?= \RCView::tt("config_functions_45") ?>
-                            </h4>
-                            <div class="card-body rounded-0">
-                                <div class="card align-self-center text-center mb-2 login-options rounded-0">
-                                    <ul class="list-group list-group-flush">
-                                        <?php foreach ( $entraIdSettings as $site ) {
-                                            $loginImg = $site['loginButtonLogo'] ?
-                                                '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
-                                                '<span class="login-label">' . $site['label'] . '</span>';
-                                            ?>
-                                            <li class="list-group-item list-group-item-action login-option"
-                                                onclick="showProgress(1);window.location.href='<?= $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']) ?>';">
-                                                <?= $loginImg ?>
-                                            </li>
-                                        <?php } ?>
-                                    </ul>
-                                </div>
-                                <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
-                                    class="text-primary">
-                                    <?= $this->framework->tt('login_1') ?>
-                                </a>
-                                <div id="my_page_footer" class="text-secondary mt-4">
-                                    <?= \REDCap::getCopyright() ?>
-                                    <br>
-                                    <span><a href="<?= $backgroundImgLink ?>" tabindex="-1" target="_blank"
-                                            rel="noopener noreferrer"><?= $backgroundImgText ?></a>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php
     }
 
     private function curPageURL()
@@ -949,16 +789,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             return true;
         }
         return false;
-    }
-
-    private function needsCustomLogin(string $page)
-    {
-        return $this->framework->getSystemSetting('custom-login-page-type') === "complete" &&
-            !$this->resettingPassword($page) &&
-            !$this->doingLocalLogin() &&
-            $this->inLoginFunction() &&
-            \ExternalModules\ExternalModules::getUsername() === null &&
-            !\ExternalModules\ExternalModules::isNoAuth();
     }
 
     private function needsModifiedLogin(string $page)
