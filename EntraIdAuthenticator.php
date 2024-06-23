@@ -17,12 +17,12 @@ require_once 'classes/Utilities.php';
 class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 {
 
-    public static $AUTH_QUERY = 'authtype';
-    public static $SITEID_QUERY = 'sid';
-    public static $LOCAL_AUTH = 'local';
-    public static $ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
-    public static $USER_TYPE_SETTING_PREFIX = 'entraid-user-';
-    public static $USER_ATTESTATION_SETTING_PREFIX = 'entraid-attestation-';
+    const AUTH_QUERY = 'authtype';
+    const SITEID_QUERY = 'sid';
+    const LOCAL_AUTH = 'local';
+    const ENTRAID_SESSION_ID_COOKIE = 'entraid-session-id';
+    const USER_TYPE_SETTING_PREFIX = 'entraid-user-';
+    const USER_ATTESTATION_SETTING_PREFIX = 'entraid-attestation-';
 
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
@@ -135,10 +135,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 $username = $this->getUserId();
                 $users    = new Users($this);
                 $userType = $users->getUserType($username);
-                if ( Utilities::doingLocalLogin() || $userType['authValue'] === self::$LOCAL_AUTH ) {
+                if ( Utilities::doingLocalLogin() || $userType['authValue'] === self::LOCAL_AUTH ) {
                     // Local/LDAP user just logged in - Check if attestation is needed
                     $siteId = $this->inferSiteId($userType);
-                    if ( isset($_GET[self::$SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
+                    if ( isset($_GET[self::SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
                         $users->setEntraIdUser($username, $siteId);
                     }
                     $attestation = new Attestation($this, $username, $siteId);
@@ -149,9 +149,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     }
 
                     // Otherwise just redirect to the page without the auth query
-                    if ( isset($_GET[self::$AUTH_QUERY]) ) {
-                        $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::$AUTH_QUERY);
-                        $cleanUrl = Utilities::stripQueryParameter($cleanUrl, self::$SITEID_QUERY);
+                    if ( isset($_GET[self::AUTH_QUERY]) ) {
+                        $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::AUTH_QUERY);
+                        $cleanUrl = Utilities::stripQueryParameter($cleanUrl, self::SITEID_QUERY);
                         $this->redirectAfterHook($cleanUrl);
                     }
                 }
@@ -175,15 +175,15 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // Only authenticate if we're asked to
-            if ( isset($_GET[self::$AUTH_QUERY]) && !Utilities::doingLocalLogin() ) {
-                $authType      = filter_input(INPUT_GET, self::$AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            if ( isset($_GET[self::AUTH_QUERY]) && !Utilities::doingLocalLogin() ) {
+                $authType      = filter_input(INPUT_GET, self::AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
                 $authenticator = new Authenticator($this, "");
                 $authenticator->handleEntraIdAuth($authType, Utilities::curPageURL());
             }
 
             // If not logged in, Auth Type is not set, but Site ID query is still defined, remove it from URL and redirect
-            if ( empty($_GET[self::$AUTH_QUERY]) && isset($_GET[self::$SITEID_QUERY]) ) {
-                $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::$SITEID_QUERY);
+            if ( empty($_GET[self::AUTH_QUERY]) && isset($_GET[self::SITEID_QUERY]) ) {
+                $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::SITEID_QUERY);
                 $this->redirectAfterHook($cleanUrl);
                 return;
             }
@@ -229,7 +229,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if (
             !$users->isEntraIdUser($username) ||
             $this->framework->getSystemSetting('custom-login-page-type') === 'none' ||
-            $users->getUserType($username)['authType'] === self::$LOCAL_AUTH
+            $users->getUserType($username)['authType'] === self::LOCAL_AUTH
         ) {
             return;
         }
@@ -545,8 +545,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                                     $loginImg = $site['loginButtonLogo'] ?
                                                         '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                                                         '<span class="login-label">' . $site['label'] . '</span>';
-                                                    $redirect = Utilities::addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
-                                                    $redirect = Utilities::addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
+                                                    $redirect = Utilities::addQueryParameter($redirect, self::AUTH_QUERY, $site['authValue']);
+                                                    $redirect = Utilities::addQueryParameter($redirect, self::SITEID_QUERY, $site['siteId']);
                                                     ?>
                                                         <li class="list-group-item list-group-item-action login-option"
                                                         onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
@@ -556,7 +556,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                             </ul>
                                         </div>
                                         <hr>
-                                        <a href="<?= Utilities::addQueryParameter(Utilities::curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
+                                        <a href="<?= Utilities::addQueryParameter(Utilities::curPageURL(), self::AUTH_QUERY, self::LOCAL_AUTH) ?>"
                                             class="text-primary">
                                             <?= $this->framework->tt('login_1') ?>
                                         </a>
@@ -573,7 +573,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     private function addCustomLoginLinkScript()
     {
         $siteId = $this->inferSiteId([]);
-        if ( !empty($siteId) && $siteId !== self::$LOCAL_AUTH ) {
+        if ( !empty($siteId) && $siteId !== self::LOCAL_AUTH ) {
             $customLogin = true;
             $settings    = new EntraIdSettings($this);
             $site        = $settings->getSettings($siteId);
@@ -618,8 +618,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
                     const url = new URL(window.location);
                     const p = url.searchParams;
-                    p.delete('<?= self::$AUTH_QUERY ?>');
-                    p.delete('<?= self::$SITEID_QUERY ?>');
+                    p.delete('<?= self::AUTH_QUERY ?>');
+                    p.delete('<?= self::SITEID_QUERY ?>');
 
                     link.href = url.href;
                     link.innerText = '<?= $this->framework->tt('login_3') ?>';
@@ -738,11 +738,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function inferSiteId(array $userType = [])
     {
-        $siteId = filter_input(INPUT_GET, self::$SITEID_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+        $siteId = filter_input(INPUT_GET, self::SITEID_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
         if ( $this->verifySiteId($siteId) ) {
             return $siteId;
         }
-        $siteId = $this->getSiteIdFromAuthValue($_GET[self::$AUTH_QUERY]);
+        $siteId = $this->getSiteIdFromAuthValue($_GET[self::AUTH_QUERY]);
         if ( $this->verifySiteId($siteId) ) {
             return $siteId;
         }
@@ -750,7 +750,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $siteId ) {
             return $siteId;
         }
-        return self::$LOCAL_AUTH;
+        return self::LOCAL_AUTH;
     }
 
     private function verifySiteId($siteId)

@@ -70,7 +70,7 @@ class Attestation
                 'attestationText' => $attestationText,
                 'attestationCheckboxText' => $attestationCheckboxText
             ];
-            $this->module->framework->setSystemSetting(EntraIdAuthenticator::$USER_ATTESTATION_SETTING_PREFIX . $this->username, json_encode($attestation));
+            $this->module->framework->setSystemSetting(EntraIdAuthenticator::USER_ATTESTATION_SETTING_PREFIX . $this->username, json_encode($attestation));
             return true;
         } catch ( \Throwable $e ) {
             $this->module->framework->log('Entra ID REDCap Authenticator: Error handling attestation', [ 'error' => $e->getMessage() ]);
@@ -129,7 +129,7 @@ class Attestation
 
     private function isLocalLogin()
     {
-        return $_GET[EntraIdAuthenticator::$AUTH_QUERY] === EntraIdAuthenticator::$LOCAL_AUTH;
+        return $_GET[EntraIdAuthenticator::AUTH_QUERY] === EntraIdAuthenticator::LOCAL_AUTH;
     }
 
     private function userWasJustCreated()
@@ -281,7 +281,7 @@ class Attestation
         if ( empty($this->username) ) {
             return false;
         }
-        $attestationText = $this->module->framework->getSystemSetting(EntraIdAuthenticator::$USER_ATTESTATION_SETTING_PREFIX . $this->username);
+        $attestationText = $this->module->framework->getSystemSetting(EntraIdAuthenticator::USER_ATTESTATION_SETTING_PREFIX . $this->username);
         if ( empty($attestationText) ) {
             return false;
         }
@@ -319,7 +319,7 @@ class Attestation
         if ( empty($this->username) ) {
             return false;
         }
-        $attestationText = $this->module->framework->getSystemSetting(EntraIdAuthenticator::$USER_ATTESTATION_SETTING_PREFIX . $this->username);
+        $attestationText = $this->module->framework->getSystemSetting(EntraIdAuthenticator::USER_ATTESTATION_SETTING_PREFIX . $this->username);
         if ( empty($attestationText) ) {
             return false;
         }

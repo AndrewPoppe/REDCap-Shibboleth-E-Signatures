@@ -92,7 +92,7 @@ class Utilities
 
     public static function doingLocalLogin()
     {
-        return isset($_GET[EntraIdAuthenticator::$AUTH_QUERY]) && $_GET[EntraIdAuthenticator::$AUTH_QUERY] == EntraIdAuthenticator::$LOCAL_AUTH;
+        return isset($_GET[EntraIdAuthenticator::AUTH_QUERY]) && $_GET[EntraIdAuthenticator::AUTH_QUERY] == EntraIdAuthenticator::LOCAL_AUTH;
     }
 
     public static function resettingPassword(string $page)

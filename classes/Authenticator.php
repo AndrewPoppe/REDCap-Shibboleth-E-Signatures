@@ -157,7 +157,7 @@ class Authenticator
     {
         try {
             $session_id = session_id();
-            \Session::savecookie(EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
+            \Session::savecookie(EntraIdAuthenticator::ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
             $this->entraIdSettings = $this->settings->getSettingsByAuthValue($authType);
             $this->setSiteAttributes();
             $this->authenticate(false, $url);
