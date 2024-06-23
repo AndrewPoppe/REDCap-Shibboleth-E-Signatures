@@ -1,0 +1,14 @@
+.login-logo,
+.login-label {
+    max-width: 350px;
+    height: 53px;
+    object-fit: contain;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.login-label {
+    font-weight: bold;
+}

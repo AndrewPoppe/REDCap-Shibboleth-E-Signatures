@@ -295,8 +295,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $siteData[$site['siteId']] = $site['authValue'] . ' (' . $site['label'] . ')';
         }
 
-        $this->framework->initializeJavascriptModuleObject();
-
         parse_str($_SERVER['QUERY_STRING'], $query);
         if ( isset($query['username']) ) {
             $username = $query['username'];
@@ -304,114 +302,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $site     = $users->getUserType($username);
         }
 
-        ?>
-        <script>
-            var authenticator = <?= $this->getJavascriptModuleObjectName() ?>;
-            var sites = JSON.parse('<?= json_encode($siteData) ?>');
-
-            function convertTableUserToEntraIdUser() {
-                const username = $('#user_search').val();
-                Swal.fire({
-                    title: "<?= $this->framework->tt('convert_1') ?>",
-                    input: 'select',
-                    inputOptions: sites,
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonText: "<?= $this->framework->tt('convert_2') ?>"
-                }).then((result) => {
-                    console.log(result);
-                    if (result.isConfirmed) {
-                        let site = result.value;
-                        console.log(site);
-                        authenticator.ajax('convertTableUserToEntraIdUser', {
-                            username: username,
-                            siteId: site
-                        }).then(() => {
-                            location.reload();
-                        });
-                    }
-                });
-            }
-
-            function convertEntraIdUsertoTableUser() {
-                const username = $('#user_search').val();
-                Swal.fire({
-                    title: "<?= $this->framework->tt('convert_3') ?>",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonText: "<?= $this->framework->tt('convert_4') ?>"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        authenticator.ajax('convertEntraIdUsertoTableUser', {
-                            username: username
-                        }).then(() => {
-                            location.reload();
-                        });
-                    }
-                });
-            }
-
-            function addTableRow(siteJson) {
-                const site = JSON.parse(siteJson);
-                let userText = '';
-                if (site['siteId'] === false) {
-                    switch (site['authType']) {
-                        case 'allowlist':
-                            userText = `<strong><?= $this->framework->tt('user_types_1') ?></strong>`;
-                            break;
-                        case 'table':
-                            userText =
-                                `<strong><?= $this->framework->tt('user_types_2') ?></strong> <input type="button" style="font-size:11px" onclick="convertTableUserToEntraIdUser()" value="Convert to Entra ID User">`;
-                            break;
-                    }
-                } else {
-                    userText = `<strong>${site['label']}</strong> (${site['authType']}) <input type="button" style="font-size:11px" onclick="convertEntraIdUsertoTableUser()" value="<?= $this->framework->tt('convert_4') ?>">`;
-                }
-                $('#indv_user_info').append('<tr id="userTypeRow"><td class="data2">User type</td><td class="data2">' +
-                    userText + '</td></tr>');
-            }
-
-            view_user = function (username) {
-                if (username.length < 1) return;
-                $('#view_user_progress').css({
-                    'visibility': 'visible'
-                });
-                $('#user_search_btn').prop('disabled', true);
-                $('#user_search').prop('disabled', true);
-                $.get(app_path_webroot + 'ControlCenter/user_controls_ajax.php', {
-                    user_view: 'view_user',
-                    view: 'user_controls',
-                    username: username
-                },
-                    function (data) {
-                        authenticator.ajax('getUserType', {
-                            username: username
-                        }).then((site) => {
-                            $('#view_user_div').html(data);
-                            addTableRow(JSON.stringify(site));
-                            enableUserSearch();
-                            highlightTable('indv_user_info', 1000);
-                        });
-                    }
-                );
-            }
-
-            <?php if ( isset($username) ) { ?>
-                window.requestAnimationFrame(() => {
-                    addTableRow('<?= json_encode($site) ?>')
-                });
-            <?php } ?>
-
-            $(document).ready(function () {
-                <?php if ( isset($username) ) { ?>
-                    if (!$('#userTypeRow').length) {
-                        view_user('<?= $username ?>');
-                    }
-
-                <?php } ?>
-            });
-        </script>
-        <?php
+        $this->framework->initializeJavascriptModuleObject();
+        $this->framework->tt_transferToJavascriptModuleObject();
+        $js = file_get_contents($this->framework->getSafePath('js/browseUsersTable.js'));
+        $js = str_replace('__MODULE__', $this->framework->getJavascriptModuleObjectName(), $js);
+        $js = str_replace('{{USERNAME}}', $username ?? "", $js);
+        $js = str_replace('{{SITEDATA}}', json_encode($siteData), $js);
+        $js = str_replace('{{SITEJSON}}', json_encode($site ?? []), $js);
+        echo '<script type="text/javascript">' . $js . '</script>';
     }
 
     private function isLoggedIntoREDCap()
@@ -430,30 +328,24 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     private function addReplaceLogoutLinkScript()
     {
         try {
+            // Only makes sense for logged-in users
             if ( !$this->isLoggedIntoREDCap() ) {
                 return;
             }
+
+            // Only replace if the user is an Entra ID user and the system settings are appropriate
             $username = $this->getUserId();
             $users    = new Users($this);
-            if ( !$users->isEntraIdUser($username) || $this->framework->getSystemSetting('custom-login-page-type') === 'none' ) {
+            $isEntraIdUser = $users->isEntraIdUser($username);
+            $showModifiedLoginPage = $this->framework->getSystemSetting('custom-login-page-type') !== 'none';
+            if ( !$isEntraIdUser || !$showModifiedLoginPage ) {
                 return;
             }
+            
             $logout_url = $this->framework->getUrl('logout.php');
-            ?>
-            <script>
-                $(document).ready(function () {
-                    const link = document.querySelector('#nav-tab-logout a');
-                    if (link) {
-                        link.href = '<?= $logout_url ?>';
-                    }
-
-                    const projectLink = document.querySelector('#username-reference ~ span a');
-                    if (projectLink) {
-                        projectLink.href = '<?= $logout_url ?>';
-                    }
-                });
-            </script>
-            <?php
+            $js         = file_get_contents($this->framework->getSafePath('js/logout.js'));
+            $js         = str_replace('{{logout_url}}', $logout_url, $js);
+            echo '<script type="text/javascript">' . $js . '</script>';
         } catch ( \Throwable $e ) {
             $this->framework->log('Entra ID REDCap Authenticator: Error adding replace logout link script', [ 'error' => $e->getMessage() ]);
         }
@@ -463,74 +355,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     {
         $settings        = new EntraIdSettings($this);
         $entraIdSettings = $settings->getAllSettings();
-        ?>
-        <style>
-            #rc-login-form {
-                display: none;
-            }
-
-            .login-option {
-                cursor: pointer;
-                border-radius: 0 !important;
-                height: 70px;
-            }
-
-            .login-option:hover {
-                background-color: #dddddd !important;
-            }
-
-            #login-card {
-                border-radius: 0;
-                width: 502px;
-                height: auto;
-                margin: 0 auto;
-                left: 50%;
-                margin-left: -250px;
-                border: none;
-            }
-
-            #container,
-            #pagecontainer {
-                background-color: transparent !important;
-            }
-
-            body {
-                background-repeat: no-repeat !important;
-                background-attachment: fixed !important;
-                background-size: cover !important;
-            }
-
-            .login-options {
-                left: 50%;
-                margin-left: -37.5%;
-                width: 75%;
-                border-radius: 0 !important;
-            }
-
-            .login-logo,
-            .login-label {
-                width: 100%;
-                height: 100%;
-                object-fit: contain;
-                display: flex;
-                justify-content: space-evenly;
-                align-items: center;
-            }
-
-            .login-label {
-                font-weight: bold;
-            }
-
-            div#working {
-                top: 50% !important;
-            }
-
-            #my_page_footer a {
-                text-decoration: none;
-                color: inherit;
-            }
-        </style>
-        <?php
+        $css             = file_get_contents($this->framework->getSafePath('css/loginPage.css'));
+        echo '<style>' . $css . '</style>';
 
         global $login_logo, $institution, $login_custom_text, $homepage_announcement, $homepage_announcement_login, $homepage_contact, $homepage_contact_email, $homepage_contact_url;
         $contactLinkHref = trim($homepage_contact_url) == '' ? 'mailto:' . $homepage_contact_email : trim($homepage_contact_url);
@@ -550,11 +376,11 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                                     $loginImg = $site['loginButtonLogo'] ?
                                                         '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                                                         '<span class="login-label">' . $site['label'] . '</span>';
-                                                    $redirect = Utilities::addQueryParameter($redirect, self::AUTH_QUERY, $site['authValue']);
-                                                    $redirect = Utilities::addQueryParameter($redirect, self::SITEID_QUERY, $site['siteId']);
+                                                    $redirect_new = Utilities::addQueryParameter($redirect, self::AUTH_QUERY, $site['authValue']);
+                                                    $redirect_new = Utilities::addQueryParameter($redirect_new, self::SITEID_QUERY, $site['siteId']);
                                                     ?>
                                                         <li class="list-group-item list-group-item-action login-option"
-                                                        onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
+                                                        onclick="showProgress(1);window.location.href='<?= $redirect_new ?>';">
                                                         <?= $loginImg ?>
                                                     </li>
                                                 <?php } ?>
@@ -586,23 +412,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                 '<span class="login-label">' . $site['label'] . '</span>';
         }
+        $css             = file_get_contents($this->framework->getSafePath('css/customLoginLink.css'));
+        echo '<style>' . $css . '</style>';
         ?>
-        <style>
-            .login-logo,
-            .login-label {
-                max-width: 350px;
-                height: 53px;
-                object-fit: contain;
-                display: flex;
-                justify-content: space-evenly;
-                align-items: center;
-                margin-bottom: 20px;
-            }
-
-            .login-label {
-                font-weight: bold;
-            }
-        </style>
         <script>
             document.addEventListener("DOMContentLoaded", function () {
                 const loginForm = document.querySelector('#rc-login-form form[name="form"]');
@@ -645,36 +457,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         global $homepage_contact, $homepage_contact_email, $lang;
         session_unset();
         session_destroy();
+        $css             = file_get_contents($this->framework->getSafePath('css/noUserAccess.css'));
+        echo '<style>' . $css . '</style>';
         ?>
-        <style>
-            body {
-                font: normal 13px "Open Sans", Helvetica, Arial, Helvetica, sans-serif;
-            }
-
-            .container {
-                width: 100%;
-                height: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .red {
-                padding: 6px;
-                border: 1px solid red;
-                color: #800000;
-                max-width: 1100px;
-                background-color: #FFE1E1;
-            }
-
-            #footer {
-                color: #888;
-                font-size: 11px;
-                text-align: center;
-                margin: 0;
-                padding: 15px 0 5px;
-            }
-        </style>
         <div class='container'>
             <div class='red' style='margin:40px 0 20px;padding:20px;'>
                 <?= $lang['config_functions_78'] ?>"<b><?= $username ?></b>"<?= $lang['period'] ?>
