@@ -4,11 +4,11 @@ namespace YaleREDCap\EntraIdAuthenticator;
 class Users
 {
     private EntraIdAuthenticator $module;
-    private $external_module_id;
+    private $externalModuleId;
     public function __construct(EntraIdAuthenticator $module)
     {
         $this->module = $module;
-        $this->external_module_id = \ExternalModules\ExternalModules::getIdForPrefix($module->PREFIX);
+        $this->externalModuleId = \ExternalModules\ExternalModules::getIdForPrefix($module->PREFIX);
     }
 
     public function getAllUserData()
@@ -59,7 +59,7 @@ class Users
                     AND message = 'password-reset-needed'
                     ) pr
                 ON i.ui_id= pr.ui_id";
-            $result = $this->module->framework->query($sql, [$this->external_module_id, $this->external_module_id, $this->external_module_id]);
+            $result = $this->module->framework->query($sql, [$this->externalModuleId, $this->externalModuleId, $this->externalModuleId]);
             $users = [];
             while ($row = $result->fetch_assoc()) {
                 $row['siteId'] = $row['entraid'] === 'false' ? EntraIdAuthenticator::LOCAL_AUTH : $row['entraid'];
@@ -70,9 +70,9 @@ class Users
                 $attestationSite = $entraidSettings[$row['attestationSiteId']] ?? $localSettings;
                 $row['attestationSiteLabel'] = $attestationSite['label'];
 
-                $AttestationSiteMatches    = $site['siteId'] === $row['attestationSiteId'];
-                $AttestationVersionMatches = $site['attestationVersion'] === $row['attestationVersion'];
-                $row['attestationCurrent'] = $AttestationSiteMatches && $AttestationVersionMatches;
+                $attestationSiteMatches    = $site['siteId'] === $row['attestationSiteId'];
+                $attestationVersionMatches = $site['attestationVersion'] === $row['attestationVersion'];
+                $row['attestationCurrent'] = $attestationSiteMatches && $attestationVersionMatches;
 
                 $users[] = $row;
             }
@@ -92,16 +92,16 @@ class Users
         if (ACCOUNT_MANAGER && $this->module->framework->getUser($username)->isSuperUser()) {
             return;
         }
-        $SQL = "DELETE FROM redcap_external_module_settings
+        $sql = "DELETE FROM redcap_external_module_settings
                 WHERE external_module_id = ?
                 AND project_id IS NULL
                 AND `key` IN (?, ?)";
         $params = [
-            $this->external_module_id, 
+            $this->externalModuleId, 
             EntraIdAuthenticator::USER_TYPE_SETTING_PREFIX . $username, 
             EntraIdAuthenticator::USER_ATTESTATION_SETTING_PREFIX . $username
         ];
-        return $this->module->framework->query($SQL, $params);
+        return $this->module->framework->query($sql, $params);
     }
 
     public function getUsers(string $siteId) {
@@ -110,13 +110,13 @@ class Users
             if ( empty($siteId) ) {
                 return $users;
             }
-            $SQL    = "SELECT SUBSTRING(`key`, 14) username 
+            $sql    = "SELECT SUBSTRING(`key`, 14) username 
                     FROM redcap_external_module_settings 
                     WHERE external_module_id = ?
                     AND `key` LIKE '" . EntraIdAuthenticator::USER_TYPE_SETTING_PREFIX . "%'
                     AND `value` = ?";
-            $params = [ $this->external_module_id, $siteId ];
-            $result = $this->module->framework->query($SQL, $params);
+            $params = [ $this->externalModuleId, $siteId ];
+            $result = $this->module->framework->query($sql, $params);
             while ( $row = $result->fetch_assoc() ) {
                 $users[] = $row['username'];
             }
@@ -133,8 +133,8 @@ class Users
             return;
         }
         try {
-            $SQL   = 'DELETE FROM redcap_auth WHERE username = ?';
-            $query = $this->module->framework->query($SQL, [ $username ]);
+            $sql   = 'DELETE FROM redcap_auth WHERE username = ?';
+            $query = $this->module->framework->query($sql, [ $username ]);
             $this->setEntraIdUser($username, $siteId);
             return;
         } catch ( \Exception $e ) {
@@ -155,8 +155,8 @@ class Users
                 $questionMarks[] = '?';
                 $params[]        = $username;
             }
-            $SQL    = 'DELETE FROM redcap_auth WHERE username in (' . implode(',', $questionMarks) . ')';
-            $result = $this->module->framework->query($SQL, $params);
+            $sql    = 'DELETE FROM redcap_auth WHERE username in (' . implode(',', $questionMarks) . ')';
+            $result = $this->module->framework->query($sql, $params);
             if ( $result ) {
                 foreach ( $usernames as $username ) {
                     $this->setEntraIdUser($username, $siteId);
@@ -178,8 +178,8 @@ class Users
             return false;
         }
         try {
-            $SQL   = "INSERT INTO redcap_auth (username) VALUES (?)";
-            $query = $this->module->framework->query($SQL, [ $username ]);
+            $sql   = "INSERT INTO redcap_auth (username) VALUES (?)";
+            $query = $this->module->framework->query($sql, [ $username ]);
             \Authentication::resetPasswordSendEmail($username);
             $this->setEntraIdUser($username, false);
             return;
@@ -211,8 +211,8 @@ class Users
                 return false;
             }
 
-            $SQL    = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
-            $result = $this->module->framework->query($SQL, $params);
+            $sql    = 'INSERT INTO redcap_auth (username) VALUES ' . implode(',', $questionMarks);
+            $result = $this->module->framework->query($sql, $params);
             foreach ( $usernames as $username ) {
                 $this->module->framework->log('password-reset-needed', [ 'username' => $username, 'username_to_reset' => $username ]);
             }
@@ -247,8 +247,8 @@ class Users
      */
     public function inUserAllowlist(string $username)
     {
-        $SQL = "SELECT 1 FROM redcap_user_allowlist WHERE username = ?";
-        $q   = $this->module->framework->query($SQL, [ $username ]);
+        $sql = "SELECT 1 FROM redcap_user_allowlist WHERE username = ?";
+        $q   = $this->module->framework->query($sql, [ $username ]);
         return $q->fetch_assoc() !== null;
     }
 
@@ -263,18 +263,18 @@ class Users
 
     public function userExists($username)
     {
-        $SQL = 'SELECT 1 FROM redcap_user_information WHERE username = ?';
-        $q   = $this->module->framework->query($SQL, [ $username ]);
+        $sql = 'SELECT 1 FROM redcap_user_information WHERE username = ?';
+        $q   = $this->module->framework->query($sql, [ $username ]);
         return $q->fetch_assoc() !== null;
     }
 
     private function updateUserDetails($username, $details)
     {
         try {
-            $SQL    = 'UPDATE redcap_user_information SET user_firstname = ?, user_lastname = ?, user_email = ? WHERE username = ?';
-            $PARAMS = [ $details['user_firstname'], $details['user_lastname'], $details['user_email'], $username ];
+            $sql    = 'UPDATE redcap_user_information SET user_firstname = ?, user_lastname = ?, user_email = ? WHERE username = ?';
+            $params = [ $details['user_firstname'], $details['user_lastname'], $details['user_email'], $username ];
             $query  = $this->module->framework->createQuery();
-            $query->add($SQL, $PARAMS);
+            $query->add($sql, $params);
             $query->execute();
             return $query->affected_rows;
         } catch ( \Exception $e ) {
@@ -285,10 +285,10 @@ class Users
     private function insertUserDetails($username, $details)
     {
         try {
-            $SQL    = 'INSERT INTO redcap_user_information (username, user_firstname, user_lastname, user_email, user_creation) VALUES (?, ?, ?, ?, ?)';
-            $PARAMS = [ $username, $details['user_firstname'], $details['user_lastname'], $details['user_email'], NOW ];
+            $sql    = 'INSERT INTO redcap_user_information (username, user_firstname, user_lastname, user_email, user_creation) VALUES (?, ?, ?, ?, ?)';
+            $params = [ $username, $details['user_firstname'], $details['user_lastname'], $details['user_email'], NOW ];
             $query  = $this->module->framework->createQuery();
-            $query->add($SQL, $PARAMS);
+            $query->add($sql, $params);
             $query->execute();
             return $query->affected_rows;
         } catch ( \Exception $e ) {

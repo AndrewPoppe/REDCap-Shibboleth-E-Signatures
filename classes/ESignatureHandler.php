@@ -38,7 +38,6 @@ class ESignatureHandler
 
         global $auth_meth_global;
         $auth_meth_global = 'none';
-        return;
     }
 
     public function addEsignatureScript()

@@ -95,9 +95,9 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             if ( $page === 'ControlCenter/delete_user.php' ) {
                 try {
                     $username = trim($_POST['username']);
-                    $Users    = new Users($this);
+                    $users    = new Users($this);
                     // This method performs authorization checks prior to deletion
-                    $Users->deleteUser($username);
+                    $users->deleteUser($username);
                 } catch ( \Throwable $e ) {
                     $this->framework->log('Entra ID REDCap Authenticator: Error deleting user', [ 'user to delete' => $this->framework->escape($username), 'error' => $e->getMessage() ]);
                 }
@@ -162,16 +162,21 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
+            // Not logged in to REDCap but does have a username
+            // Means they are partway through logging in
+            // Check if user does not have an email address or email has not been verified
             $username = $this->getUserId();
-            if ( !$this->isLoggedIntoREDCap() && isset($username) && $username !== 'SYSTEM' && Utilities::inAuthenticateFunction() ) {
-                // Check if user does not have an email address or email has not been verified
-                if ( !$this->userHasVerifiedEmail($username) ) {
-                    // This sets the $userid global, which is used in the email update page 
-                    $userid = $username;
-                    $this->showEmailUpdatePage();
-                    $this->exitAfterHook();
-                    return;
-                }
+            if ( 
+                isset($username) && 
+                $username !== 'SYSTEM' && 
+                Utilities::inAuthenticateFunction() &&
+                !$this->userHasVerifiedEmail($username)
+            ) {
+                // This sets the $userid global, which is used in the email update page 
+                $userid = $username;
+                $this->showEmailUpdatePage();
+                $this->exitAfterHook();
+                return;
             }
 
             // Only authenticate if we're asked to
@@ -813,10 +818,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         $removed       = array_diff($sites, $proposedSites);
 
         if ( !empty($removed) ) {
-            $Users = new Users($this);
+            $users = new Users($this);
             foreach ( $removed as $removedSiteId ) {
-                $users = $Users->getUsers($removedSiteId);
-                if ( !empty($users) ) {
+                $usernames = $users->getUsers($removedSiteId);
+                if ( !empty($usernames) ) {
                     return false;
                 }
             }

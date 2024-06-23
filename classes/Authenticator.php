@@ -4,24 +4,26 @@ namespace YaleREDCap\EntraIdAuthenticator;
 
 class Authenticator
 {
-    private $client_id;
-    private $ad_tenant;
-    private $client_secret;
-    private $redirect_uri;
-    private $redirect_uri_spa;
+    private $clientId;
+    private $adTenant;
+    private $clientSecret;
+    private $redirectUri;
+    private $redirectUriSpa;
     private $module;
-    private $session_id;
-    private $logout_uri;
+    private $sessionId;
+    private $logoutUri;
     private $allowedGroups;
     private $siteId;
     private $authType;
     private $settings;
     private $entraIdSettings;
-    public function __construct(EntraIdAuthenticator $module, string $siteId, string $session_id = null)
+    
+    const ERROR_MESSAGE_AUTHENTICATION = 'EntraIdAuthenticator Authentication Error';
+    public function __construct(EntraIdAuthenticator $module, string $siteId, string $sessionId = null)
     {
         $this->module          = $module;
         $this->siteId          = $siteId;
-        $this->session_id      = $session_id ?? session_id();
+        $this->sessionId       = $sessionId ?? session_id();
         $this->settings        = new EntraIdSettings($module);
         $this->entraIdSettings = $this->settings->getSettings($siteId);
         if ( !$this->entraIdSettings ) {
@@ -32,33 +34,32 @@ class Authenticator
 
     public function authenticate(bool $refresh = false, string $originUrl = '')
     {
-        $url = "https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/authorize?";
-        $url .= "state=" . $this->session_id . "EIASEP" . $this->siteId . "EIASEP" . urlencode($originUrl);
+        $url = "https://login.microsoftonline.com/" . $this->adTenant . "/oauth2/v2.0/authorize?";
+        $url .= "state=" . $this->sessionId . "EIASEP" . $this->siteId . "EIASEP" . urlencode($originUrl);
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
         $url .= "&approval_prompt=auto";
-        $url .= "&client_id=" . $this->client_id;
-        $url .= "&redirect_uri=" . urlencode($this->redirect_uri);
+        $url .= "&client_id=" . $this->clientId;
+        $url .= "&redirect_uri=" . urlencode($this->redirectUri);
         $url .= $refresh ? "&prompt=login" : "";
         header("Location: " . $url);
-        return;
     }
 
-    public function getAuthData($session_id, $code)
+    public function getAuthData($sessionId, $code)
     {
         //Checking if the state matches the session ID
-        $stateMatches = strcmp(session_id(), $session_id) == 0;
+        $stateMatches = strcmp(session_id(), $sessionId) == 0;
         if ( !$stateMatches ) {
-            $this->module->framework->log('EntraIdAuthenticator Authentication Error', [ 'error' => 'State does not match session ID' ]);
-            return;
+            $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'State does not match session ID' ]);
+            return null;
         }
 
         //Verifying the received tokens with Azure and finalizing the authentication part
         $content = "grant_type=authorization_code";
-        $content .= "&client_id=" . $this->client_id;
-        $content .= "&redirect_uri=" . urlencode($this->redirect_uri);
+        $content .= "&client_id=" . $this->clientId;
+        $content .= "&redirect_uri=" . urlencode($this->redirectUri);
         $content .= "&code=" . $code;
-        $content .= "&client_secret=" . urlencode($this->client_secret);
+        $content .= "&client_secret=" . urlencode($this->clientSecret);
         $options = array(
             "http" => array(  //Use "http" even if you send the request with https
                 "method"  => "POST",
@@ -68,21 +69,21 @@ class Authenticator
             )
         );
         $context = stream_context_create($options);
-        $json    = file_get_contents("https://login.microsoftonline.com/" . $this->ad_tenant . "/oauth2/v2.0/token", false, $context);
+        $json    = file_get_contents("https://login.microsoftonline.com/" . $this->adTenant . "/oauth2/v2.0/token", false, $context);
         if ( $json === false ) {
-            $this->module->framework->log('EntraIdAuthenticator Authentication Error', [ 'error' => 'Error received during Bearer token fetch.' ]);
-            return;
+            $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'Error received during Bearer token fetch.' ]);
+            return null;
         }
         $authdata = json_decode($json, true);
         if ( isset($authdata["error"]) ) {
-            $this->module->framework->log('EntraIdAuthenticator Authentication Error', [ 'error' => 'Bearer token fetch contained an error.' ]);
-            return;
+            $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'Bearer token fetch contained an error.' ]);
+            return null;
         }
 
         return $authdata;
     }
 
-    public function getUserData($access_token)
+    public function getUserData($accessToken)
     {
 
         //Fetching the basic user information that is likely needed by your application
@@ -90,26 +91,26 @@ class Authenticator
             "http" => array(  //Use "http" even if you send the request with https
                 "method" => "GET",
                 "header" => "Accept: application/json\r\n" .
-                    "Authorization: Bearer " . $access_token . "\r\n"
+                    "Authorization: Bearer " . $accessToken . "\r\n"
             )
         );
         $context = stream_context_create($options);
         $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
         $json2   = file_get_contents("https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group?\$select=displayName,id", false, $context);
         if ( $json === false ) {
-            $this->module->framework->log('EntraIdAuthenticator Authentication Error', [ 'error' => 'Error received during user data fetch.' ]);
+            $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'Error received during user data fetch.' ]);
             return;
         }
 
         $userdata = json_decode($json, true);  //This should now contain your logged on user information
         if ( isset($userdata["error"]) ) {
-            $this->module->framework->log('EntraIdAuthenticator Authentication Error', [ 'error' => 'User data fetch contained an error.' ]);
+            $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'User data fetch contained an error.' ]);
             return;
         }
 
         $groupdata = json_decode($json2, true);
 
-        $userdata_parsed = [
+        return [
             'user_email'     => $userdata['mail'],
             'user_firstname' => $userdata['givenName'],
             'user_lastname'  => $userdata['surname'],
@@ -122,21 +123,19 @@ class Authenticator
             'id'             => $userdata['id'],
             'groups'         => $groupdata['value']
         ];
-
-        return $userdata_parsed;
     }
 
     public function setSiteAttributes()
     {
-        $this->siteId           = $this->entraIdSettings['siteId'];
-        $this->authType         = $this->entraIdSettings['authValue'];
-        $this->client_id        = $this->entraIdSettings['clientId'];
-        $this->ad_tenant        = $this->entraIdSettings['adTenantId'];
-        $this->client_secret    = $this->entraIdSettings['clientSecret'];
-        $this->redirect_uri     = $this->entraIdSettings['redirectUrl'];
-        $this->redirect_uri_spa = $this->entraIdSettings['redirectUrlSpa'];
-        $this->logout_uri       = $this->entraIdSettings['logoutUrl'];
-        $this->allowedGroups    = $this->entraIdSettings['allowedGroups'];
+        $this->siteId         = $this->entraIdSettings['siteId'];
+        $this->authType       = $this->entraIdSettings['authValue'];
+        $this->clientId       = $this->entraIdSettings['clientId'];
+        $this->adTenant       = $this->entraIdSettings['adTenantId'];
+        $this->clientSecret   = $this->entraIdSettings['clientSecret'];
+        $this->redirectUri    = $this->entraIdSettings['redirectUrl'];
+        $this->redirectUriSpa = $this->entraIdSettings['redirectUrlSpa'];
+        $this->logoutUri      = $this->entraIdSettings['logoutUrl'];
+        $this->allowedGroups  = $this->entraIdSettings['allowedGroups'];
     }
 
     public function checkGroupMembership($userData)
@@ -156,8 +155,8 @@ class Authenticator
     public function handleEntraIDAuth($authType, $url)
     {
         try {
-            $session_id = session_id();
-            \Session::savecookie(EntraIdAuthenticator::ENTRAID_SESSION_ID_COOKIE, $session_id, 0, true);
+            $sessionId = session_id();
+            \Session::savecookie(EntraIdAuthenticator::ENTRAID_SESSION_ID_COOKIE, $sessionId, 0, true);
             $this->entraIdSettings = $this->settings->getSettingsByAuthValue($authType);
             $this->setSiteAttributes();
             $this->authenticate(false, $url);
@@ -259,32 +258,31 @@ class Authenticator
     public function logout()
     {
         header("Location: " . $this->getLogoutUri());
-        return;
     }
 
     public function getRedirectUri()
     {
-        return $this->redirect_uri;
+        return $this->redirectUri;
     }
 
     public function getRedirectUriSpa()
     {
-        return $this->redirect_uri_spa;
+        return $this->redirectUriSpa;
     }
 
     public function getClientId()
     {
-        return $this->client_id;
+        return $this->clientId;
     }
 
     public function getAdTenant()
     {
-        return $this->ad_tenant;
+        return $this->adTenant;
     }
 
     public function getLogoutUri()
     {
-        return $this->logout_uri;
+        return $this->logoutUri;
     }
 
     public function getAuthType()

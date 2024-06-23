@@ -24,18 +24,16 @@ class Utilities
     public static function curPageURL()
     {
         $pageURL = 'http';
-        if ( isset($_SERVER["HTTPS"]) )
-            if ( $_SERVER["HTTPS"] == "on" ) {
-                $pageURL .= "s";
-            }
+        if ( isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] == "on" ) {
+            $pageURL .= "s";
+        }
         $pageURL .= "://";
         if ( $_SERVER["SERVER_PORT"] != "80" ) {
             $pageURL .= $_SERVER["SERVER_NAME"] . ":" . $_SERVER["SERVER_PORT"] . $_SERVER["REQUEST_URI"];
         } else {
             $pageURL .= $_SERVER["SERVER_NAME"] . $_SERVER["REQUEST_URI"];
         }
-        $pageURLClean = filter_var($pageURL, FILTER_SANITIZE_URL);
-        return $pageURLClean;
+        return filter_var($pageURL, FILTER_SANITIZE_URL);
     }
 
     public static function stripQueryParameter($url, $param)
