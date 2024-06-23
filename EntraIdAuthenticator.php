@@ -12,6 +12,7 @@ require_once 'classes/Authenticator.php';
 require_once 'classes/ESignatureHandler.php';
 require_once 'classes/EntraIdSettings.php';
 require_once 'classes/Users.php';
+require_once 'classes/Utilities.php';
 
 class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 {
@@ -95,6 +96,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 try {
                     $username = trim($_POST['username']);
                     $Users    = new Users($this);
+                    // This method performs authorization checks prior to deletion
                     $Users->deleteUser($username);
                 } catch ( \Throwable $e ) {
                     $this->framework->log('Entra ID REDCap Authenticator: Error deleting user', [ 'user to delete' => $this->framework->escape($username), 'error' => $e->getMessage() ]);
@@ -119,12 +121,12 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // No need to do anything for posts otherwise (assuming we're not in the login function)
-            if ( $_SERVER['REQUEST_METHOD'] === 'POST' && !$this->inLoginFunction() ) {
+            if ( $_SERVER['REQUEST_METHOD'] === 'POST' && !Utilities::inLoginFunction() ) {
                 return;
             }
 
             // Don't do anything if we're resetting a password
-            if ( $this->resettingPassword($page) ) {
+            if ( Utilities::resettingPassword($page) ) {
                 return;
             }
 
@@ -133,7 +135,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 $username = $this->getUserId();
                 $users    = new Users($this);
                 $userType = $users->getUserType($username);
-                if ( $this->doingLocalLogin() || $userType['authValue'] === self::$LOCAL_AUTH ) {
+                if ( Utilities::doingLocalLogin() || $userType['authValue'] === self::$LOCAL_AUTH ) {
                     // Local/LDAP user just logged in - Check if attestation is needed
                     $siteId = $this->inferSiteId($userType);
                     if ( isset($_GET[self::$SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
@@ -141,15 +143,15 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                     }
                     $attestation = new Attestation($this, $username, $siteId);
                     if ( $attestation->needsAttestationLocal() ) {
-                        $attestation->showAttestationPage([ 'username' => $username ], $this->curPageURL());
+                        $attestation->showAttestationPage([ 'username' => $username ], Utilities::curPageURL());
                         $this->exitAfterHook();
                         return;
                     }
 
                     // Otherwise just redirect to the page without the auth query
                     if ( isset($_GET[self::$AUTH_QUERY]) ) {
-                        $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$AUTH_QUERY);
-                        $cleanUrl = $this->stripQueryParameter($cleanUrl, self::$SITEID_QUERY);
+                        $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::$AUTH_QUERY);
+                        $cleanUrl = Utilities::stripQueryParameter($cleanUrl, self::$SITEID_QUERY);
                         $this->redirectAfterHook($cleanUrl);
                     }
                 }
@@ -161,7 +163,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             $username = $this->getUserId();
-            if ( !$this->isLoggedIntoREDCap() && isset($username) && $username !== 'SYSTEM' && $this->inAuthenticateFunction() ) {
+            if ( !$this->isLoggedIntoREDCap() && isset($username) && $username !== 'SYSTEM' && Utilities::inAuthenticateFunction() ) {
                 // Check if user does not have an email address or email has not been verified
                 if ( !$this->userHasVerifiedEmail($username) ) {
                     // This sets the $userid global, which is used in the email update page 
@@ -173,28 +175,28 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // Only authenticate if we're asked to
-            if ( isset($_GET[self::$AUTH_QUERY]) && !$this->doingLocalLogin() ) {
+            if ( isset($_GET[self::$AUTH_QUERY]) && !Utilities::doingLocalLogin() ) {
                 $authType      = filter_input(INPUT_GET, self::$AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
                 $authenticator = new Authenticator($this, "");
-                $authenticator->handleEntraIdAuth($authType, $this->curPageURL());
+                $authenticator->handleEntraIdAuth($authType, Utilities::curPageURL());
             }
 
             // If not logged in, Auth Type is not set, but Site ID query is still defined, remove it from URL and redirect
             if ( empty($_GET[self::$AUTH_QUERY]) && isset($_GET[self::$SITEID_QUERY]) ) {
-                $cleanUrl = $this->stripQueryParameter($this->curPageURL(), self::$SITEID_QUERY);
+                $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::$SITEID_QUERY);
                 $this->redirectAfterHook($cleanUrl);
                 return;
             }
 
             // Modify the login page
-            if ( $this->needsModifiedLogin($page) ) {
-                $this->modifyLoginPage($this->curPageURL());
+            if ( Utilities::needsModifiedLogin($page, $this) ) {
+                $this->modifyLoginPage(Utilities::curPageURL());
                 return;
             }
 
             // If doing local login, append a link to the custom login page
             if (
-                $this->doingLocalLogin() && $this->framework->getSystemSetting('custom-login-page-type') !== 'none'
+                Utilities::doingLocalLogin() && $this->framework->getSystemSetting('custom-login-page-type') !== 'none'
             ) {
                 $this->addCustomLoginLinkScript();
                 return;
@@ -235,63 +237,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         $esignatureHandler->addEsignatureScript();
     }
 
-    private function getEdocFileContents($edocId)
-    {
-        if ( empty($edocId) ) {
-            return;
-        }
-        $file     = \REDCap::getFile($edocId);
-        $contents = $file[2];
-
-        return 'data:' . $file[0] . ';base64,' . base64_encode($contents);
-    }
-
-    private function curPageURL()
-    {
-        $pageURL = 'http';
-        if ( isset($_SERVER["HTTPS"]) )
-            if ( $_SERVER["HTTPS"] == "on" ) {
-                $pageURL .= "s";
-            }
-        $pageURL .= "://";
-        if ( $_SERVER["SERVER_PORT"] != "80" ) {
-            $pageURL .= $_SERVER["SERVER_NAME"] . ":" . $_SERVER["SERVER_PORT"] . $_SERVER["REQUEST_URI"];
-        } else {
-            $pageURL .= $_SERVER["SERVER_NAME"] . $_SERVER["REQUEST_URI"];
-        }
-        $pageURLClean = filter_var($pageURL, FILTER_SANITIZE_URL);
-        return $pageURLClean;
-    }
-
-    public function stripQueryParameter($url, $param)
-    {
-        $parsed  = parse_url($url);
-        $baseUrl = strtok($url, '?');
-        if ( isset($parsed['query']) ) {
-            parse_str($parsed['query'], $params);
-            unset($params[$param]);
-            $parsed = empty($params) ? '' : http_build_query($params);
-            return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
-        } else {
-            return $url;
-        }
-    }
-
-    public function addQueryParameter(string $url, string $param, string $value = '')
-    {
-        $parsed  = parse_url($url);
-        $baseUrl = strtok($url, '?');
-        if ( isset($parsed['query']) ) {
-            parse_str($parsed['query'], $params);
-            $params[$param] = $value;
-            $parsed         = http_build_query($params);
-        } else {
-            $parsed = http_build_query([ $param => $value ]);
-        }
-        return $baseUrl . (empty($parsed) ? '' : '?') . $parsed;
-    }
-
-    
     /**
      * This is a CRON method
      * Sends password reset emails in a queued fashion
@@ -464,20 +409,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <?php
     }
 
-    public function inLoginFunction()
-    {
-        return sizeof(array_filter(debug_backtrace(), function ($value) {
-            return $value['function'] == 'loginFunction';
-        })) > 0;
-    }
-
-    private function inAuthenticateFunction()
-    {
-        return sizeof(array_filter(debug_backtrace(), function ($value) {
-            return $value['function'] == 'authenticate';
-        })) > 0;
-    }
-
     private function isLoggedIntoREDCap()
     {
         if ( !(defined('USERID') && USERID !== '') || !$this->framework->isAuthenticated() ) { // || isset($_SESSION['username']);
@@ -489,29 +420,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             return true;
         }
         return false;
-    }
-
-    private function needsModifiedLogin(string $page)
-    {
-        return $this->framework->getSystemSetting('custom-login-page-type') === "modified" &&
-            !$this->resettingPassword($page) &&
-            !$this->doingLocalLogin() &&
-            $this->inLoginFunction() &&
-            \ExternalModules\ExternalModules::getUsername() === null &&
-            !\ExternalModules\ExternalModules::isNoAuth();
-    }
-
-    private function doingLocalLogin()
-    {
-        return isset($_GET[self::$AUTH_QUERY]) && $_GET[self::$AUTH_QUERY] == self::$LOCAL_AUTH;
-    }
-
-    private function resettingPassword(string $page)
-    {
-        return (isset($_GET['action']) && $_GET['action'] == 'passwordreset') ||
-            $page == 'Authentication/password_recovery.php' ||
-            $page == 'Authentication/password_reset.php' ||
-            $page == 'Profile/user_info_action.php';
     }
 
     private function addReplaceLogoutLinkScript()
@@ -635,10 +543,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                             <ul class="list-group list-group-flush">
                                                 <?php foreach ( $entraIdSettings as $site ) {
                                                     $loginImg = $site['loginButtonLogo'] ?
-                                                        '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                                                        '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                                                         '<span class="login-label">' . $site['label'] . '</span>';
-                                                    $redirect = $this->addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
-                                                    $redirect = $this->addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
+                                                    $redirect = Utilities::addQueryParameter($redirect, self::$AUTH_QUERY, $site['authValue']);
+                                                    $redirect = Utilities::addQueryParameter($redirect, self::$SITEID_QUERY, $site['siteId']);
                                                     ?>
                                                         <li class="list-group-item list-group-item-action login-option"
                                                         onclick="showProgress(1);window.location.href='<?= $redirect ?>';">
@@ -648,7 +556,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                                             </ul>
                                         </div>
                                         <hr>
-                                        <a href="<?= $this->addQueryParameter($this->curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
+                                        <a href="<?= Utilities::addQueryParameter(Utilities::curPageURL(), self::$AUTH_QUERY, self::$LOCAL_AUTH) ?>"
                                             class="text-primary">
                                             <?= $this->framework->tt('login_1') ?>
                                         </a>
@@ -670,7 +578,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             $settings    = new EntraIdSettings($this);
             $site        = $settings->getSettings($siteId);
             $logoImg     = $site['loginButtonLogo'] ?
-                '<img src="' . $this->getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                 '<span class="login-label">' . $site['label'] . '</span>';
         }
         ?>
@@ -775,11 +683,6 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <?php
     }
 
-    private function generateSiteId()
-    {
-        return bin2hex(random_bytes(16));
-    }
-
     public function redcap_module_save_configuration($project_id)
     {
         if ( !empty($project_id) ) {
@@ -795,7 +698,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 $siteIds = [];
             }
             if ( empty($siteIds[$index]) ) {
-                $siteIds[$index] = $this->generateSiteId();
+                $siteIds[$index] = Utilities::generateSiteId();
             }
         }
 

@@ -27,8 +27,8 @@ if ( $result ) {
     \Session::deletecookie(EntraIdAuthenticator::$ENTRAID_SESSION_ID_COOKIE);
 
     // strip the authtype parameters from the URL
-    $redirectStripped = $module->stripQueryParameter($originUrl, EntraIdAuthenticator::$AUTH_QUERY);
-    $redirectStripped = $module->stripQueryParameter($redirectStripped, EntraIdAuthenticator::$SITEID_QUERY);
+    $redirectStripped = Utilities::stripQueryParameter($originUrl, EntraIdAuthenticator::$AUTH_QUERY);
+    $redirectStripped = Utilities::stripQueryParameter($redirectStripped, EntraIdAuthenticator::$SITEID_QUERY);
     
     // Redirect to the page we were on
     header("Location: " . $redirectStripped);
