@@ -328,6 +328,7 @@
     ],
     "no-auth-pages": [
         "entraid_sso_login",
+        "entraid_sso_logout",
         "logout"
     ],
     "enable-no-auth-logging": true,
