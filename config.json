@@ -166,6 +166,13 @@
                     "required": true
                 },
                 {
+                    "key": "entraid-domain",
+                    "name": "entraid_domain",
+                    "tt_name": true,
+                    "type": "text",
+                    "required": true
+                },
+                {
                     "key": "entraid-login-button-logo",
                     "name": "entraid_login_button_logo",
                     "tt_name": true,

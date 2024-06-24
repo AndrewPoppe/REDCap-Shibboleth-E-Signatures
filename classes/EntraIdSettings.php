@@ -17,6 +17,7 @@ class EntraIdSettings
                 'authValue'               => EntraIdAuthenticator::LOCAL_AUTH,
                 'siteId'                  => EntraIdAuthenticator::LOCAL_AUTH,
                 'label'                   => 'Local',
+                'domain'                  => '',
                 'loginButtonLogo'         => '',
                 'adTenantId'              => '',
                 'clientId'                => '',
@@ -60,6 +61,7 @@ class EntraIdSettings
         $siteIds                 = $this->module->framework->getSystemSetting('entraid-site-id') ?? [];
         $authValues              = $this->module->framework->getSystemSetting('entraid-auth-value') ?? [];
         $labels                  = $this->module->framework->getSystemSetting('entraid-label') ?? [];
+        $domains                 = $this->module->framework->getSystemSetting('entraid-domain') ?? [];
         $loginButtonLogos        = $this->module->framework->getSystemSetting('entraid-login-button-logo') ?? [];
         $adTenantIds             = $this->module->framework->getSystemSetting('entraid-ad-tenant-id') ?? [];
         $clientIds               = $this->module->framework->getSystemSetting('entraid-client-id') ?? [];
@@ -78,6 +80,7 @@ class EntraIdSettings
                 'siteId'                  => $siteIds[$i],
                 'authValue'               => $this->module->framework->escape($authValues[$i]),
                 'label'                   => $this->module->framework->escape($labels[$i]),
+                'domain'                  => urlencode($domains[$i]),
                 'loginButtonLogo'         => $loginButtonLogos[$i],
                 'adTenantId'              => $adTenantIds[$i],
                 'clientId'                => $clientIds[$i],

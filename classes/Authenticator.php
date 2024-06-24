@@ -9,6 +9,7 @@ class Authenticator
     private $clientSecret;
     private $redirectUri;
     private $redirectUriSpa;
+    private $domain;
     private $module;
     private $sessionId;
     private $logoutUri;
@@ -38,10 +39,12 @@ class Authenticator
         $url .= "state=" . $this->sessionId . "EIASEP" . $this->siteId . "EIASEP" . urlencode($originUrl);
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
-        $url .= "&approval_prompt=auto";
+        // $url .= "&approval_prompt=auto";
         $url .= "&client_id=" . $this->clientId;
         $url .= "&redirect_uri=" . urlencode($this->redirectUri);
         $url .= $refresh ? "&prompt=login" : "";
+        $url .= "&domain_hint=" . $this->domain;
+        // $url .= "&prompt=none";
         header("Location: " . $url);
     }
 
@@ -129,6 +132,7 @@ class Authenticator
     {
         $this->siteId         = $this->entraIdSettings['siteId'];
         $this->authType       = $this->entraIdSettings['authValue'];
+        $this->domain         = $this->entraIdSettings['domain'];
         $this->clientId       = $this->entraIdSettings['clientId'];
         $this->adTenant       = $this->entraIdSettings['adTenantId'];
         $this->clientSecret   = $this->entraIdSettings['clientSecret'];
@@ -141,7 +145,7 @@ class Authenticator
     public function checkGroupMembership($userData)
     {
         $userGroups = $userData['groups'];
-        if ( empty($this->allowedGroups) ) {
+        if ( empty($this->allowedGroups) || (count($this->allowedGroups) === 1 && is_null(reset($this->allowedGroups)))) {
             return true;
         }
         foreach ( $userGroups as $group ) {
