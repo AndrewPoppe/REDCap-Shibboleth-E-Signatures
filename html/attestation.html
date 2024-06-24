@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{TITLE}}</title>
+    <link href="{{BS_CSS_PATH}}" rel="stylesheet">
+    <script src="{{BS_JS_PATH}}"></script>
+    <link href="{{REDCAP_CSS_PATH}}" rel="stylesheet">
+    <link href="{{ATTESTATION_CSS_PATH}}" rel="stylesheet">
+</head>
+
+<body>
+    <div class="attestation-container container">
+        <div class="attestation">
+            {{ATTESTATION_HTML}}
+        </div>
+        <div class="attestation-checkbox">
+            <input type="checkbox" id="attestation-checkbox" required>
+            <label for="attestation-checkbox">
+                {{ATTESTATION_CHECKBOX_TEXT}}
+            </label>
+        </div>
+        <div class="attestation-submit">
+            <button id="attestation-submit-button" type="button" class="btn btn-primaryrc btn-sm" disabled>
+                {{SUBMIT_BUTTON_LABEL}}
+            </button>
+        </div>
+    </div>
+</body>

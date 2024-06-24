@@ -50,11 +50,11 @@ class Attestation
             if ( empty($site) ) {
                 return false;
             }
-            $version     = $site['attestationVersion'];
-            $date = defined('NOW') ? NOW : date('Y-m-d H:i:s');
+            $version                 = $site['attestationVersion'];
+            $date                    = defined('NOW') ? NOW : date('Y-m-d H:i:s');
             $attestationText         = $site['attestationText'];
             $attestationCheckboxText = $site['attestationCheckboxText'];
-            $logId = $this->module->framework->log('Entra ID REDCap Authenticator: Attestation', [
+            $logId                   = $this->module->framework->log('Entra ID REDCap Authenticator: Attestation', [
                 'userid'                  => $this->username,
                 'siteId'                  => $this->siteId,
                 'version'                 => $version,
@@ -62,12 +62,12 @@ class Attestation
                 'attestationText'         => $attestationText,
                 'attestationCheckboxText' => $attestationCheckboxText
             ]);
-            $attestation = [
-                'siteId'  => $this->siteId,
-                'version' => $version,
-                'date'    => $date,
-                'logId'   => $logId,
-                'attestationText' => $attestationText,
+            $attestation             = [
+                'siteId'                  => $this->siteId,
+                'version'                 => $version,
+                'date'                    => $date,
+                'logId'                   => $logId,
+                'attestationText'         => $attestationText,
                 'attestationCheckboxText' => $attestationCheckboxText
             ];
             $this->module->framework->setSystemSetting(EntraIdAuthenticator::USER_ATTESTATION_SETTING_PREFIX . $this->username, json_encode($attestation));
@@ -167,90 +167,37 @@ class Attestation
 
         $site = $this->settings->getSettings($this->siteId);
 
+        $title                   = $this->module->framework->tt('user_attestation');
         $attestationHtml         = $site['attestationText'];
         $attestationCheckboxText = $site['attestationCheckboxText'];
         $bsCssPath               = APP_PATH_WEBPACK . 'css/bootstrap.min.css';
-        $bsJsPath = APP_PATH_WEBPACK . 'js/bootstrap.min.js';
+        $bsJsPath                = APP_PATH_WEBPACK . 'js/bootstrap.min.js';
         $cssPath                 = APP_PATH_CSS . 'style.css';
+        $attestationCssPath      = $this->module->framework->getUrl('css/attestation.css');
+        $submitButtonLabel       = $this->module->framework->tt('submit');
+
+        $html = file_get_contents($this->module->framework->getSafePath('html/attestation.html'));
+        $html = str_replace('{{TITLE}}', $title, $html);
+        $html = str_replace('{{BS_CSS_PATH}}', $bsCssPath, $html);
+        $html = str_replace('{{BS_JS_PATH}}', $bsJsPath, $html);
+        $html = str_replace('{{REDCAP_CSS_PATH}}', $cssPath, $html);
+        $html = str_replace('{{ATTESTATION_CSS_PATH}}', $attestationCssPath, $html);
+        $html = str_replace('{{ATTESTATION_HTML}}', $attestationHtml, $html);
+        $html = str_replace('{{ATTESTATION_CHECKBOX_TEXT}}', $attestationCheckboxText, $html);
+        $html = str_replace('{{SUBMIT_BUTTON_LABEL}}', $submitButtonLabel, $html);
+        echo $html;
+
         $this->module->framework->initializeJavascriptModuleObject();
         $this->module->framework->tt_transferToJavascriptModuleObject();
-        ?>
 
-        <!DOCTYPE html>
-        <html lang="en">
-
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title><?= $this->module->framework->tt('user_attestation') ?></title>
-            <link href="<?= $bsCssPath ?>" rel="stylesheet">
-            <script src="<?= $bsJsPath ?>"></script>
-            <link href="<?= $cssPath ?>" rel="stylesheet">
-            <style>
-                body {
-                    height: 100%;
-                    margin: 0;
-                }
-
-                div.attestation-container {
-                    display: flex;
-                    flex-direction: column;
-                    min-height: 50%;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                div.attestation {
-                    margin-bottom: 20px;
-                }
-
-                div.attestation-checkbox {
-                    margin-bottom: 10px;
-                }
-            </style>
-        </head>
-
-        <body>
-            <div class="attestation-container container">
-                <div class="attestation">
-                    <?= $attestationHtml ?>
-                </div>
-                <div class="attestation-checkbox">
-                    <input type="checkbox" id="attestation-checkbox" required>
-                    <label for="attestation-checkbox"><?= $attestationCheckboxText ?></label>
-                </div>
-                <div class="attestation-submit">
-                    <button id="attestation-submit-button" type="button" class="btn btn-primaryrc btn-sm"
-                        disabled><?= $this->module->framework->tt('submit') ?></button>
-                </div>
-            </div>
-        </body>
-
-        </html>
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                const module = <?= $this->module->framework->getJavascriptModuleObjectName() ?>;
-                document.getElementById('attestation-submit-button').addEventListener('click', function () {
-                    if (document.getElementById('attestation-checkbox').checked) {
-                        module.ajax('handleAttestation', {
-                            username: '<?= $userdata['username'] ?>',
-                            siteId: '<?= $site['siteId'] ?>',
-                            logId: '<?= $logId ?>'
-                        }).then(result => {
-                            if (result === true) {
-                                window.location.href = decodeURIComponent("<?= urlencode($originUrl) ?>");
-                            } else {
-                                console.log(result);
-                            }
-                        });
-                    }
-                });
-                document.getElementById('attestation-checkbox').addEventListener('change', function () {
-                    document.getElementById('attestation-submit-button').disabled = !this.checked;
-                });
-            });
-        </script>
-        <?php
+        $js = file_get_contents($this->module->framework->getSafePath('js/attestation.js'));
+        $js = str_replace('__MODULE__', $this->module->framework->getJavascriptModuleObjectName(), $js);
+        $js = str_replace('{{USERNAME}}', $userdata['username'], $js);
+        $js = str_replace('{{SITE_ID}}', $site['siteId'], $js);
+        $js = str_replace('{{LOG_ID}}', $logId, $js);
+        $js = str_replace('{{ORIGIN_URL}}', urlencode($originUrl), $js);
+        echo '<script type="text/javascript">' . $js . '</script>';
+        echo '</html';
     }
 
     public static function saveAttestationVersions(array $siteIds, EntraIdAuthenticator $module)
