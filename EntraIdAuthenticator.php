@@ -553,6 +553,10 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
     private function inferSiteId(array $userType = [])
     {
+        $siteId = $userType['siteId'];
+        if ( $this->verifySiteId($siteId) ) {
+            return $siteId;
+        }
         $siteId = filter_input(INPUT_GET, self::SITEID_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
         if ( $this->verifySiteId($siteId) ) {
             return $siteId;
@@ -561,10 +565,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         if ( $this->verifySiteId($siteId) ) {
             return $siteId;
         }
-        $siteId = $userType['siteId'];
-        if ( $siteId ) {
-            return $siteId;
-        }
+    
         return self::LOCAL_AUTH;
     }
 
