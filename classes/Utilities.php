@@ -105,4 +105,11 @@ class Utilities
     {
         return bin2hex(random_bytes(16));
     }
+
+    public static function toLowerCase(string $string) : string {
+        if (extension_loaded('mbstring')) {
+            return mb_strtolower($string);
+        }
+        return strtolower($string);
+    }
 }

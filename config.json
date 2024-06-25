@@ -19,6 +19,12 @@
             "type": "descriptive"
         },
         {
+            "key": "entraid-debug",
+            "name": "entraid_debug",
+            "tt_name": true,
+            "type": "checkbox"
+        },
+        {
             "key": "entraid-ticket-url",
             "name": "entraid_ticket_url",
             "tt_name": true,

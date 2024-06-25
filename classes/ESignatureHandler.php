@@ -27,7 +27,7 @@ class ESignatureHandler
 
         // Check if username matches
         $realUsername = $this->module->framework->getUser()->getUsername();
-        if ( $username !== $realUsername ) {
+        if ( empty($username) || empty($realUsername) || $username !== $realUsername ) {
             $this->module->framework->log('EntraId Login E-Signature: Usernames do not match', [
                 'username'     => $username,
                 'realUsername' => $realUsername

@@ -18,7 +18,7 @@ class Authenticator
     private $authType;
     private $settings;
     private $entraIdSettings;
-    
+
     const ERROR_MESSAGE_AUTHENTICATION = 'EntraIdAuthenticator Authentication Error';
     public function __construct(EntraIdAuthenticator $module, string $siteId, string $sessionId = null)
     {
@@ -39,12 +39,11 @@ class Authenticator
         $url .= "state=" . $this->sessionId . "EIASEP" . $this->siteId . "EIASEP" . urlencode($originUrl);
         $url .= "&scope=User.Read";
         $url .= "&response_type=code";
-        // $url .= "&approval_prompt=auto";
+        $url .= "&approval_prompt=auto";
         $url .= "&client_id=" . $this->clientId;
         $url .= "&redirect_uri=" . urlencode($this->redirectUri);
         $url .= $refresh ? "&prompt=login" : "";
         $url .= "&domain_hint=" . $this->domain;
-        // $url .= "&prompt=none";
         header("Location: " . $url);
     }
 
@@ -86,7 +85,7 @@ class Authenticator
         return $authdata;
     }
 
-    public function getUserData($accessToken)
+    public function getUserData($accessToken) : array
     {
 
         //Fetching the basic user information that is likely needed by your application
@@ -102,13 +101,13 @@ class Authenticator
         $json2   = file_get_contents("https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group?\$select=displayName,id", false, $context);
         if ( $json === false ) {
             $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'Error received during user data fetch.' ]);
-            return;
+            return [];
         }
 
         $userdata = json_decode($json, true);  //This should now contain your logged on user information
         if ( isset($userdata["error"]) ) {
             $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'User data fetch contained an error.' ]);
-            return;
+            return [];
         }
 
         $groupdata = json_decode($json2, true);
@@ -117,7 +116,7 @@ class Authenticator
             'user_email'     => $userdata['mail'],
             'user_firstname' => $userdata['givenName'],
             'user_lastname'  => $userdata['surname'],
-            'username'       => $userdata['onPremisesSamAccountName'],
+            'username'       => Utilities::toLowerCase($userdata['onPremisesSamAccountName']),
             'company'        => $userdata['companyName'],
             'department'     => $userdata['department'],
             'job_title'      => $userdata['jobTitle'],
@@ -145,7 +144,7 @@ class Authenticator
     public function checkGroupMembership($userData)
     {
         $userGroups = $userData['groups'];
-        if ( empty($this->allowedGroups) || (count($this->allowedGroups) === 1 && is_null(reset($this->allowedGroups)))) {
+        if ( empty($this->allowedGroups) || (count($this->allowedGroups) === 1 && is_null(reset($this->allowedGroups))) ) {
             return true;
         }
         foreach ( $userGroups as $group ) {
@@ -159,6 +158,7 @@ class Authenticator
     public function handleEntraIDAuth($authType, $url)
     {
         try {
+            session_start();
             $sessionId = session_id();
             \Session::savecookie(EntraIdAuthenticator::ENTRAID_SESSION_ID_COOKIE, $sessionId, 0, true);
             $this->entraIdSettings = $this->settings->getSettingsByAuthValue($authType);
@@ -177,22 +177,17 @@ class Authenticator
     {
         global $enable_user_allowlist, $homepage_contact, $homepage_contact_email, $lang, $userid;
         try {
-            $username = $userdata['username'];
-            if ( $username === false || empty($username) ) {
+
+            $username_raw = trim($userdata['username']);
+            if ( $username_raw === false || empty($username_raw) ) {
                 return false;
             }
+            $username = Utilities::toLowerCase($username_raw);
 
             // Check if user exists in REDCap, if not and if we are not supposed to create them, leave
             $users = new Users($this->module);
             if ( !$users->userExists($username) && !$this->module->framework->getSystemSetting('create-new-users-on-login') == 1 ) {
                 exit($this->module->framework->tt('error_2'));
-            }
-
-            // Force custom attestation page if needed
-            $attestation = new Attestation($this->module, $username, $this->siteId);
-            if ( $attestation->needsAttestation() ) {
-                $attestation->showAttestationPage($userdata, $originUrl);
-                return false;
             }
 
             // Successful authentication
@@ -202,7 +197,12 @@ class Authenticator
 
             // Trigger login
             \Authentication::autoLogin($username);
-            $_SESSION['entraid_id'] = $userdata['id'];
+
+            // Make sure the login was successful
+            if ( empty($_SESSION['username']) ) {
+                $this->framework->log('Entra ID Authenticator Login Failed');
+                exit($this->module->framework->tt('error_7'));
+            }
 
             // Update last login timestamp
             \Authentication::setUserLastLoginTimestamp($username);
@@ -213,6 +213,7 @@ class Authenticator
             // Handle account-related things.
             // If the user does not exist, create them.
             if ( !$users->userExists($username) ) {
+                $this->module->entraIdLog('userdata', [ 'userdata' => json_encode($userdata, JSON_PRETTY_PRINT) ], 'debug');
                 $users->createUser($username, $userdata);
                 $users->setEntraIdUser($username, $this->siteId);
             }
@@ -261,6 +262,8 @@ class Authenticator
 
     public function logout()
     {
+        $this->module->entraIdLog('Logging out', [], 'debug');
+        \Authentication::checkLogout();
         header("Location: " . $this->getLogoutUri());
     }
 

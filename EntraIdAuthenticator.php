@@ -29,6 +29,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         try {
             // No-auth
             if ( $action === 'handleAttestation' ) {
+                $this->entraIdLog('Ajax: handleAttestation', [ 'payload' => json_encode($payload, JSON_PRETTY_PRINT) ], 'debug');
                 $attestation = new Attestation($this, $payload['username'], $payload['siteId'], $payload['logId']);
                 return $attestation->handleAttestationAjax();
             }
@@ -38,14 +39,17 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 throw new \Exception($this->framework->tt('error_1'));
             }
             if ( $action === 'getUserType' ) {
+                $this->entraIdLog('Ajax: getUserType', [ 'payload' => json_encode($payload, JSON_PRETTY_PRINT) ], 'debug');
                 $users = new Users($this);
                 return $users->getUserType($payload['username']);
             }
             if ( $action === 'convertTableUserToEntraIdUser' ) {
+                $this->entraIdLog('Ajax: convertTableUserToEntraIdUser', [ 'payload' => json_encode($payload, JSON_PRETTY_PRINT) ], 'debug');
                 $users = new Users($this);
                 return $users->convertTableUserToEntraIdUser($payload['username'], $payload['siteId']);
             }
             if ( $action === 'convertTableUsersToEntraIdUsers' ) {
+                $this->entraIdLog('Ajax: convertTableUsersToEntraIdUsers', [ 'payload' => json_encode($payload, JSON_PRETTY_PRINT) ], 'debug');
                 $usernames = $payload['usernames'];
                 $siteId    = $payload['siteId'];
                 $users     = new Users($this);
@@ -54,11 +58,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 }
                 return $users->convertTableUsersToEntraIdUsers($usernames, $siteId);
             }
-            if ( $action == 'convertEntraIdUsertoTableUser' ) {
+            if ( $action === 'convertEntraIdUsertoTableUser' ) {
+                $this->entraIdLog('Ajax: convertEntraIdUsertoTableUser', [ 'payload' => json_encode($payload, JSON_PRETTY_PRINT) ], 'debug');
                 $users = new Users($this);
                 return $users->convertEntraIdUsertoTableUser($payload['username']);
             }
             if ( $action === 'convertEntraIdUsersToTableUsers' ) {
+                $this->entraIdLog('Ajax: convertEntraIdUsersToTableUsers', [ 'payload' => json_encode($payload, JSON_PRETTY_PRINT) ], 'debug');
                 $usernames = $payload['usernames'];
                 $users     = new Users($this);
                 if ( count($usernames) === 1 ) {
@@ -67,6 +73,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 return $users->convertEntraIdUserstoTableUsers($usernames);
             }
             if ( $action === 'getEntraIdUsers' ) {
+                $this->entraIdLog('Ajax: getEntraIdUsers', [ 'payload' => json_encode($payload, JSON_PRETTY_PRINT) ], 'debug');
                 $users = new Users($this);
                 return $users->getAllUserData();
             }
@@ -95,7 +102,8 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             if ( $page === 'ControlCenter/delete_user.php' ) {
                 try {
                     $username = trim($_POST['username']);
-                    $users    = new Users($this);
+                    $this->entraIdLog('Deleting User', [ 'thisUsername' => $username ], 'debug');
+                    $users = new Users($this);
                     // This method performs authorization checks prior to deletion
                     $users->deleteUser($username);
                 } catch ( \Throwable $e ) {
@@ -106,12 +114,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Handle logout
             if ( isset($_GET['logout']) ) {
+                $this->entraIdLog('Logging out', [], 'debug');
                 \Authentication::checkLogout();
                 return;
             }
 
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
+                $this->entraIdLog('Handling E-Signature', [], 'debug');
                 $users             = new Users($this);
                 $site              = $users->getUserType();
                 $authType          = $site['authType'];
@@ -127,37 +137,48 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Don't do anything if we're resetting a password
             if ( Utilities::resettingPassword($page) ) {
+                $this->entraIdLog('Resetting Password', [], 'debug');
                 return;
             }
 
             // Already logged in to REDCap
-            if ( $this->isLoggedIntoREDCap() ) {
-                $username = $this->getUserId();
+            $username = $this->getUserId();
+            if ( $this->isLoggedIntoREDCap() && $username !== 'SYSTEM' ) {
                 $users    = new Users($this);
                 $userType = $users->getUserType($username);
-                if ( Utilities::doingLocalLogin() || $userType['authValue'] === self::LOCAL_AUTH ) {
-                    // Local/LDAP user just logged in - Check if attestation is needed
-                    $siteId = $this->inferSiteId($userType);
-                    if ( isset($_GET[self::SITEID_QUERY]) && $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1 ) {
-                        $users->setEntraIdUser($username, $siteId);
-                    }
-                    $attestation = new Attestation($this, $username, $siteId);
-                    if ( $attestation->needsAttestationLocal() ) {
-                        $attestation->showAttestationPage([ 'username' => $username ], Utilities::curPageURL());
-                        $this->exitAfterHook();
-                        return;
-                    }
+                $siteId   = $this->inferSiteId($userType);
 
-                    // Otherwise just redirect to the page without the auth query
-                    if ( isset($_GET[self::AUTH_QUERY]) ) {
-                        $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::AUTH_QUERY);
-                        $cleanUrl = Utilities::stripQueryParameter($cleanUrl, self::SITEID_QUERY);
-                        $this->redirectAfterHook($cleanUrl);
-                    }
+                // Set user to Entra ID if they should be
+                if (
+                    isset($_GET[self::SITEID_QUERY]) &&
+                    !$users->isEntraIdUser($username) &&
+                    $this->framework->getSystemSetting('convert-table-user-to-entraid-user') == 1
+                ) {
+                    $this->entraIdLog('Setting user as Entra ID User', [ 'thisUsername' => $username, 'siteId' => $siteId ], 'debug');
+                    $users->setEntraIdUser($username, $siteId);
                 }
+
+                // Show user attestation if needed
+                $attestation = new Attestation($this, $username, $siteId);
+                if ( $attestation->needsAttestation() ) {
+                    $this->entraIdLog('Showing Attestation', [ 'thisUsername' => $username ], 'debug');
+                    $attestation->showAttestationPage([ 'username' => $username ], Utilities::curPageURL());
+                    $this->exitAfterHook();
+                    return;
+                }
+
+                // Check allowlist if needed
                 if ( !$users->checkAllowlist($username) ) {
+                    $this->entraIdLog('Not in allow list', [], 'debug');
                     $this->showNoUserAccessPage($username);
                     $this->framework->exitAfterHook();
+                }
+
+                // Otherwise just redirect to the page without the auth query
+                if ( isset($_GET[self::AUTH_QUERY]) ) {
+                    $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::AUTH_QUERY);
+                    $cleanUrl = Utilities::stripQueryParameter($cleanUrl, self::SITEID_QUERY);
+                    $this->redirectAfterHook($cleanUrl);
                 }
                 return;
             }
@@ -165,14 +186,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             // Not logged in to REDCap but does have a username
             // Means they are partway through logging in
             // Check if user does not have an email address or email has not been verified
-            $username = $this->getUserId();
-            if ( 
-                isset($username) && 
-                $username !== 'SYSTEM' && 
+            if (
+                isset($username) &&
+                $username !== 'SYSTEM' &&
                 Utilities::inAuthenticateFunction() &&
                 !$this->userHasVerifiedEmail($username)
             ) {
-                // This sets the $userid global, which is used in the email update page 
+                // This sets the $userid global, which is used in the email update page
+                $this->entraIdLog('Needs Email Verification Page', [], 'debug');
                 $userid = $username;
                 $this->showEmailUpdatePage();
                 $this->exitAfterHook();
@@ -181,6 +202,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Only authenticate if we're asked to
             if ( isset($_GET[self::AUTH_QUERY]) && !Utilities::doingLocalLogin() ) {
+                $this->entraIdLog('Trying to Authenticate', [], 'debug');
                 $authType      = filter_input(INPUT_GET, self::AUTH_QUERY, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
                 $authenticator = new Authenticator($this, "");
                 $authenticator->handleEntraIdAuth($authType, Utilities::curPageURL());
@@ -188,6 +210,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // If not logged in, Auth Type is not set, but Site ID query is still defined, remove it from URL and redirect
             if ( empty($_GET[self::AUTH_QUERY]) && isset($_GET[self::SITEID_QUERY]) ) {
+                $this->entraIdLog('Cleaning URL and Redirecting', [], 'debug');
                 $cleanUrl = Utilities::stripQueryParameter(Utilities::curPageURL(), self::SITEID_QUERY);
                 $this->redirectAfterHook($cleanUrl);
                 return;
@@ -195,6 +218,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
 
             // Modify the login page
             if ( Utilities::needsModifiedLogin($page, $this) ) {
+                $this->entraIdLog('Showing Login Page', [], 'debug');
                 $this->modifyLoginPage(Utilities::curPageURL());
                 return;
             }
@@ -203,6 +227,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             if (
                 Utilities::doingLocalLogin() && $this->framework->getSystemSetting('custom-login-page-type') !== 'none'
             ) {
+                $this->entraIdLog('Adding Login Link Script', [], 'debug');
                 $this->addCustomLoginLinkScript();
                 return;
             }
@@ -334,14 +359,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
 
             // Only replace if the user is an Entra ID user and the system settings are appropriate
-            $username = $this->getUserId();
-            $users    = new Users($this);
-            $isEntraIdUser = $users->isEntraIdUser($username);
+            $username              = $this->getUserId();
+            $users                 = new Users($this);
+            $isEntraIdUser         = $users->isEntraIdUser($username);
             $showModifiedLoginPage = $this->framework->getSystemSetting('custom-login-page-type') !== 'none';
             if ( !$isEntraIdUser || !$showModifiedLoginPage ) {
                 return;
             }
-            
+
             $logout_url = $this->framework->getUrl('logout.php');
             $js         = file_get_contents($this->framework->getSafePath('js/logout.js'));
             $js         = str_replace('{{logout_url}}', $logout_url, $js);
@@ -365,37 +390,37 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         <script>
             document.addEventListener("DOMContentLoaded", function () {
                 $(`<p style='font-size:13px;'><?= $this->framework->tt('contact_1') . $contactLink ?></p>
-                    <div class="container text-center">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="card" id="login-card">
-                                    <div class="card-body rounded-0">
-                                        <div class="card align-self-center text-center mb-2 login-options rounded-0">
-                                            <ul class="list-group list-group-flush">
-                                                <?php foreach ( $entraIdSettings as $site ) {
-                                                    $loginImg = $site['loginButtonLogo'] ?
-                                                        '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
-                                                        '<span class="login-label">' . $site['label'] . '</span>';
-                                                    $redirect_new = Utilities::addQueryParameter($redirect, self::AUTH_QUERY, $site['authValue']);
-                                                    $redirect_new = Utilities::addQueryParameter($redirect_new, self::SITEID_QUERY, $site['siteId']);
-                                                    ?>
-                                                        <li class="list-group-item list-group-item-action login-option"
-                                                        onclick="showProgress(1);window.location.href='<?= $redirect_new ?>';">
-                                                        <?= $loginImg ?>
-                                                    </li>
-                                                <?php } ?>
-                                            </ul>
+                            <div class="container text-center">
+                                <div class="row align-items-center">
+                                    <div class="col">
+                                        <div class="card" id="login-card">
+                                            <div class="card-body rounded-0">
+                                                <div class="card align-self-center text-center mb-2 login-options rounded-0">
+                                                    <ul class="list-group list-group-flush">
+                                                        <?php foreach ( $entraIdSettings as $site ) {
+                                                            $loginImg     = $site['loginButtonLogo'] ?
+                                                                '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
+                                                                '<span class="login-label">' . $site['label'] . '</span>';
+                                                            $redirect_new = Utilities::addQueryParameter($redirect, self::AUTH_QUERY, $site['authValue']);
+                                                            $redirect_new = Utilities::addQueryParameter($redirect_new, self::SITEID_QUERY, $site['siteId']);
+                                                            ?>
+                                                                    <li class="list-group-item list-group-item-action login-option"
+                                                                    onclick="showProgress(1);window.location.href='<?= $redirect_new ?>';">
+                                                                    <?= $loginImg ?>
+                                                                </li>
+                                                        <?php } ?>
+                                                    </ul>
+                                                </div>
+                                                <hr>
+                                                <a href="<?= Utilities::addQueryParameter(Utilities::curPageURL(), self::AUTH_QUERY, self::LOCAL_AUTH) ?>"
+                                                    class="text-primary">
+                                                    <?= $this->framework->tt('login_1') ?>
+                                                </a>
+                                            </div>
                                         </div>
-                                        <hr>
-                                        <a href="<?= Utilities::addQueryParameter(Utilities::curPageURL(), self::AUTH_QUERY, self::LOCAL_AUTH) ?>"
-                                            class="text-primary">
-                                            <?= $this->framework->tt('login_1') ?>
-                                        </a>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>`).insertBefore('#rc-login-form');
+                            </div>`).insertBefore('#rc-login-form');
             });
         </script>
         <?php
@@ -412,7 +437,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
                 '<img src="' . Utilities::getEdocFileContents($site['loginButtonLogo']) . '" class="login-logo" alt="' . $site['label'] . '">' :
                 '<span class="login-label">' . $site['label'] . '</span>';
         }
-        $css             = file_get_contents($this->framework->getSafePath('css/customLoginLink.css'));
+        $css = file_get_contents($this->framework->getSafePath('css/customLoginLink.css'));
         echo '<style>' . $css . '</style>';
         ?>
         <script>
@@ -457,7 +482,7 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
         global $homepage_contact, $homepage_contact_email, $lang;
         session_unset();
         session_destroy();
-        $css             = file_get_contents($this->framework->getSafePath('css/noUserAccess.css'));
+        $css = file_get_contents($this->framework->getSafePath('css/noUserAccess.css'));
         echo '<style>' . $css . '</style>';
         ?>
         <div class='container'>
@@ -577,11 +602,14 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
     public function showEmailUpdatePage()
     {
         global $lang, $userid;
-
-        $ticketLink      = $this->getTicketLink();
-        $lang['user_02'] .= '<br><br>' . $this->framework->tt('email_update_1', [ $ticketLink, 'Open Support Ticket' ]) . '<br><em>' . $this->framework->tt('email_update_2') . '</em>';
-
-        include APP_PATH_DOCROOT . 'Profile/user_info.php';
+        try {
+            $this->entraIdLog('Showing Email Verification Page', [ 'thisUsername' => $userid ], 'debug');
+            $ticketLink      = $this->getTicketLink();
+            $lang['user_02'] .= '<br><br>' . $this->framework->tt('email_update_1', [ $ticketLink, 'Open Support Ticket' ]) . '<br><em>' . $this->framework->tt('email_update_2') . '</em>';
+            include APP_PATH_DOCROOT . 'Profile/user_info.php';
+        } catch ( \Throwable $e ) {
+            $this->entraIdLog('Entra Id Authenticator: Error Showing Email Update Page', [ 'error' => $e->getMessage() ], 'error');
+        }
     }
 
     private function getTicketLink()
@@ -612,5 +640,13 @@ class EntraIdAuthenticator extends \ExternalModules\AbstractExternalModule
             }
         }
         return true;
+    }
+
+    public function entraIdLog($message, $parameters, $level)
+    {
+        $debug = $this->getSystemSetting('entraid-debug');
+        if ( $level !== 'debug' || $debug == 1 ) {
+            $this->framework->log($message, $parameters);
+        }
     }
 }

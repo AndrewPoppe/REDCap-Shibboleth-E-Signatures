@@ -78,7 +78,7 @@ class Attestation
         }
     }
 
-    public function needsAttestation()
+    public function needsAttestationOld()
     {
         if ( $this->getLoginPageType() === 'none' ) {
             return false;
@@ -138,7 +138,7 @@ class Attestation
         return empty($userInfo) || $userInfo['user_email'] == "" || ($userInfo['user_email'] != "" && $userInfo['email_verify_code'] != "");
     }
 
-    public function needsAttestationLocal()
+    public function needsAttestation()
     {
         $attestationSetting = $this->getAttestationSetting();
         if ( $this->getLoginPageType() === 'none' || $attestationSetting == 0 ) {
