@@ -97,7 +97,7 @@ class Authenticator
             )
         );
         $context = stream_context_create($options);
-        $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
+        $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,userPrincipalName,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
         $json2   = file_get_contents("https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group?\$select=displayName,id", false, $context);
         if ( $json === false ) {
             $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => 'Error received during user data fetch.' ]);
@@ -112,11 +112,16 @@ class Authenticator
 
         $groupdata = json_decode($json2, true);
 
+        $username       = $userdata['onPremisesSamAccountName'] ?? $userdata['userPrincipalName'];
+        $username_clean = Utilities::toLowerCase($username);
+        $email          = $userdata['mail'] ?? $userdata['userPrincipalName'];
+        $email_clean    = Utilities::toLowerCase(filter_var($email, FILTER_VALIDATE_EMAIL));
+
         return [
-            'user_email'     => $userdata['mail'],
+            'user_email'     => $email_clean,
             'user_firstname' => $userdata['givenName'],
             'user_lastname'  => $userdata['surname'],
-            'username'       => Utilities::toLowerCase($userdata['onPremisesSamAccountName']),
+            'username'       => $username_clean,
             'company'        => $userdata['companyName'],
             'department'     => $userdata['department'],
             'job_title'      => $userdata['jobTitle'],
