@@ -38,5 +38,5 @@ if ( $result ) {
     $redirectStripped = Utilities::stripQueryParameter($redirectStripped, EntraIdAuthenticator::SITEID_QUERY);
     
     // Redirect to the page we were on
-    header("Location: " . $redirectStripped);
+    header("Location: $redirectStripped");
 }

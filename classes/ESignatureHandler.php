@@ -1,32 +1,28 @@
 <?php
 
-namespace YaleREDCap\EntraIdAuthenticator;
+namespace YaleREDCap\EntraIdEsignatures;
 
 class ESignatureHandler
 {
-    private EntraIdAuthenticator $module;
-    public function __construct(EntraIdAuthenticator $module)
+    private EntraIdEsignatures $module;
+    public function __construct(EntraIdEsignatures $module)
     {
         $this->module = $module;
     }
 
-    public function handleRequest(array $post, string $authType)
+    public function handleRequest(array $post)
     {
         if ( !isset($post['esign_action']) || $post['esign_action'] !== 'save' || !isset($post['token']) ) {
             return;
         }
 
-        if ( $authType === EntraIdAuthenticator::LOCAL_AUTH ) {
-            return;
-        }
-
         // Get username from token
-        $authenticator = new Authenticator($this->module, $authType);
+        $authenticator = new Authenticator($this->module);
         $userData      = $authenticator->getUserData($post['token']);
         $username      = $userData['username'];
 
         // Check if username matches
-        $realUsername = $this->module->framework->getUser()->getUsername();
+        $realUsername = Utilities::toLowerCase($this->module->framework->getUser()->getUsername());
         if ( empty($username) || empty($realUsername) || $username !== $realUsername ) {
             $this->module->framework->log('EntraId Login E-Signature: Usernames do not match', [
                 'username'     => $username,
@@ -42,9 +38,7 @@ class ESignatureHandler
 
     public function addEsignatureScript()
     {
-        $users         = new Users($this->module);
-        $site          = $users->getUserType();
-        $authenticator = new Authenticator($this->module, $site['siteId']);
+        $authenticator = new Authenticator($this->module);
         ?>
         <script src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js" integrity="sha384-hhkHFODse2T75wPL7oJ0RZ+0CgRa74LNPhgx6wO6DMNEhU3/fSbTZdVzxsgyUelp" crossorigin="anonymous"></script>
         <script>
