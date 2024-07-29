@@ -10,6 +10,11 @@ class ESignatureHandler
         $this->module = $module;
     }
 
+    /**
+     * Do E-Signature
+     * @param array $post
+     * @return bool
+     */
     public function handleRequest(array $post)
     {
         try {

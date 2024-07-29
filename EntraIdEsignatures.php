@@ -13,6 +13,13 @@ require_once 'classes/ESignatureHandler.php';
 class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
 {
 
+    const MODULE_TITLE = 'EntraId E-Signatures';
+
+    /**
+     * REDCap Hook
+     * @param mixed $project_id
+     * @return void
+     */
     public function redcap_every_page_before_render($project_id = null)
     {
         try {
@@ -55,11 +62,15 @@ class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
             }
 
         } catch ( \Throwable $e ) {
-            $this->framework->log('EntraId E-Signatures: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log(self::MODULE_TITLE . ': Error', [ 'error' => $e->getMessage() ]);
         }
 
     }
 
+    /**
+     * REDCap Hook
+     * @return void
+     */
     public function redcap_data_entry_form()
     {
         try {
@@ -70,21 +81,34 @@ class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
             $esignatureHandler = new ESignatureHandler($this);
             $esignatureHandler->addEsignatureScript();
         } catch ( \Throwable $e ) {
-            $this->framework->log('Error adding ESignature script', [ 'error' => $e->getMessage() ]);
+            $this->framework->log(self::MODULE_TITLE . ': Error adding ESignature script', [ 'error' => $e->getMessage() ]);
         }
     }
 
-    public function getSettings()
+    /**
+     * Return array of module's system settings
+     * @return array{adTenantId: string|null, clientId: string|null, clientSecret: string|null, redirectUrlSpa: string|null, adUsernameAttribute: string|null} 
+     */
+    public function getSettings() : array
     {
-        return [
-            'adTenantId'          => $this->framework->getSystemSetting('entraid-ad-tenant-id') ?? '',
-            'clientId'            => $this->framework->getSystemSetting('entraid-client-id') ?? '',
-            'clientSecret'        => $this->framework->getSystemSetting('entraid-client-secret') ?? '',
-            'redirectUrlSpa'      => $this->framework->getSystemSetting('entraid-redirect-url-spa') ?? '',
-            'adUsernameAttribute' => $this->framework->getSystemSetting('entraid-ad-username-attribute') ?? ''
-        ];
+        $settings = [];
+        try {
+            $settings['adTenantId']          = $this->framework->getSystemSetting('entraid-ad-tenant-id') ?? '';
+            $settings['clientId']            = $this->framework->getSystemSetting('entraid-client-id') ?? '';
+            $settings['clientSecret']        = $this->framework->getSystemSetting('entraid-client-secret') ?? '';
+            $settings['redirectUrlSpa']      = $this->framework->getSystemSetting('entraid-redirect-url-spa') ?? '';
+            $settings['adUsernameAttribute'] = $this->framework->getSystemSetting('entraid-ad-username-attribute') ?? '';
+        } catch ( \Throwable $e ) {
+            $this->framework->log(self::MODULE_TITLE . ': Error getting settings', [ 'error' => $e->getMessage() ]);
+        }
+        return $settings;
     }
 
+    /**
+     * Return lower-case version of string input
+     * @param string $string
+     * @return string
+     */
     public static function toLowerCase(string $string) : string
     {
         if ( extension_loaded('mbstring') ) {
