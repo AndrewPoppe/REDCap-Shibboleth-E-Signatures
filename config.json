@@ -35,6 +35,12 @@
             "name": "entraid_redirect_url_spa",
             "tt_name": true,
             "type": "text"
+        },
+        {
+            "key": "entraid-ad-username-attribute",
+            "name": "entraid_ad_username_attribute",
+            "tt_name": true,
+            "type": "text"
         }
     ],
     "framework-version": 15,

@@ -9,7 +9,6 @@ namespace YaleREDCap\EntraIdEsignatures;
 
 require_once 'classes/Authenticator.php';
 require_once 'classes/ESignatureHandler.php';
-require_once 'classes/Utilities.php';
 
 class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
 {
@@ -35,17 +34,28 @@ class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
             }
 
             // Handle E-Signature form action
-            if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {                
-                if (\Authentication::isTableUser($userid)) {
+            if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
+                if ( \Authentication::isTableUser($userid) ) {
                     return;
                 }
                 $esignatureHandler = new ESignatureHandler($this);
-                $esignatureHandler->handleRequest($_POST);
+                $result            = $esignatureHandler->handleRequest($_POST);
+
+                // Either there was an error handling the request or the credentials did not match
+                if ( empty($result) || !$result ) {
+                    $this->framework->exitAfterHook();
+                    return;
+                }
+
+                // Credentials match - setting auth_meth_global here to 'none' allows the e-signature to happen
+                // This is okay, because the user has already been re-authenticated above
+                global $auth_meth_global;
+                $auth_meth_global = 'none';
                 return;
             }
 
         } catch ( \Throwable $e ) {
-            $this->framework->log('Entra ID REDCap Authenticator: Error', [ 'error' => $e->getMessage() ]);
+            $this->framework->log('EntraId E-Signatures: Error', [ 'error' => $e->getMessage() ]);
         }
 
     }
@@ -59,7 +69,7 @@ class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
             }
             $esignatureHandler = new ESignatureHandler($this);
             $esignatureHandler->addEsignatureScript();
-        } catch (\Throwable $e) {
+        } catch ( \Throwable $e ) {
             $this->framework->log('Error adding ESignature script', [ 'error' => $e->getMessage() ]);
         }
     }
@@ -67,10 +77,19 @@ class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
     public function getSettings()
     {
         return [
-            'adTenantId'     => $this->framework->getSystemSetting('entraid-ad-tenant-id') ?? '',
-            'clientId'       => $this->framework->getSystemSetting('entraid-client-id') ?? '',
-            'clientSecret'   => $this->framework->getSystemSetting('entraid-client-secret') ?? '',
-            'redirectUrlSpa' => $this->framework->getSystemSetting('entraid-redirect-url-spa') ?? ''
+            'adTenantId'          => $this->framework->getSystemSetting('entraid-ad-tenant-id') ?? '',
+            'clientId'            => $this->framework->getSystemSetting('entraid-client-id') ?? '',
+            'clientSecret'        => $this->framework->getSystemSetting('entraid-client-secret') ?? '',
+            'redirectUrlSpa'      => $this->framework->getSystemSetting('entraid-redirect-url-spa') ?? '',
+            'adUsernameAttribute' => $this->framework->getSystemSetting('entraid-ad-username-attribute') ?? ''
         ];
+    }
+
+    public static function toLowerCase(string $string) : string
+    {
+        if ( extension_loaded('mbstring') ) {
+            return mb_strtolower($string);
+        }
+        return strtolower($string);
     }
 }

@@ -10,6 +10,7 @@ class Authenticator
     private $redirectUriSpa;
     private $module;
     private $entraIdSettings;
+    private $adUsernameAttribute;
 
     const ERROR_MESSAGE_AUTHENTICATION = 'EntraIdEsignatures Authentication Error';
     public function __construct(EntraIdEsignatures $module)
@@ -19,13 +20,14 @@ class Authenticator
         if ( !$this->entraIdSettings ) {
             return;
         }
-        $this->clientId       = $this->entraIdSettings['clientId'];
-        $this->adTenant       = $this->entraIdSettings['adTenantId'];
-        $this->clientSecret   = $this->entraIdSettings['clientSecret'];
-        $this->redirectUriSpa = $this->entraIdSettings['redirectUrlSpa'];
+        $this->clientId            = $this->entraIdSettings['clientId'];
+        $this->adTenant            = $this->entraIdSettings['adTenantId'];
+        $this->clientSecret        = $this->entraIdSettings['clientSecret'];
+        $this->redirectUriSpa      = $this->entraIdSettings['redirectUrlSpa'];
+        $this->adUsernameAttribute = $this->entraIdSettings['adUsernameAttribute'];
     }
 
-    
+
 
     public function getUserData($accessToken) : array
     {
@@ -51,10 +53,10 @@ class Authenticator
             return [];
         }
 
-        $username       = $userdata['onPremisesSamAccountName'] ?? $userdata['userPrincipalName'];
-        $username_clean = Utilities::toLowerCase($username);
+        $username       = $userdata[$this->adUsernameAttribute] ?? '';
+        $username_clean = EntraIdEsignatures::toLowerCase($username);
         $email          = $userdata['mail'] ?? $userdata['userPrincipalName'];
-        $email_clean    = Utilities::toLowerCase(filter_var($email, FILTER_VALIDATE_EMAIL));
+        $email_clean    = EntraIdEsignatures::toLowerCase(filter_var($email, FILTER_VALIDATE_EMAIL));
 
         return [
             'user_email'     => $email_clean,

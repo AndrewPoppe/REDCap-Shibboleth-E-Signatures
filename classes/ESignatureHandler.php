@@ -12,28 +12,38 @@ class ESignatureHandler
 
     public function handleRequest(array $post)
     {
-        if ( !isset($post['esign_action']) || $post['esign_action'] !== 'save' || !isset($post['token']) ) {
-            return;
-        }
+        try {
 
-        // Get username from token
-        $authenticator = new Authenticator($this->module);
-        $userData      = $authenticator->getUserData($post['token']);
-        $username      = $userData['username'];
+            if ( !isset($post['esign_action']) || $post['esign_action'] !== 'save' || !isset($post['token']) ) {
+                return;
+            }
 
-        // Check if username matches
-        $realUsername = Utilities::toLowerCase($this->module->framework->getUser()->getUsername());
-        if ( empty($username) || empty($realUsername) || $username !== $realUsername ) {
-            $this->module->framework->log('EntraId Login E-Signature: Usernames do not match', [
+            // Get username from token
+            $authenticator = new Authenticator($this->module);
+            $userData      = $authenticator->getUserData($post['token']);
+            $username      = $userData['username']; // This is lower case
+
+            // Check if username matches
+            $realUsername = EntraIdEsignatures::toLowerCase($this->module->framework->getUser()->getUsername());
+            if ( empty($username) || empty($realUsername) || strcmp($username, $realUsername) !== 0 ) {
+                $this->module->framework->log('EntraId E-Signatures: Usernames do not match', [
+                    'username'     => $username,
+                    'realUsername' => $realUsername
+                ]);
+                return false;
+            }
+
+            // Username associated with access token matches that of logged-in REDCap user
+            return true;
+
+        } catch ( \Throwable $e ) {
+
+            $this->module->framework->log('EntraId E-Signatures: Error handling e-signature', [
                 'username'     => $username,
                 'realUsername' => $realUsername
             ]);
-            $this->module->framework->exitAfterHook();
-            return;
+            return false;
         }
-
-        global $auth_meth_global;
-        $auth_meth_global = 'none';
     }
 
     public function addEsignatureScript()
