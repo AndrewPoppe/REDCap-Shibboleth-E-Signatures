@@ -18,9 +18,8 @@ class ESignatureHandler
     public function handleRequest(array $post)
     {
         try {
-
             if ( !isset($post['esign_action']) || $post['esign_action'] !== 'save' || !isset($post['token']) ) {
-                return;
+                return false;
             }
 
             // Get username from token
@@ -40,9 +39,7 @@ class ESignatureHandler
 
             // Username associated with access token matches that of logged-in REDCap user
             return true;
-
         } catch ( \Throwable $e ) {
-
             $this->module->framework->log('EntraId E-Signatures: Error handling e-signature', [
                 'username'     => $username,
                 'realUsername' => $realUsername
