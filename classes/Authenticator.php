@@ -4,13 +4,13 @@ namespace YaleREDCap\EntraIdEsignatures;
 
 class Authenticator
 {
-    private $clientId;
-    private $adTenant;
-    private $clientSecret;
-    private $redirectUriSpa;
-    private $module;
+    private string $clientId;
+    private string $adTenant;
+    private string $clientSecret;
+    private string $redirectUriSpa;
+    private EntraIdEsignatures $module;
     private array $entraIdSettings;
-    private $adUsernameAttribute;
+    private string $adUsernameAttribute;
 
     const ERROR_MESSAGE_AUTHENTICATION = 'EntraIdEsignatures Authentication Error';
     public function __construct(EntraIdEsignatures $module)
