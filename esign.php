@@ -15,6 +15,7 @@ if ($ShibAuthenticationInstant < 0 || $timeDiff < 0) {
     $redirectUrl = Authenticator::getLoginUrl($module->getUrl('esign.php'));
     $module->log('redirecting to ' . $redirectUrl, []);
     header("Location: " . $redirectUrl);
+    exit;
 }
 
 Authenticator::clearEsignRequestTimestamp();

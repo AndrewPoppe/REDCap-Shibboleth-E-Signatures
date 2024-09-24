@@ -43,19 +43,19 @@ class Authenticator
 
     public static function getIdPEntityId() : string
     {
-        session_start();
+        // session_start();
         return $_SESSION[self::ENTITY_ID_SESSION_VARIABLE] ?? '';
     }
 
     public static function setIdPEntityId(string $entityId) : void
     {
-        session_start();
+        // session_start();
         $_SESSION[self::ENTITY_ID_SESSION_VARIABLE] = $entityId;
     }
 
     public static function setEsignRequestTimestamp() : int
     {
-        session_start();
+        // session_start();
         $requestInstant                                   = time();
         $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE] = $requestInstant;
         return $requestInstant;
@@ -63,13 +63,13 @@ class Authenticator
 
     public static function getEsignRequestTimestamp() : int
     {
-        session_start();
+        // session_start();
         return $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE] ?? -1;
     }
 
     public static function clearEsignRequestTimestamp() : void
     {
-        session_start();
+        // session_start();
         unset($_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE]);
     }
 
