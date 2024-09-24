@@ -65,7 +65,7 @@ class ESignatureHandler
                         return;
                     }
                     const remoteUser = event.data.user;
-                    const tokent = event.data.token;
+                    const token = event.data.token;
                     const action = 'lock';
                     $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
                         auto: getParameterByName('auto'),
