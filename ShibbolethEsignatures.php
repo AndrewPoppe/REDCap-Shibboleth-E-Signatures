@@ -42,9 +42,17 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
+                
+                // This only applies to non-table-based users
                 if ( \Authentication::isTableUser($userid) ) {
                     return;
                 }
+
+                // Let REDCap handle all requests that aren't saving esignatures
+                if ( $_POST['esign_action'] !== 'save') {
+                    return;
+                }
+
                 $esignatureHandler = new ESignatureHandler($this);
                 $result            = $esignatureHandler->handleRequest($_POST);
 
