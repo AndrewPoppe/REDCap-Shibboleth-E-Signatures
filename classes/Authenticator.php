@@ -75,7 +75,7 @@ class Authenticator
 
     public static function storeShibbolethInformation() : void
     {
-        $entityId = self::getIdPEntityId();
+        $entityId = $_SERVER['Shib-Identity-Provider'];
         if (empty($entityId)) {
             return;
         }
