@@ -40,9 +40,6 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
-            // Store Shibboleth Information
-            Authenticator::storeShibbolethInformation();
-
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
                 if ( \Authentication::isTableUser($userid) ) {
@@ -63,6 +60,9 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
                 $auth_meth_global = 'none';
                 return;
             }
+
+            // Store Shibboleth Information
+            Authenticator::storeShibbolethInformation();
 
         } catch ( \Throwable $e ) {
             $this->framework->log(self::MODULE_TITLE . ': Error', [ 'error' => $e->getMessage() ]);
