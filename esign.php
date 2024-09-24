@@ -6,6 +6,8 @@ $requestInstant = Authenticator::getEsignRequestTimestamp();
 $ShibAuthenticationInstant = $_SERVER['Shib-Authentication-Instant'] ?? -1;
 $timeDiff = $ShibAuthenticationInstant - $requestInstant;
 
+$module->log('info', [ 'ri' => $requestInstant, 'si' => $ShibAuthenticationInstant, 'diff' => $timeDiff ]);
+
 if ($requestInstant < 0) {
     $module->log('request instant no good', []);
     exit;
