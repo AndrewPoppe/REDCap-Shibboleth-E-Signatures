@@ -25,11 +25,13 @@ class Authenticator
             return '';
         }
 
-        $url = $handler . '/Login?forceAuthn=true&target=' . urlencode($redirectUrl);
+        $url = $handler . '/Login?forceAuthn=true';
 
         if ($auth_meth_global === 'shibboleth_table') {
             $url .= '&entityId=' . urlencode($entityId);
         }
+
+        $url .= '&target=' . urlencode($redirectUrl);
 
         return $url;
     }
