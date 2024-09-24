@@ -28,7 +28,7 @@ class Authenticator
         $url = $handler . '/Login?';
 
         if ($auth_meth_global === 'shibboleth_table') {
-            $url .= 'entityId=' . urlencode($entityId) . '&';
+            $url .= 'entityID=' . urlencode($entityId) . '&';
         }
 
         $url .= 'target=' . urlencode($redirectUrl) . '&forceAuthn=true';
