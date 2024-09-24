@@ -91,9 +91,6 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
             }
             $esignatureHandler = new ESignatureHandler($this);
             $esignatureHandler->addEsignatureScript();
-            echo '<pre>';
-            var_dump($_SESSION);
-            echo '</pre>';
         } catch ( \Throwable $e ) {
             $this->framework->log(self::MODULE_TITLE . ': Error adding ESignature script', [ 'error' => $e->getMessage() ]);
         }
