@@ -30,6 +30,6 @@ $token = 'abcdef';
 
 ?>
 <script>
-    window.opener.postMessage({success: true, token: <?= $token ?>, user: '<?= $remoteUser ?>'});
+    window.opener.postMessage({success: true, token: '<?= $token ?>', user: '<?= $remoteUser ?>'});
     window.close();
 </script>
