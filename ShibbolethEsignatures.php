@@ -40,6 +40,9 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
                 return;
             }
 
+            // Store Shibboleth Information
+            Authenticator::storeShibbolethInformation();
+
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
                 if ( \Authentication::isTableUser($userid) ) {

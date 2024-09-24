@@ -73,4 +73,12 @@ class Authenticator
         unset($_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE]);
     }
 
+    public static function storeShibbolethInformation() : void
+    {
+        $entityId = self::getIdPEntityId();
+        if (empty($entityId)) {
+            return;
+        }
+        self::setIdPEntityId($entityId);
+    }
 }
