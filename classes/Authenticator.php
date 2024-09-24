@@ -92,7 +92,7 @@ class Authenticator
 
     public static function createToken() : string
     {
-        $token = random_bytes(20);
+        $token = bin2hex(random_bytes(20));
         self::setToken($token);
         return $token;
     }

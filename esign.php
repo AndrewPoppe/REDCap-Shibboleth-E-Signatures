@@ -25,9 +25,9 @@ if ($ShibAuthenticationInstant < 0 || $timeDiff < 0) {
 Authenticator::clearEsignRequestTimestamp();
 $token = Authenticator::createToken();
 
-$remoteUser = strtolower($_SERVER[trim($_GLOBALS['shibboleth_username_field'])]);
+$remoteUser = strtolower($_SERVER[trim($GLOBALS['shibboleth_username_field'])]);
 
-$module->log('signed in!', ['shibuser' => $remoteUser]);
+$module->log('signed in!', ['shibuser' => $remoteUser, 'token' => $token]);
 
 ?>
 <script>
