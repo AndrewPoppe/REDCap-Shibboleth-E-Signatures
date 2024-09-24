@@ -67,4 +67,10 @@ class Authenticator
         return $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE] ?? -1;
     }
 
+    public static function clearEsignRequestTimestamp() : void
+    {
+        session_start();
+        unset($_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE]);
+    }
+
 }

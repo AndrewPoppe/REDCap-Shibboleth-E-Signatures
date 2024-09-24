@@ -17,6 +17,8 @@ if ($ShibAuthenticationInstant < 0 || $timeDiff < 0) {
     header("Location: " . $redirectUrl);
 }
 
+Authenticator::clearEsignRequestTimestamp();
+
 $remoteUser = strtolower($_SERVER[trim($_GLOBALS['shibboleth_username_field'])]);
 
 $module->log('signed in!', ['shibuser' => $remoteUser]);
