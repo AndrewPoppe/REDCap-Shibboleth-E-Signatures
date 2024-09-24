@@ -1,6 +1,6 @@
 <?php
 
-namespace YaleREDCap\EntraIdEsignatures;
+namespace YaleREDCap\ShibbolethEsignatures;
 
 /**
  * @property \ExternalModules\Framework $framework
@@ -10,10 +10,10 @@ namespace YaleREDCap\EntraIdEsignatures;
 require_once 'classes/Authenticator.php';
 require_once 'classes/ESignatureHandler.php';
 
-class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
+class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 {
 
-    const MODULE_TITLE = 'EntraId E-Signatures';
+    const MODULE_TITLE = 'Shibboleth E-Signatures';
 
     /**
      * REDCap Hook
@@ -86,22 +86,14 @@ class EntraIdEsignatures extends \ExternalModules\AbstractExternalModule
     }
 
     /**
-     * Return array of module's system settings
-     * @return array{adTenantId: string|null, clientId: string|null, clientSecret: string|null, redirectUrlSpa: string|null, adUsernameAttribute: string|null} 
+     * REDCap Hook
+     * @return mixed
      */
-    public function getSettings() : array
+    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
-        $settings = [];
-        try {
-            $settings['adTenantId']          = $this->framework->getSystemSetting('entraid-ad-tenant-id') ?? '';
-            $settings['clientId']            = $this->framework->getSystemSetting('entraid-client-id') ?? '';
-            $settings['clientSecret']        = $this->framework->getSystemSetting('entraid-client-secret') ?? '';
-            $settings['redirectUrlSpa']      = $this->framework->getSystemSetting('entraid-redirect-url-spa') ?? '';
-            $settings['adUsernameAttribute'] = $this->framework->getSystemSetting('entraid-ad-username-attribute') ?? '';
-        } catch ( \Throwable $e ) {
-            $this->framework->log(self::MODULE_TITLE . ': Error getting settings', [ 'error' => $e->getMessage() ]);
+        if ($action === 'setEsignFlag') {
+            return Authenticator::setEsignRequestTimestamp();
         }
-        return $settings;
     }
 
     /**

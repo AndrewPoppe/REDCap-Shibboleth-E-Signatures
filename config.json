@@ -1,8 +1,8 @@
 {
-    "name": "Entra ID E-Signatures",
+    "name": "Shibboleth E-Signatures",
     "tt_namew": "module_name",
-    "namespace": "YaleREDCap\\EntraIdEsignatures",
-    "description": "This External Module enables SSO with multiple Entra ID tenants.",
+    "namespace": "YaleREDCap\\ShibbolethEsignatures",
+    "description": "TBD",
     "tt_description": "module_description",
     "authors": [
         {
@@ -11,37 +11,8 @@
             "institution": "Yale University"
         }
     ],
-    "system-settings": [
-        {
-            "key": "entraid-ad-tenant-id",
-            "name": "entraid_ad_tenant_id",
-            "tt_name": true,
-            "type": "text"
-        },
-        {
-            "key": "entraid-client-id",
-            "name": "entraid_client_id",
-            "tt_name": true,
-            "type": "text"
-        },
-        {
-            "key": "entraid-client-secret",
-            "name": "entraid_client_secret",
-            "tt_name": true,
-            "type": "password"
-        },
-        {
-            "key": "entraid-redirect-url-spa",
-            "name": "entraid_redirect_url_spa",
-            "tt_name": true,
-            "type": "text"
-        },
-        {
-            "key": "entraid-ad-username-attribute",
-            "name": "entraid_ad_username_attribute",
-            "tt_name": true,
-            "type": "text"
-        }
+    "auth-ajax-actions": [
+        "setEsignFlag"
     ],
     "framework-version": 15,
     "compatibility": {

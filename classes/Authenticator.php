@@ -1,104 +1,70 @@
 <?php
 
-namespace YaleREDCap\EntraIdEsignatures;
+namespace YaleREDCap\ShibbolethEsignatures;
 
 class Authenticator
 {
-    private string $clientId;
-    private string $adTenant;
-    private string $clientSecret;
-    private string $redirectUriSpa;
-    private EntraIdEsignatures $module;
-    private array $entraIdSettings;
-    private string $adUsernameAttribute;
+    private ShibbolethEsignatures $module;
 
-    const ERROR_MESSAGE_AUTHENTICATION = 'EntraIdEsignatures Authentication Error';
-    public function __construct(EntraIdEsignatures $module)
+    const ERROR_MESSAGE_AUTHENTICATION = 'ShibbolethEsignatures Authentication Error';
+    const ENTITY_ID_SESSION_VARIABLE = 'ShibbolethEsignatures_EntityId';
+    const ESIGN_REQUEST_TIMESTAMP_VARIABLE = 'ShibbolethEsignatures_Request_Timestamp';
+    public function __construct(ShibbolethEsignatures $module)
     {
-        $this->module          = $module;
-        $this->entraIdSettings = $this->module->getSettings();
-        if ( !$this->entraIdSettings ) {
-            return;
-        }
-        $this->clientId            = $this->entraIdSettings['clientId'];
-        $this->adTenant            = $this->entraIdSettings['adTenantId'];
-        $this->clientSecret        = $this->entraIdSettings['clientSecret'];
-        $this->redirectUriSpa      = $this->entraIdSettings['redirectUrlSpa'];
-        $this->adUsernameAttribute = $this->entraIdSettings['adUsernameAttribute'];
+        $this->module = $module;
     }
 
 
-
-    /**
-     * Get data from Entra ID using provided access token
-     * @param string $accessToken
-     * @return array
-     */
-    public function getUserData(string $accessToken) : array
+    public static function getLoginUrl($redirectUrl = '') : string
     {
-        $result = [];
-        try {
-            //Fetching the basic user information that is likely needed by your application
-            $options = array(
-                "http" => array(  //Use "http" even if you send the request with https
-                    "method" => "GET",
-                    "header" => "Accept: application/json\r\n" .
-                        "Authorization: Bearer " . $accessToken . "\r\n"
-                )
-            );
-            $context = stream_context_create($options);
-            $json    = file_get_contents("https://graph.microsoft.com/v1.0/me?\$select=id,userPrincipalName,mail,givenName,surname,onPremisesSamAccountName,companyName,department,jobTitle,userType,accountEnabled", false, $context);
-            if ( $json === false ) {
-                $this->logError('Error received during user data fetch.');
-                return $result;
-            }
+        global $auth_meth_global;
+        $entityId               = Authenticator::getIdPEntityId();
+        $handler                = $_SERVER['Shib-Handler'];
 
-            $userdata = json_decode($json, true);  //This should now contain your logged on user information
-            if ( isset($userdata["error"]) ) {
-                $this->logError('User data fetch contained an error.');
-                return $result;
-            }
-
-            $username       = $userdata[$this->adUsernameAttribute] ?? '';
-            $username_clean = EntraIdEsignatures::toLowerCase($username);
-            $email          = $userdata['mail'] ?? $userdata['userPrincipalName'];
-            $email_clean    = EntraIdEsignatures::toLowerCase(filter_var($email, FILTER_VALIDATE_EMAIL));
-
-            $result = [
-                'user_email'     => $email_clean,
-                'user_firstname' => $userdata['givenName'],
-                'user_lastname'  => $userdata['surname'],
-                'username'       => $username_clean,
-                'company'        => $userdata['companyName'],
-                'department'     => $userdata['department'],
-                'job_title'      => $userdata['jobTitle'],
-                'type'           => $userdata['userType'],
-                'accountEnabled' => $userdata['accountEnabled'],
-                'id'             => $userdata['id']
-            ];
-        } catch ( \Throwable $e ) {
-            $this->logError($e->getMessage());
+        if (empty($handler)) {
+            return '';
         }
-        return $result;
+
+        $url = $handler . '/Login?forceAuthn=true&target=' . urlencode($redirectUrl);
+
+        if ($auth_meth_global === 'shibboleth_table') {
+            $url .= '&entityId=' . urlencode($entityId);
+        }
+
+        return $url;
     }
+
+
 
     private function logError(string $errorMessage) : void
     {
         $this->module->framework->log(self::ERROR_MESSAGE_AUTHENTICATION, [ 'error' => $errorMessage ]);
     }
 
-    public function getRedirectUriSpa()
+    public static function getIdPEntityId() : string
     {
-        return $this->redirectUriSpa;
+        session_start();
+        return $_SESSION[self::ENTITY_ID_SESSION_VARIABLE] ?? '';
     }
 
-    public function getClientId()
+    public static function setIdPEntityId(string $entityId) : void
     {
-        return $this->clientId;
+        session_start();
+        $_SESSION[self::ENTITY_ID_SESSION_VARIABLE] = $entityId;
     }
 
-    public function getAdTenant()
+    public static function setEsignRequestTimestamp() : int
     {
-        return $this->adTenant;
+        session_start();
+        $requestInstant                                   = time();
+        $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE] = $requestInstant;
+        return $requestInstant;
     }
+
+    public static function getEsignRequestTimestamp() : int
+    {
+        session_start();
+        return $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE] ?? -1;
+    }
+
 }

@@ -1,11 +1,11 @@
 <?php
 
-namespace YaleREDCap\EntraIdEsignatures;
+namespace YaleREDCap\ShibbolethEsignatures;
 
 class ESignatureHandler
 {
-    private EntraIdEsignatures $module;
-    public function __construct(EntraIdEsignatures $module)
+    private ShibbolethEsignatures $module;
+    public function __construct(ShibbolethEsignatures $module)
     {
         $this->module = $module;
     }
@@ -28,7 +28,7 @@ class ESignatureHandler
             $username      = $userData['username']; // This is lower case
 
             // Check if username matches
-            $realUsername = EntraIdEsignatures::toLowerCase($this->module->framework->getUser()->getUsername());
+            $realUsername = ShibbolethEsignatures::toLowerCase($this->module->framework->getUser()->getUsername());
             if ( empty($username) || empty($realUsername) || strcmp($username, $realUsername) !== 0 ) {
                 $this->module->framework->log('EntraId E-Signatures: Usernames do not match', [
                     'username'     => $username,
@@ -50,66 +50,60 @@ class ESignatureHandler
 
     public function addEsignatureScript()
     {
-        $authenticator = new Authenticator($this->module);
+        echo $this->module->framework->initializeJavascriptModuleObject();
+
         ?>
-        <script src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js" integrity="sha384-hhkHFODse2T75wPL7oJ0RZ+0CgRa74LNPhgx6wO6DMNEhU3/fSbTZdVzxsgyUelp" crossorigin="anonymous"></script>
         <script>
             $(document).ready(function () {
+                var module = <?=$this->module->framework->getJavascriptModuleObjectName()?>;
                 var numLogins = 0;
                 var esign_action_global;
                 const saveLockingOrig = saveLocking;
+
+                window.addEventListener('message', (event) => {
+                    if (event.origin !== window.origin) {
+                        return;
+                    }
+                    const remoteUser = event.data.user;
+                    const tokent = event.data.token;
+                    const action = 'lock';
+                    $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
+                        auto: getParameterByName('auto'),
+                        instance: getParameterByName('instance'),
+                        esign_action: esign_action_global,
+                        event_id: event_id,
+                        action: action,
+                        record: getParameterByName('id'),
+                        form_name: getParameterByName('page'),
+                        remoteUser: remoteUser,
+                        token: token
+                    }, function (data) {
+                        if (data != "") {
+                            numLogins = 0;
+                            if (auto_inc_set && getParameterByName('auto') == '1' && isinteger(data.replace(
+                                '-', ''))) {
+                                $('#form :input[name="' + table_pk + '"], #form :input[name="__old_id__"]')
+                                    .val(data);
+                            }
+                            formSubmitDataEntry();
+                        } else {
+                            numLogins++;
+                            esignFail(numLogins);
+                        }
+                    });
+                }, false);
+
                 saveLocking = function (lock_action, esign_action) {
                     if (esign_action !== 'save' || lock_action !== 1) {
                         saveLockingOrig(lock_action, esign_action);
                         return;
                     }
                     esign_action_global = esign_action;
-                    const config = {
-                        auth: {
-                            clientId: "<?= $authenticator->getClientId() ?>",
-                            authority: "https://login.microsoftonline.com/<?= $authenticator->getAdTenant() ?>",
-                            redirectUri: "<?= $authenticator->getRedirectUriSpa() ?>"
-                        }
-                    };
 
-                    const loginRequest = {
-                        scopes: ["User.Read"],
-                        prompt: "login",
-                    };
-
-                    const myMsal = new msal.PublicClientApplication(config);
-
-                    myMsal
-                        .loginPopup(loginRequest)
-                        .then(function (loginResponse) {
-                            const action = 'lock';
-                            $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
-                                auto: getParameterByName('auto'),
-                                instance: getParameterByName('instance'),
-                                esign_action: esign_action_global,
-                                event_id: event_id,
-                                action: action,
-                                record: getParameterByName('id'),
-                                form_name: getParameterByName('page'),
-                                token: loginResponse.accessToken
-                            }, function (data) {
-                                if (data != "") {
-                                    numLogins = 0;
-                                    if (auto_inc_set && getParameterByName('auto') == '1' && isinteger(data.replace(
-                                        '-', ''))) {
-                                        $('#form :input[name="' + table_pk + '"], #form :input[name="__old_id__"]')
-                                            .val(data);
-                                    }
-                                    formSubmitDataEntry();
-                                } else {
-                                    numLogins++;
-                                    esignFail(numLogins);
-                                }
-                            });
-                        })
-                        .catch(function (error) {
-                            console.log(error);
-                        });
+                    module.ajax('setEsignFlag', {})
+                    .then(function(response) {
+                        window.open(module.getUrl('esign.php'), 'popup');
+                    });
                 }
             });
         </script>
