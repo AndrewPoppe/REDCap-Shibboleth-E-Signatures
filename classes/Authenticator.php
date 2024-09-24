@@ -8,7 +8,8 @@ class Authenticator
 
     const ERROR_MESSAGE_AUTHENTICATION = 'ShibbolethEsignatures Authentication Error';
     const ENTITY_ID_SESSION_VARIABLE = 'ShibbolethEsignatures_EntityId';
-    const ESIGN_REQUEST_TIMESTAMP_VARIABLE = 'ShibbolethEsignatures_Request_Timestamp';
+    const ESIGN_REQUEST_TIMESTAMP_SESSION_VARIABLE = 'ShibbolethEsignatures_Request_Timestamp';
+    const ESIGN_TOKEN_SESSION_VARIABLE = 'ShibbolethEsignatures_Token';
     public function __construct(ShibbolethEsignatures $module)
     {
         $this->module = $module;
@@ -59,20 +60,20 @@ class Authenticator
     {
         // session_start();
         $requestInstant                                   = time();
-        $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE] = $requestInstant;
+        $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_SESSION_VARIABLE] = $requestInstant;
         return $requestInstant;
     }
 
     public static function getEsignRequestTimestamp() : int
     {
         // session_start();
-        return $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE] ?? -1;
+        return $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_SESSION_VARIABLE] ?? -1;
     }
 
     public static function clearEsignRequestTimestamp() : void
     {
         // session_start();
-        unset($_SESSION[self::ESIGN_REQUEST_TIMESTAMP_VARIABLE]);
+        unset($_SESSION[self::ESIGN_REQUEST_TIMESTAMP_SESSION_VARIABLE]);
     }
 
     public static function storeShibbolethInformation() : void
@@ -87,5 +88,27 @@ class Authenticator
     public static function getShibbolethAuthenticationInstant() : int
     {
         return strtotime($_SERVER['Shib-Authentication-Instant']) ?? -1;
+    }
+
+    public static function createToken() : string
+    {
+        $token = random_bytes(20);
+        self::setToken($token);
+        return $token;
+    }
+
+    public static function setToken($token) : void
+    {
+        $_SESSION[self::ESIGN_TOKEN_SESSION_VARIABLE] = $token;
+    }
+
+    public static function getToken() : string
+    {
+        return $_SESSION[self::ESIGN_TOKEN_SESSION_VARIABLE] ?? '';
+    }
+
+    public static function clearToken() : void 
+    {
+        unset($_SESSION[self::ESIGN_TOKEN_SESSION_VARIABLE]);
     }
 }

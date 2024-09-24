@@ -22,25 +22,29 @@ class ESignatureHandler
                 return false;
             }
 
-            // Get username from token
-            $authenticator = new Authenticator($this->module);
-            $userData      = $authenticator->getUserData($post['token']);
-            $username      = $userData['username']; // This is lower case
+            // Verify Token
+            $storedToken = Authenticator::getToken();
+            Authenticator::clearToken();
+            if ( empty($post['token']) || strcmp($post['token'], $storedToken) !== 0 ) {
+                $this->module->framework->log('Shibboleth E-Signatures: Token is wrong', []);
+                return false;
+            }
 
             // Check if username matches
+            $username     = ShibbolethEsignatures::toLowerCase($post['remoteUser']);
             $realUsername = ShibbolethEsignatures::toLowerCase($this->module->framework->getUser()->getUsername());
             if ( empty($username) || empty($realUsername) || strcmp($username, $realUsername) !== 0 ) {
-                $this->module->framework->log('EntraId E-Signatures: Usernames do not match', [
+                $this->module->framework->log('Shibboleth E-Signatures: Usernames do not match', [
                     'username'     => $username,
                     'realUsername' => $realUsername
                 ]);
                 return false;
             }
 
-            // Username associated with access token matches that of logged-in REDCap user
+            // Username associated with token matches that of logged-in REDCap user
             return true;
         } catch ( \Throwable $e ) {
-            $this->module->framework->log('EntraId E-Signatures: Error handling e-signature', [
+            $this->module->framework->log('Shibboleth E-Signatures: Error handling e-signature', [
                 'username'     => $username,
                 'realUsername' => $realUsername
             ]);
