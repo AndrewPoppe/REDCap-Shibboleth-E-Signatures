@@ -83,4 +83,9 @@ class Authenticator
         }
         self::setIdPEntityId($entityId);
     }
+
+    public static function getShibbolethAuthenticationInstant() : int
+    {
+        return strtotime($_SERVER['Shib-Authentication-Instant']) ?? -1;
+    }
 }
