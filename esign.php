@@ -2,6 +2,8 @@
 
 namespace YaleREDCap\ShibbolethEsignatures;
 
+session_start();
+
 $requestInstant = Authenticator::getEsignRequestTimestamp();
 $ShibAuthenticationInstant = Authenticator::getShibbolethAuthenticationInstant();
 $timeDiff = $ShibAuthenticationInstant - $requestInstant;
