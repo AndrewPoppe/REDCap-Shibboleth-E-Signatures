@@ -102,7 +102,7 @@ class ESignatureHandler
 
                     module.ajax('setEsignFlag', {})
                     .then(function(response) {
-                        window.open(module.getUrl('esign.php'), 'popup');
+                        window.open(module.getUrl('esign.php'), '_blank', 'popup');
                     });
                 }
             });
