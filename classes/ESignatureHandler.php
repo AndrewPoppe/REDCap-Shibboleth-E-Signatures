@@ -26,7 +26,10 @@ class ESignatureHandler
             $storedToken = Authenticator::getToken();
             Authenticator::clearToken();
             if ( empty($post['token']) || strcmp($post['token'], $storedToken) !== 0 ) {
-                $this->module->framework->log('Shibboleth E-Signatures: Token is wrong', []);
+                $this->module->framework->log('Shibboleth E-Signatures: Token is wrong', [
+                    'postToken' => $post['token'],
+                    'storedToken' => $storedToken
+                ]);
                 return false;
             }
 
