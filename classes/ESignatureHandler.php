@@ -38,8 +38,8 @@ class ESignatureHandler
             }
 
             // Check if username matches
-            $username     = ShibbolethEsignatures::toLowerCase($data['remoteUser']);
-            $realUsername = ShibbolethEsignatures::toLowerCase($this->module->framework->getUser()->getUsername());
+            $username     = ShibbolethEsignatures::toLowerCase($data['remoteUser'] ?? '');
+            $realUsername = ShibbolethEsignatures::toLowerCase($this->module->framework->getUser()->getUsername() ?? '');
             if ( empty($username) || empty($realUsername) || strcmp($username, $realUsername) !== 0 ) {
                 $this->module->framework->log(ShibbolethEsignatures::MODULE_TITLE . ': Usernames do not match', [
                     'username'     => $username,
