@@ -23,7 +23,7 @@ class ESignatureHandler
             }
 
             // Decrypt data
-            $dataJson= decrypt($post['data']) ?? '{}';
+            $dataJson = decrypt($post['data']) ?? '{}';
             $data     = json_decode($dataJson, true);
 
             // Verify Token
@@ -31,7 +31,7 @@ class ESignatureHandler
             Authenticator::clearToken();
             if ( empty($data['token']) || strcmp($data['token'], $storedToken) !== 0 ) {
                 $this->module->framework->log(ShibbolethEsignatures::MODULE_TITLE . ': Token is wrong', [
-                    'postToken' => $data['token'],
+                    'postToken'   => $data['token'],
                     'storedToken' => $storedToken
                 ]);
                 return false;
@@ -67,7 +67,7 @@ class ESignatureHandler
         ?>
         <script>
             $(document).ready(function () {
-                var module = <?=$this->module->framework->getJavascriptModuleObjectName()?>;
+                var module = <?= $this->module->framework->getJavascriptModuleObjectName() ?>;
                 var numLogins = 0;
                 var esign_action_global;
                 var childWindow;
@@ -81,10 +81,10 @@ class ESignatureHandler
                     esign_action_global = esign_action;
 
                     module.ajax('setEsignFlag', {})
-                    .then(function(response) {
-                        showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
-                        childWindow = window.open(module.getUrl('esign.php'), '_blank', 'popup,width=600,height=800');
-                    });
+                        .then(function (response) {
+                            showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
+                            childWindow = window.open(module.getUrl('esign.php'), '_blank', 'popup,width=600,height=800');
+                        });
                 }
 
                 window.addEventListener('message', (event) => {

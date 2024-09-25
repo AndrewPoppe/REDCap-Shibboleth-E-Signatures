@@ -36,7 +36,7 @@ Authenticator::clearEsignRequestTimestamp();
 
 // Get username of successfully authenticated user
 $shibboleth_username_field = trim($GLOBALS['shibboleth_username_field'] ?? '');
-$remoteUser = strtolower($_SERVER[$shibboleth_username_field] ?? '');
+$remoteUser                = strtolower($_SERVER[$shibboleth_username_field] ?? '');
 
 $data     = [
     "token"                     => $token,

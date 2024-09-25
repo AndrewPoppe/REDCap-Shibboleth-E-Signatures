@@ -19,16 +19,16 @@ class Authenticator
     public static function getLoginUrl($redirectUrl = '') : string
     {
         global $auth_meth_global;
-        $entityId               = Authenticator::getIdPEntityId();
-        $handler                = $_SERVER['Shib-Handler'];
+        $entityId = Authenticator::getIdPEntityId();
+        $handler  = $_SERVER['Shib-Handler'];
 
-        if (empty($handler)) {
+        if ( empty($handler) ) {
             return '';
         }
 
         $url = $handler . '/Login?';
 
-        if ($auth_meth_global === 'shibboleth_table') {
+        if ( $auth_meth_global === 'shibboleth_table' ) {
             $url .= 'entityID=' . urlencode($entityId) . '&';
         }
 
@@ -46,40 +46,35 @@ class Authenticator
 
     public static function getIdPEntityId() : string
     {
-        // session_start();
         return $_SESSION[self::ENTITY_ID_SESSION_VARIABLE] ?? '';
     }
 
     public static function setIdPEntityId(string $entityId) : void
     {
-        // session_start();
         $_SESSION[self::ENTITY_ID_SESSION_VARIABLE] = $entityId;
     }
 
     public static function setEsignRequestTimestamp() : int
     {
-        // session_start();
-        $requestInstant                                   = time();
+        $requestInstant                                           = time();
         $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_SESSION_VARIABLE] = $requestInstant;
         return $requestInstant;
     }
 
     public static function getEsignRequestTimestamp() : int
     {
-        // session_start();
         return $_SESSION[self::ESIGN_REQUEST_TIMESTAMP_SESSION_VARIABLE] ?? -1;
     }
 
     public static function clearEsignRequestTimestamp() : void
     {
-        // session_start();
         unset($_SESSION[self::ESIGN_REQUEST_TIMESTAMP_SESSION_VARIABLE]);
     }
 
     public static function storeShibbolethInformation() : void
     {
         $entityId = $_SERVER['Shib-Identity-Provider'];
-        if (empty($entityId)) {
+        if ( empty($entityId) ) {
             return;
         }
         self::setIdPEntityId($entityId);
@@ -107,7 +102,7 @@ class Authenticator
         return $_SESSION[self::ESIGN_TOKEN_SESSION_VARIABLE] ?? '';
     }
 
-    public static function clearToken() : void 
+    public static function clearToken() : void
     {
         unset($_SESSION[self::ESIGN_TOKEN_SESSION_VARIABLE]);
     }

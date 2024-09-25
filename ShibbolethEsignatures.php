@@ -43,14 +43,14 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 
             // Handle E-Signature form action
             if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
-                
+
                 // This only applies to non-table-based users
                 if ( \Authentication::isTableUser($userid) ) {
                     return;
                 }
 
                 // Let REDCap handle all requests that aren't saving esignatures
-                if ( $_POST['esign_action'] !== 'save') {
+                if ( $_POST['esign_action'] !== 'save' ) {
                     return;
                 }
 
@@ -86,14 +86,14 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
     public function redcap_data_entry_form()
     {
         try {
-            
+
             $username = $this->framework->getUser()->getUsername();
             if ( \Authentication::isTableUser($username) ) {
                 return;
             }
             $esignatureHandler = new ESignatureHandler($this);
             $esignatureHandler->addEsignatureScript();
-            
+
             // Clear Timestamp if necessary
             Authenticator::clearEsignRequestTimestamp();
 
@@ -108,7 +108,7 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
      */
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
-        if ($action === 'setEsignFlag') {
+        if ( $action === 'setEsignFlag' ) {
             return Authenticator::setEsignRequestTimestamp();
         }
     }
