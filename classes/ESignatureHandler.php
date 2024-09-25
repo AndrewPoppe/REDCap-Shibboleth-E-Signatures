@@ -53,7 +53,8 @@ class ESignatureHandler
         } catch ( \Throwable $e ) {
             $this->module->framework->log(ShibbolethEsignatures::MODULE_TITLE . ': Error handling e-signature', [
                 'username'     => $username,
-                'realUsername' => $realUsername
+                'realUsername' => $realUsername,
+                'error'        => $e->getMessage()
             ]);
             return false;
         }

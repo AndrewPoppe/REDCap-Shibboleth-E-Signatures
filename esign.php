@@ -4,15 +4,15 @@ namespace YaleREDCap\ShibbolethEsignatures;
 
 session_start();
 
-$requestInstant = Authenticator::getEsignRequestTimestamp();
+$requestInstant            = Authenticator::getEsignRequestTimestamp();
 $ShibAuthenticationInstant = Authenticator::getShibbolethAuthenticationInstant();
-$timeDiff = $ShibAuthenticationInstant - $requestInstant;
+$timeDiff                  = $ShibAuthenticationInstant - $requestInstant;
 
-if ($requestInstant < 0) {
+if ( $requestInstant < 0 ) {
     exit;
 }
 
-if ($ShibAuthenticationInstant < 0 || $timeDiff < 0) {
+if ( $ShibAuthenticationInstant < 0 || $timeDiff < 0 ) {
     $redirectUrl = Authenticator::getLoginUrl($module->getUrl('esign.php'));
     header("Location: " . $redirectUrl);
     exit;
@@ -22,9 +22,9 @@ $token = Authenticator::createToken();
 Authenticator::clearEsignRequestTimestamp();
 $remoteUser = strtolower($_SERVER[trim($GLOBALS['shibboleth_username_field'])]);
 
-$data = [
+$data     = [
     "token"                     => $token,
-    "user"                      => $remoteUser,
+    "remoteUser"                => $remoteUser,
     "requestInstant"            => $requestInstant,
     "shibAuthenticationInstant" => $ShibAuthenticationInstant,
     "now"                       => time()
@@ -35,6 +35,6 @@ $encryptedData = encrypt($dataJson);
 
 ?>
 <script>
-    window.opener.postMessage({success: true, data: '<?= $encryptedData ?>'});
+    window.opener.postMessage({ success: true, data: '<?= $encryptedData ?>' });
     window.close();
 </script>
