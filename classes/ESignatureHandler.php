@@ -112,6 +112,7 @@ class ESignatureHandler
 
                     module.ajax('setEsignFlag', {})
                     .then(function(response) {
+                        showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
                         window.open(module.getUrl('esign.php'), '_blank', 'popup');
                     });
                 }

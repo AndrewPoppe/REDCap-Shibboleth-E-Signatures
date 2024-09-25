@@ -14,6 +14,7 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 {
 
     const MODULE_TITLE = 'Shibboleth E-Signatures';
+    const MAX_REQUEST_AGE_SECONDS = 300;
 
     /**
      * REDCap Hook
