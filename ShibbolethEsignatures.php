@@ -72,9 +72,6 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
             // Store Shibboleth Information
             Authenticator::storeShibbolethInformation();
 
-            // Clear Timestamp if necessary
-            Authenticator::clearEsignRequestTimestamp();
-
         } catch ( \Throwable $e ) {
             $this->framework->log(self::MODULE_TITLE . ': Error', [ 'error' => $e->getMessage() ]);
         }
@@ -88,12 +85,17 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
     public function redcap_data_entry_form()
     {
         try {
+            
             $username = $this->framework->getUser()->getUsername();
             if ( \Authentication::isTableUser($username) ) {
                 return;
             }
             $esignatureHandler = new ESignatureHandler($this);
             $esignatureHandler->addEsignatureScript();
+            
+            // Clear Timestamp if necessary
+            Authenticator::clearEsignRequestTimestamp();
+
         } catch ( \Throwable $e ) {
             $this->framework->log(self::MODULE_TITLE . ': Error adding ESignature script', [ 'error' => $e->getMessage() ]);
         }
