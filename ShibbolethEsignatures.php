@@ -72,6 +72,9 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
             // Store Shibboleth Information
             Authenticator::storeShibbolethInformation();
 
+            // Clear Timestamp if necessary
+            Authenticator::clearEsignRequestTimestamp();
+
         } catch ( \Throwable $e ) {
             $this->framework->log(self::MODULE_TITLE . ': Error', [ 'error' => $e->getMessage() ]);
         }
