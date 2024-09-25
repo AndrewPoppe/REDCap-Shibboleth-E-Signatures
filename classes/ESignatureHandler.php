@@ -70,10 +70,25 @@ class ESignatureHandler
                 var module = <?=$this->module->framework->getJavascriptModuleObjectName()?>;
                 var numLogins = 0;
                 var esign_action_global;
+                var childWindow;
                 const saveLockingOrig = saveLocking;
 
+                saveLocking = function (lock_action, esign_action) {
+                    if (esign_action !== 'save' || lock_action !== 1) {
+                        saveLockingOrig(lock_action, esign_action);
+                        return;
+                    }
+                    esign_action_global = esign_action;
+
+                    module.ajax('setEsignFlag', {})
+                    .then(function(response) {
+                        showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
+                        childWindow = window.open(module.getUrl('esign.php'), '_blank', 'popup,width=600,height=800');
+                    });
+                }
+
                 window.addEventListener('message', (event) => {
-                    if (event.origin !== window.origin) {
+                    if (event.origin !== window.origin || event.source !== childWindow) {
                         return;
                     }
                     showProgress();
@@ -88,7 +103,7 @@ class ESignatureHandler
                         record: getParameterByName('id'),
                         form_name: getParameterByName('page'),
                         data: eventData,
-                        shib_auth_token: event.data.hash
+                        username: event.data.remoteUser
                     }, function (data) {
                         if (data != "") {
                             numLogins = 0;
@@ -104,20 +119,6 @@ class ESignatureHandler
                         }
                     });
                 }, false);
-
-                saveLocking = function (lock_action, esign_action) {
-                    if (esign_action !== 'save' || lock_action !== 1) {
-                        saveLockingOrig(lock_action, esign_action);
-                        return;
-                    }
-                    esign_action_global = esign_action;
-
-                    module.ajax('setEsignFlag', {})
-                    .then(function(response) {
-                        showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
-                        window.open(module.getUrl('esign.php'), '_blank', 'popup,width=600,height=800');
-                    });
-                }
             });
         </script>
         <?php
