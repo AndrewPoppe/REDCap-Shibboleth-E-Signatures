@@ -23,7 +23,8 @@ class ESignatureHandler
             }
 
             // Decrypt data
-            $data = decrypt($post['data']) ?? [];
+            $dataJson= decrypt($post['data']) ?? '{}';
+            $data     = json_decode($dataJson, true);
 
             // Verify Token
             $storedToken = Authenticator::getToken();

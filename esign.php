@@ -29,8 +29,9 @@ $data = [
     "shibAuthenticationInstant" => $ShibAuthenticationInstant,
     "now"                       => time()
 ];
+$dataJson = json_encode($data);
 
-$encryptedData = encrypt($data);
+$encryptedData = encrypt($dataJson);
 
 ?>
 <script>
