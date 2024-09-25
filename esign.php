@@ -19,13 +19,21 @@ if ($ShibAuthenticationInstant < 0 || $timeDiff < 0) {
 }
 
 $token = Authenticator::createToken();
-
 Authenticator::clearEsignRequestTimestamp();
-
 $remoteUser = strtolower($_SERVER[trim($GLOBALS['shibboleth_username_field'])]);
+
+$data = [
+    "token"                     => $token,
+    "user"                      => $remoteUser,
+    "requestInstant"            => $requestInstant,
+    "shibAuthenticationInstant" => $ShibAuthenticationInstant,
+    "now"                       => time()
+];
+
+$encryptedData = encrypt($data);
 
 ?>
 <script>
-    window.opener.postMessage({success: true, token: '<?= $token ?>', user: '<?= $remoteUser ?>'});
+    window.opener.postMessage({success: true, data: '<?= $encryptedData ?>'});
     window.close();
 </script>

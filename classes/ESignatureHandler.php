@@ -18,23 +18,26 @@ class ESignatureHandler
     public function handleRequest(array $post)
     {
         try {
-            if ( !isset($post['esign_action']) || $post['esign_action'] !== 'save' || !isset($post['token']) ) {
+            if ( !isset($post['esign_action']) || $post['esign_action'] !== 'save' || !isset($post['data']) ) {
                 return false;
             }
+
+            // Decrypt data
+            $data = decrypt($post['data']) ?? [];
 
             // Verify Token
             $storedToken = Authenticator::getToken();
             Authenticator::clearToken();
-            if ( empty($post['token']) || strcmp($post['token'], $storedToken) !== 0 ) {
+            if ( empty($data['token']) || strcmp($data['token'], $storedToken) !== 0 ) {
                 $this->module->framework->log(ShibbolethEsignatures::MODULE_TITLE . ': Token is wrong', [
-                    'postToken' => $post['token'],
+                    'postToken' => $data['token'],
                     'storedToken' => $storedToken
                 ]);
                 return false;
             }
 
             // Check if username matches
-            $username     = ShibbolethEsignatures::toLowerCase($post['remoteUser']);
+            $username     = ShibbolethEsignatures::toLowerCase($data['remoteUser']);
             $realUsername = ShibbolethEsignatures::toLowerCase($this->module->framework->getUser()->getUsername());
             if ( empty($username) || empty($realUsername) || strcmp($username, $realUsername) !== 0 ) {
                 $this->module->framework->log(ShibbolethEsignatures::MODULE_TITLE . ': Usernames do not match', [
@@ -71,8 +74,7 @@ class ESignatureHandler
                     if (event.origin !== window.origin) {
                         return;
                     }
-                    const remoteUser = event.data.user;
-                    const token = event.data.token;
+                    const eventData = event.data.data;
                     const action = 'lock';
                     $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
                         auto: getParameterByName('auto'),
@@ -82,8 +84,7 @@ class ESignatureHandler
                         action: action,
                         record: getParameterByName('id'),
                         form_name: getParameterByName('page'),
-                        remoteUser: remoteUser,
-                        token: token
+                        data: eventData
                     }, function (data) {
                         if (data != "") {
                             numLogins = 0;
