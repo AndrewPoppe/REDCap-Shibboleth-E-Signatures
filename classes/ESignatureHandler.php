@@ -76,6 +76,7 @@ class ESignatureHandler
                     if (event.origin !== window.origin) {
                         return;
                     }
+                    showProgress();
                     const eventData = event.data.data;
                     const action = 'lock';
                     $.post(app_path_webroot + "Locking/single_form_action.php?pid=" + pid, {
@@ -86,7 +87,8 @@ class ESignatureHandler
                         action: action,
                         record: getParameterByName('id'),
                         form_name: getParameterByName('page'),
-                        data: eventData
+                        data: eventData,
+                        shib_auth_token: event.data.hash
                     }, function (data) {
                         if (data != "") {
                             numLogins = 0;
@@ -113,7 +115,7 @@ class ESignatureHandler
                     module.ajax('setEsignFlag', {})
                     .then(function(response) {
                         showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
-                        window.open(module.getUrl('esign.php'), '_blank', 'popup');
+                        window.open(module.getUrl('esign.php'), '_blank', 'popup,width=600,height=800');
                     });
                 }
             });

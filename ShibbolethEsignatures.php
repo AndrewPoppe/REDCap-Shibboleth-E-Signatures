@@ -28,7 +28,7 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 
             // Defining this global allows all users to be capable of being granted e-signature user rights and of 
             // performing e-signatures
-            $shibboleth_esign_salt = 'NULL';
+            $shibboleth_esign_salt = $shibboleth_esign_salt ?? 'NULL';
 
             // Check if we're in a page that needs to be handled
             $page = defined('PAGE') ? PAGE : null;
@@ -66,7 +66,7 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
                 // Credentials match - setting auth_meth_global here to 'none' allows the e-signature to happen
                 // This is okay, because the user has already been re-authenticated above
                 global $auth_meth_global;
-                $auth_meth_global = 'none';
+                $auth_meth_global = 'shibboleth';
                 return;
             }
 

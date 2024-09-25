@@ -30,7 +30,7 @@ if ( $ShibAuthenticationInstant < 0 || $timeDiff < 0 ) {
 }
 
 // Re-authnetication was successful
-// 
+// Set some tokens to make sure requests match etc.
 $token = Authenticator::createToken();
 Authenticator::clearEsignRequestTimestamp();
 
@@ -38,11 +38,17 @@ Authenticator::clearEsignRequestTimestamp();
 $shibboleth_username_field = trim($GLOBALS['shibboleth_username_field'] ?? '');
 $remoteUser = strtolower($_SERVER[$shibboleth_username_field] ?? '');
 
+// May as well make use of old Andy Martin code living in REDCap core
+global $shibboleth_esign_salt;
+$shibboleth_esign_salt = $token;
+$hash                  = \Authentication::hashPassword($remoteUser, $shibboleth_esign_salt, $remoteUser);
+
 $data     = [
     "token"                     => $token,
     "remoteUser"                => $remoteUser,
     "requestInstant"            => $requestInstant,
     "shibAuthenticationInstant" => $ShibAuthenticationInstant,
+    "shib_auth_token"           => $hash,
     "now"                       => time()
 ];
 $dataJson = json_encode($data);
