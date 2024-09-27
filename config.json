@@ -11,6 +11,26 @@
             "institution": "Yale University"
         }
     ],
+    "system-settings": [
+        {
+            "key": "idp-logout",
+            "name": "IdP Logout URLs",
+            "repeatable": true,
+            "type": "sub_settings",
+            "sub_settings": [
+                {
+                    "key": "idp-logout-entityid",
+                    "name": "IdP Entity ID",
+                    "type": "text"
+                },
+                {
+                    "key": "idp-logout-url",
+                    "name": "Logout URL",
+                    "type": "text"
+                }
+            ]
+        }
+    ],
     "auth-ajax-actions": [
         "setEsignFlag"
     ],

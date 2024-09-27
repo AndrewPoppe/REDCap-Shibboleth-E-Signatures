@@ -15,6 +15,8 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 
     const MODULE_TITLE = 'Shibboleth E-Signatures';
     const MAX_REQUEST_AGE_SECONDS = 300;
+    const IDP_LOGOUT_REDIRECT_PLACEHOLDER = '{REDIRECT}';
+    const IDP_LOGOUT_COOKIE = 'IDP-LOGOUT-INITIATED';
 
     /**
      * REDCap Hook
@@ -42,17 +44,11 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
             }
 
             // Handle E-Signature form action
-            if ( $page === 'Locking/single_form_action.php' && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
-
-                // This only applies to non-table-based users
-                if ( \Authentication::isTableUser($userid) ) {
-                    return;
-                }
-
-                // Let REDCap handle all requests that aren't saving esignatures
-                if ( $_POST['esign_action'] !== 'save' ) {
-                    return;
-                }
+            $onESignaturePage = $page === 'Locking/single_form_action.php';
+            $isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
+            $isNotTableUser = !\Authentication::isTableUser($userid);
+            $isEsignSave = $_POST['esign_action'] === 'save';
+            if ( $onESignaturePage && $isPost && $isNotTableUser && $isEsignSave ) {
 
                 $esignatureHandler = new ESignatureHandler($this);
                 $result            = $esignatureHandler->handleRequest($_POST);
@@ -86,6 +82,12 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
     public function redcap_data_entry_form()
     {
         try {
+
+            echo '<pre>';
+            var_dump(Authenticator::getIdPEntityId());
+            var_dump($this->getIdPLogoutUrl());
+            var_dump($_SERVER);
+            echo '</pre>';
 
             $username = $this->framework->getUser()->getUsername();
             if ( \Authentication::isTableUser($username) ) {
@@ -124,5 +126,24 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
             return mb_strtolower($string);
         }
         return strtolower($string);
+    }
+
+    public function getIdPLogoutUrl()
+    {
+        $entityId = Authenticator::getIdPEntityId();
+        $idps = $this->framework->getSubSettings('idp-logout');
+
+        $matched_idp = array_filter($idps, function($idp) use ($entityId) {
+            return $idp['idp-logout-entityid'] === $entityId;
+        }, );
+
+        if (sizeof($matched_idp) === 0) {
+            return '';
+        }
+
+        $matched_idp = reset($matched_idp);
+        $url = $matched_idp['idp-logout-url'];
+        return str_replace(self::IDP_LOGOUT_REDIRECT_PLACEHOLDER, urlencode($this->framework->getUrl('esign.php')), $url);
+
     }
 }

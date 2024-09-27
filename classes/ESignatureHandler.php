@@ -84,7 +84,12 @@ class ESignatureHandler
                     module.ajax('setEsignFlag', {})
                         .then(function (response) {
                             showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
-                            childWindow = window.open(module.getUrl('esign.php'), '_blank', 'popup,width=600,height=800');
+                            const width = 600;
+                            const height = 800;
+                            const left = (screen.width - width) / 2;
+                            const top = (screen.height - height) / 2;
+                            childWindow = window.open(module.getUrl('esign.php'), '_blank', `popup,width=${width},height=${height},top=${top},left=${left}`);
+
                             windowCheckInterval = setInterval(function() {
                                 if (childWindow.closed) {
                                     showProgress();
