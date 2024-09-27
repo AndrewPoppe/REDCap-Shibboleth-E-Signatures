@@ -71,6 +71,7 @@ class ESignatureHandler
                 var numLogins = 0;
                 var esign_action_global;
                 var childWindow;
+                var windowCheckInterval;
                 const saveLockingOrig = saveLocking;
 
                 saveLocking = function (lock_action, esign_action) {
@@ -84,6 +85,12 @@ class ESignatureHandler
                         .then(function (response) {
                             showProgress(true, 100, '<br>Please login in the popup<br>window to complete the e-signature');
                             childWindow = window.open(module.getUrl('esign.php'), '_blank', 'popup,width=600,height=800');
+                            windowCheckInterval = setInterval(function() {
+                                if (childWindow.closed) {
+                                    showProgress();
+                                    clearInterval(windowCheckInterval);
+                                }
+                            }, 500);
                         });
                 }
 
