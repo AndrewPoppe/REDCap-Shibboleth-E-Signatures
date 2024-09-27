@@ -83,12 +83,6 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
     {
         try {
 
-            echo '<pre>';
-            var_dump(Authenticator::getIdPEntityId());
-            var_dump($this->getIdPLogoutUrl());
-            var_dump($_SERVER);
-            echo '</pre>';
-
             $username = $this->framework->getUser()->getUsername();
             if ( \Authentication::isTableUser($username) ) {
                 return;
