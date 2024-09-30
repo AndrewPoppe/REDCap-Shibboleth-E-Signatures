@@ -5,7 +5,7 @@ namespace YaleREDCap\ShibbolethEsignatures;
 /** @var ShibbolethEsignatures $module */
 
 try {
-    $logoutUrl = $module->getIdPLogoutUrlGeneral() ?: APP_PATH_WEBROOT_FULL;
+    $logoutUrl = $module->getIdPLogoutUrlGeneral() ?: APP_PATH_WEBROOT_FULL . '?logout=1';
 
     // Logout from REDCap
     \Logging::logPageView("LOGOUT", $_SESSION['username']);
