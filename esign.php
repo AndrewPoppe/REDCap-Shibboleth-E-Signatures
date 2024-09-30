@@ -2,6 +2,8 @@
 
 namespace YaleREDCap\ShibbolethEsignatures;
 
+/** @var ShibbolethEsignatures $module */
+
 session_start();
 
 $requestInstant            = Authenticator::getEsignRequestTimestamp();
@@ -10,7 +12,7 @@ $timeDiff                  = $ShibAuthenticationInstant - $requestInstant;
 
 
 // Force Logging out of IdP if requested
-$idp_logout_url = $module->getIdPLogoutUrl();
+$idp_logout_url = $module->getIdPLogoutUrlForEsign();
 if (!empty($idp_logout_url) && !isset($_SESSION[ShibbolethEsignatures::IDP_LOGOUT_COOKIE])) {
     $_SESSION[ShibbolethEsignatures::IDP_LOGOUT_COOKIE] = TRUE;
     header("Location: " . $idp_logout_url);
