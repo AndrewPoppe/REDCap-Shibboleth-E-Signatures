@@ -79,20 +79,6 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
      * REDCap Hook
      * @return void
      */
-    public function redcap_every_page_top($project_id) {
-        $page = defined('PAGE') ? PAGE : null;
-        if ( empty($page) ) {
-            return;
-        }
-
-        // To enable SLO
-        $this->addReplaceLogoutLinkScript();
-    }
-
-    /**
-     * REDCap Hook
-     * @return void
-     */
     public function redcap_data_entry_form()
     {
         try {
@@ -155,46 +141,4 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 
     }
 
-    public function getIdPLogoutUrlGeneral() : string
-    {
-        $entityId = Authenticator::getIdPEntityId();
-        $idps = $this->framework->getSubSettings('idp-logout');
-
-        $matched_idp = array_filter($idps, function($idp) use ($entityId) {
-            return $idp['idp-logout-entityid'] === $entityId;
-        }, );
-
-        if (sizeof($matched_idp) === 0) {
-            return '';
-        }
-
-        $matched_idp = reset($matched_idp);
-        return $matched_idp['idp-logout-url'] ?? '';
-    }
-
-    private function addReplaceLogoutLinkScript()
-    {
-        try {
-
-            $logoutUrl = $this->framework->getUrl('logout.php');
-
-            ?>
-            <script>
-                $(document).ready(function () {
-                    const link = document.querySelector('#nav-tab-logout a');
-                    if (link) {
-                        link.href = '<?= $logoutUrl ?>';
-                    }
-
-                    const projectLink = document.querySelector('#username-reference ~ span a');
-                    if (projectLink) {
-                        projectLink.href = '<?= $logoutUrl ?>';
-                    }
-                });
-            </script>
-            <?php
-        } catch ( \Throwable $e ) {
-            $this->framework->log(self::MODULE_TITLE . ': Error adding replace logout link script', [ 'error' => $e->getMessage() ]);
-        }
-    }
 }

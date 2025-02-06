@@ -27,11 +27,6 @@
                     "key": "idp-logout-url-esign",
                     "name": "<strong>Logout URL for E-Signature</strong><br>In the event that an IdP is not truthful about the Auth Instant (such as updating the instant even when the user did not actually re-authenticate; i.e., SSO), the module will attempt to forcefully log the user out prior to requesting their signature. The URL provided must be capable of automatically redirecting back to a URL. Use <code>{REDIRECT}</code> as a placeholder in your URL, e.g., <code>https://example.org/auth/logout?redirect={REDIRECT}</code>",
                     "type": "text"
-                },
-                {
-                    "key": "idp-logout-url",
-                    "name": "<strong>Logout URL</strong><br>This is a general logout URL that a user will be directed to when they click the 'Logout' button in REDCap",
-                    "type": "text"
                 }
             ]
         }
