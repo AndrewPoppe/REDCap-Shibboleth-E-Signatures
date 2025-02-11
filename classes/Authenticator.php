@@ -28,7 +28,7 @@ class Authenticator
 
         $url = $handler . '/Login?';
 
-        if ( $auth_meth_global === 'shibboleth_table' ) {
+        if ( str_starts_with($auth_meth_global, 'shibboleth') ) {
             $url .= 'entityID=' . urlencode($entityId) . '&';
         }
 

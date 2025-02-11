@@ -59,7 +59,7 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
                     return;
                 }
 
-                // Credentials match - setting auth_meth_global here to 'none' allows the e-signature to happen
+                // Credentials match - temporarily setting auth_meth_global here to 'none' allows the e-signature to happen
                 // This is okay, because the user has already been re-authenticated above
                 global $auth_meth_global;
                 $auth_meth_global = 'none';
