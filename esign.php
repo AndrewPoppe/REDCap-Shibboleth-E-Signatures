@@ -10,15 +10,6 @@ $requestInstant            = Authenticator::getEsignRequestTimestamp();
 $ShibAuthenticationInstant = Authenticator::getShibbolethAuthenticationInstant();
 $timeDiff                  = $ShibAuthenticationInstant - $requestInstant;
 
-
-// Force Logging out of IdP if requested
-$idp_logout_url = $module->getIdPLogoutUrlForEsign();
-if (!empty($idp_logout_url) && !isset($_SESSION[ShibbolethEsignatures::IDP_LOGOUT_COOKIE])) {
-    $_SESSION[ShibbolethEsignatures::IDP_LOGOUT_COOKIE] = TRUE;
-    header("Location: " . $idp_logout_url);
-    exit;
-}
-
 // No valid timestamp saved for this e-signature request
 if ( $requestInstant < 0 ) {
     echo 'Error e-signing. Please close this window and try again.';
@@ -39,9 +30,6 @@ if ( $ShibAuthenticationInstant < 0 || $timeDiff < 0 ) {
     header("Location: " . $redirectUrl);
     exit;
 }
-
-// Clear IdP Logout flag
-unset($_SESSION[ShibbolethEsignatures::IDP_LOGOUT_COOKIE]);
 
 // Re-authnetication was successful
 // Set some tokens to make sure requests match etc.

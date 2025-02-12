@@ -15,8 +15,6 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
 
     const MODULE_TITLE = 'Shibboleth E-Signatures';
     const MAX_REQUEST_AGE_SECONDS = 300;
-    const IDP_LOGOUT_REDIRECT_PLACEHOLDER = '{REDIRECT}';
-    const IDP_LOGOUT_COOKIE = 'IDP-LOGOUT-INITIATED';
 
     /**
      * REDCap Hook
@@ -120,25 +118,6 @@ class ShibbolethEsignatures extends \ExternalModules\AbstractExternalModule
             return mb_strtolower($string);
         }
         return strtolower($string);
-    }
-
-    public function getIdPLogoutUrlForEsign()
-    {
-        $entityId = Authenticator::getIdPEntityId();
-        $idps = $this->framework->getSubSettings('idp-logout');
-
-        $matched_idp = array_filter($idps, function($idp) use ($entityId) {
-            return $idp['idp-logout-entityid'] === $entityId;
-        }, );
-
-        if (sizeof($matched_idp) === 0) {
-            return '';
-        }
-
-        $matched_idp = reset($matched_idp);
-        $url = $matched_idp['idp-logout-url-esign'];
-        return str_replace(self::IDP_LOGOUT_REDIRECT_PLACEHOLDER, urlencode($this->framework->getUrl('esign.php')), $url);
-
     }
 
 }
