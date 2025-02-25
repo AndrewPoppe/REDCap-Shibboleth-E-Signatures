@@ -15,7 +15,6 @@ class Authenticator
         $this->module = $module;
     }
 
-
     public static function getLoginUrl($redirectUrl = '') : string
     {
         global $auth_meth_global;
@@ -36,8 +35,6 @@ class Authenticator
 
         return $url;
     }
-
-
 
     private function logError(string $errorMessage) : void
     {
