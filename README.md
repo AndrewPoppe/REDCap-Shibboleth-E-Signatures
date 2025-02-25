@@ -1,4 +1,4 @@
-# Shibboleth Authenticator
+# Shibboleth E-Signatures
 
 This module enables users who authenticate using Shibboleth to lock and e-sign instruments.
 
