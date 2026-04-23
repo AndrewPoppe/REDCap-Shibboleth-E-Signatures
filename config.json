@@ -2,7 +2,7 @@
     "name": "Shibboleth E-Signatures",
     "tt_namew": "module_name",
     "namespace": "YaleREDCap\\ShibbolethEsignatures",
-    "description": "TBD",
+    "description": "This External Module enables E-Signatures when using Shibboleth as the authentication method.",
     "tt_description": "module_description",
     "authors": [
         {

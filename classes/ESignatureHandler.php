@@ -75,7 +75,7 @@ class ESignatureHandler
                 const saveLockingOrig = saveLocking;
 
                 saveLocking = function (lock_action, esign_action) {
-                    if (esign_action !== 'save' || lock_action !== 1) {
+                    if (esign_action !== 'save') {
                         saveLockingOrig(lock_action, esign_action);
                         return;
                     }
